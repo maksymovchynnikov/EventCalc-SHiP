@@ -18,15 +18,16 @@ Unlike `SensCalc`, the code does not simulate decay products acceptance. Instead
 
 Running the main file `simulate.py` will first ask users about the number of LLPs sampled in the polar range of the SHiP experiment. Then, users will be asked about: 
 
- - Selecting the LLP.
- - Typing some LLP parameters such as the mixing pattern, variation of the theoretical uncertainty, and others (optionally, depending on LLP).
- - Selecting the LLP's decay modes for which the simulation will be launched (their names should be self-explanatory).
- - Range of LLP masses for which the simulation will be launched.
- - Range of LLP lifetimes.
+- Entering the number of decay events to simulate in the polar angle coverage of SHiP.
+- Selecting the LLP.
+- Setting up genuine LLP properties such as the mixing pattern, variation of the theoretical uncertainty, and others (optionally, depending on LLP).
+- Selecting the LLP's decay modes for which the simulation will be launched (their names should be self-explanatory).
+- Range of LLP masses for which the simulation will be launched.
+- Range of LLP lifetimes.
  
  After that, the simulation will start. It produces two outputs in the folder `outputs/<LLP>` (see description below):
- - The information about the decay events of LLPs and decay products (the file `eventData/<LLP>_<mass>_<lifetime>_....txt`), with dots meaning the other parameters relevant for the simulation (such as the mixing pattern in the case of HNLs, etc.).
- - The information about total quantities from the simulation: mass, coupling, lifetime, number of events, etc. (the file `eventData/<LLP>/total/<LLP>-...-total.txt`).
+- The information about the decay events of LLPs and decay products (the file `eventData/<LLP>_<mass>_<lifetime>_....txt`), with dots meaning the other parameters relevant for the simulation (such as the mixing pattern in the case of HNLs, etc.).
+- The information about total quantities from the simulation: mass, coupling, lifetime, number of events, etc. (the file `eventData/<LLP>/total/<LLP>-...-total.txt`).
 
 ## Installation
 
