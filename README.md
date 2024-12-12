@@ -37,7 +37,11 @@ Once this is done, the pythia's `lib` folder has to be specified in the script `
 
 ## Usage
 
-Running the main file `simulate.py` will first display the SHiP setup and then ask users about the requested number of LLPs to be sampled in the polar range of the SHiP experiment. Then, users will be asked about: 
+Running the main file `simulate.py`
+
+`python3 simulate.py`
+
+will first display the SHiP setup and then ask users about the requested number of LLPs to be sampled in the polar range of the SHiP experiment. Then, users will be asked about: 
 
 - Entering the number of decay events to simulate in the polar angle coverage of SHiP.
 - Selecting the LLP.
@@ -71,7 +75,7 @@ Note that the resulting number of the decay events in the output file will be lo
 
 - Main code `simulate.py`: the script to run the decay simulation. 
   
-- Post-processing:
+- Post-processing (launched as `python3 ...`):
   - `events_analysis.py`: the script computing various distributions with the decaying LLP and its decay products: position of the decay vertices, energy distributions, multiplicity, etc. The output is saved in the folder `plots/<LLP>/<LLP>_<mass>_<lifetime>_<other parameters>_decay products`.
   - `total-plots.py`: the script making the plot of some averaged quantities, such as the polar acceptance, total geometric acceptance, mean decay probability, etc., and the plot with the dependence of the number of events as a function of the LLP's coupling and mass. The output is two plots saved in the folder `plots/<LLP>`.
   - `event-display.py`: the script making .pdf and interactive .html plots showing the decay point of the LLP, the direction of its momentum, and the directions of its decay products. The output is the event display of 10 random events for the selected decay mode saved in the folder `plots/<LLP>/eventDisplay/<LLP>_<mass>_<lifetime>_<other parameters>`.
