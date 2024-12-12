@@ -1,6 +1,6 @@
 # EventCalc-SHiP
 
-Sampler of decay events with hypothetical Long-Lived Particles (LLPs) for the SHiP experiment. This is the finalization of Josue Jaramillo's CERN student project [josuejaramillo/summer_school_2024_SHiP](https://github.com/josuejaramillo/summer_school_2024_SHiP).
+Sampler of decay events with hypothetical Long-Lived Particles (LLPs) for the SHiP experiment. 
 
 ## Overview
 
@@ -170,3 +170,7 @@ In `EventCalc`, this is performed in the following way:
 - Introduce individual identifiers for various LLPs (currently, it is 12345678).
 - Add the possibility to sample LLPs solely within the azimuthal acceptance (as it is done in the `EventCalc` module in the [SensCalc repository](https://github.com/maksymovchynnikov/SensCalc)).
 - Add the version adapted for HTCondor.
+
+## Credits
+
+This is the finalization of [Josue Jaramillo's CERN student project](https://github.com/josuejaramillo/summer_school_2024_SHiP).
