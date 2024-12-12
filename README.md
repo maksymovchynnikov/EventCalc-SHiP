@@ -93,6 +93,18 @@ Currently, the following LLPs are implemented:
 - Higgs-like scalars `S` produced by the trilinear coupling (`Scalar-quartic`). The default value of the trilinear coupling is fixed in a way such that `Br(h->SS) = 0.01`, which corresponds to the so-called BC5 model. If one wants to compute the total number of events in the BC5 model, one needs just to sum the event rate from the mixing model and the quartic model for the given scalar mass and lifetime.
 - ALPs `a` coupled to photons (`ALP-photon`). Corresponds to the BC9 model.
 - Dark photons `V` (`Dark-photons`). They have a large theoretical uncertainty in the production. Because of this, the users are asked to select the flux within the range of this uncertainty - `lower`, `central`, or `upper` (see [2409.11096](https://arxiv.org/abs/2409.11096) for details). Corresponds to the BC1 model. 
+
+### LLP phenomenology description
+
+The phenomenology of various LLPs implemented in `EventCalc` follows the description used in `SensCalc`: 
+
+- [1805.08567](https://arxiv.org/abs/1805.08567) for HNLs. Minor changes include improved matching between exclusive and perturbative QCDc descriptions of decays into hadrons.
+- [1904.10447](https://arxiv.org/abs/1904.10447) for Higgs-like scalars. Minor changes include the modification of the decay width into gluons (higher order QCD corrections are taken into account).
+- [1904.02091](https://arxiv.org/abs/1904.02091) for the ALPs coupled to photons.
+- [2409.11096](https://arxiv.org/abs/2409.11096) and references therein for the dark photons. 
+
+The phenomenology is very different from the descriptions in the PBC report. This is because the latter is quite outdated. 
+
   
 ## To be done
 
