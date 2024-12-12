@@ -91,8 +91,8 @@ Currently, the following LLPs are implemented:
 - HNLs `N` with arbitrary mixing patterns (`HNL`). Corresponds to the so-called BC6 (if the pattern is 1:0:0), BC7 (if the pattern is 0:1:0), BC8 (0:0:1) models according to the [PBC definition](https://arxiv.org/abs/1901.09966).
 - Higgs-like scalars `S` that have mass mixing with the Higgs bosons (`Scalar-mixing`). This corresponds to the BC4 model.
 - Higgs-like scalars `S` produced by the trilinear coupling (`Scalar-quartic`). The default value of the trilinear coupling is fixed in a way such that `Br(h->SS) = 0.01`, which corresponds to the so-called BC5 model. If one wants to compute the total number of events in the BC5 model, one needs just to sum the event rate from the mixing model and the quartic model for the given scalar mass and lifetime.
-- ALPs coupled to photons (`ALP-photon`). Corresponds to the BC9 model
-- Dark photons (`Dark-photons`). They have a large theoretical uncertainty in the production. Because of this, the users are asked to select the flux within the range of this uncertainty - `lower`, `central`, or `upper` (see [2409.11096](https://arxiv.org/abs/2409.11096) for details). Corresponds to the BC1 model. 
+- ALPs `a` coupled to photons (`ALP-photon`). Corresponds to the BC9 model.
+- Dark photons `V` (`Dark-photons`). They have a large theoretical uncertainty in the production. Because of this, the users are asked to select the flux within the range of this uncertainty - `lower`, `central`, or `upper` (see [2409.11096](https://arxiv.org/abs/2409.11096) for details). Corresponds to the BC1 model. 
   
 ## To be done
 
