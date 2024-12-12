@@ -1,6 +1,6 @@
 # EventCalc-SHiP
 
-Sampler of decay events with hypothetical Long-Lived Particles (LLPs) for the SHiP experiment. 
+Sampler of decay events with hypothetical Long-Lived Particles (LLPs) for the [SHiP experiment](https://ship.web.cern.ch/). 
 
 ## Overview
 
@@ -14,7 +14,7 @@ The code does not simulate decay products acceptance. Instead, its output is pro
 
 ### Validation
 
-`EventCalc-SHiP` has been intensively cross-checked against `SensCalc` (which, in its turn, has been tested against [`FairShip`](https://github.com/ShipSoft/FairShip) and other tools), see [slides](https://indico.cern.ch/event/1481729/contributions/6256116/). The agreement in all the quantities (overall number of events, geometric acceptance, averaged decay probability, spectra, etc.) is within 10%.
+`EventCalc-SHiP` has been intensively cross-checked against [`SensCalc`](https://github.com/maksymovchynnikov/SensCalc) (which, in its turn, has been tested against [`FairShip`](https://github.com/ShipSoft/FairShip) and other tools), see [slides](https://indico.cern.ch/event/1481729/contributions/6256116/). The agreement in all the quantities (overall number of events, geometric acceptance, averaged decay probability, spectra, etc.) is within 10%.
 
 
 ## Installation
