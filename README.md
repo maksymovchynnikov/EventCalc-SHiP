@@ -1,6 +1,6 @@
 # EventCalc-SHiP
 
-Sampler of decay events with hypothetical long-lived particles for the SHiP experiment. 
+Sampler of decay events with hypothetical long-lived particles for the SHiP experiment. This is the finalization of Josue Jaramillo's CERN student project [josuejaramillo/summer_school_2024_SHiP](https://github.com/josuejaramillo/summer_school_2024_SHiP).
 
 ## Overview
 
