@@ -84,7 +84,7 @@ Note that the resulting number of the decay events in the output file will be lo
  
    `p_x,LLP p_y,LLP p_z,LLP E_LLP mass_LLP PDG_LLP P_decay,LLP x_decay,LLP y_decay,LLP z_decay,LLP p_x,prod1 p_y,prod1 p_z,prod1 E_prod1 mass_prod1 pdg_prod1 p_x,prod2 ...`
  
-  - where `...` means the data for the other decay products. The units are GeV (for mass, momentum, and energy) or meters (for coordinates). The center of the coordinate system corresponds to the center of the SHiP target. Some of the rows end with the strings `0. 0. 0. 0. 0. -999.`, to account for varying number of decay products in the same decay channel and maintain the flat array if merging all the datasets.
+  - where `...` means the data for the other decay products. The units are GeV (for mass, momentum, and energy) or meters (for coordinates). The center of the coordinate system corresponds to the center of the SHiP target. The first 10 numbers correspond to the decaying LLP info: its 4-momentum, mass, pdg identifier, decay probability in SHiP, decay coordinates. Each next 6 numbers correspond to the individual metastable decay product (electrons, muons, neutrinos and their antiparticles, photons, charged kaons, `K_L`, charged pions): 4-momentum, mass, and pdg identifier. Some of the rows end with the strings `0. 0. 0. 0. 0. -999.`, to account for varying number of decay products in the same decay channel and maintain the flat array if merging all the datasets.
   
 - The file with the total information (located in `outputs/<LLP>/Total`): contains the self-explanatory header describing the meaning of columns. Results of various simulations corresponding to the same LLP setup (such as the choice of the phenomenology within the theoretical uncertainty and the mixing pattern) are added to the corresponding files.
 
@@ -123,9 +123,9 @@ The phenomenology is very different from the descriptions in the PBC report. Thi
 
 It is split into three steps:
 - `EventCalc` simulates the phase space of decay products at the LLP rest frame. 
- - Two-body decays are sampled isotropically, with the two decay products having the same energy.
- - Three-body decays `LLP -> 1+2+3` are sampled using the squared matrix element of the process in terms of the LLP mass and energies `E_1`, `E_3` of the decay products.
- - Currently, four-body decays `LLP->1+2+3+4` are sampled assuming unit squared matrix element (to be improved in the future).
+  - Two-body decays are sampled isotropically, with the two decay products having the same energy.
+  - Three-body decays `LLP -> 1+2+3` are sampled using the squared matrix element of the process in terms of the LLP mass and energies `E_1`, `E_3` of the decay products.
+  - Currently, four-body decays `LLP->1+2+3+4` are sampled assuming unit squared matrix element (to be improved in the future).
 - The phase space is passed to `pythia8` for decaying unstable particles such as `pi^0`, showering and hadronization.
 - The resulting phase space is boosted into the LLP's lab frame.
 
@@ -146,9 +146,9 @@ Masses of LLPs to be probed at SHiP are in the GeV range, and, therefore, there 
 - The exclusive widths are non-zero below the matching mass, while perturbative widths are non-zero above it.  
 - For HNLs, neutral current and charged current widths are matched independently from each other, and for each pure mixing, matching is its own.
 - Consider perturbative QCD decays, `LLP -> quarks`, say `S->c cbar` for explicit example. Often, in the literature it is assumed that the threshold for this channel is just `2*m_c`, and the corresponding decay width is included to the total decay width of the LLP already above this di-quark threshold (see, e.g., [2201.065801](https://arxiv.org/pdf/2201.06580)). It is wrong, as the true threshold is `2*m_D`. The approach of `EventCalc` to deal with this and other similar decay modes is the following:
- - When calculating the decay width and the branching ratio, just replace the quark mass with the corresponding lightest meson mass. This way, the decay `S->cc` is replaced with `S->DD`.
- - However, to sample the proper kinematics of the decay, the actual quark masses have to be used. I.e., above the di-D threshold, `S` decays into two `c` quarks, each with mass `m_c = 1.27 GeV`. They are then properly hadronized in `pythia8`.
- - The described approach works trivially for 2-body decays. For 3-body decays like `N -> cc nu`, the situation is more subtle. If sampling the full Dalitz phase space of quarks and neutrinos (of course, reweighted by the squared matrix element of the decay), there may be situations when the invariant mass of the `cc` pair is still below the di-D threshold, which means that such event would be discarded. This would lead to the double counting of the decay suppression - the first comes from the replacement `m_c -> m_D` when calculating the width and branching ratio, while the second comes from the threshold. To avoid the double counting, the invariant mass of the `cc` pair in `EventCalc` is sampled in a way such that it is always above the di-D threshold. The same applies to the other hadronic decays.
+  - When calculating the decay width and the branching ratio, just replace the quark mass with the corresponding lightest meson mass. This way, the decay `S->cc` is replaced with `S->DD`.
+  - However, to sample the proper kinematics of the decay, the actual quark masses have to be used. I.e., above the di-D threshold, `S` decays into two `c` quarks, each with mass `m_c = 1.27 GeV`. They are then properly hadronized in `pythia8`.
+  - The described approach works trivially for 2-body decays. For 3-body decays like `N -> cc nu`, the situation is more subtle. If sampling the full Dalitz phase space of quarks and neutrinos (of course, reweighted by the squared matrix element of the decay), there may be situations when the invariant mass of the `cc` pair is still below the di-D threshold, which means that such event would be discarded. This would lead to the double counting of the decay suppression - the first comes from the replacement `m_c -> m_D` when calculating the width and branching ratio, while the second comes from the threshold. To avoid the double counting, the invariant mass of the `cc` pair in `EventCalc` is sampled in a way such that it is always above the di-D threshold. The same applies to the other hadronic decays.
 
   
 ## To be done
