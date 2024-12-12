@@ -19,6 +19,8 @@ The code does not simulate decay products acceptance. Instead, its output is pro
 
 ## Installation
 
+The code has been tested on Linux only.
+
 Ensure you have the required packages installed. You can use the following command to install the dependencies:
 
 ```bash
@@ -167,3 +169,4 @@ In `EventCalc`, this is performed in the following way:
 - Adding more sophisticated simulation codes (such as the machinery to simulate HNL-anti-HNL oscillations).
 - Introduce individual identifiers for various LLPs (currently, it is 12345678).
 - Add the possibility to sample LLPs solely within the azimuthal acceptance (as it is done in the `EventCalc` module in the [SensCalc repository](https://github.com/maksymovchynnikov/SensCalc)).
+- Add the version adapted for HTCondor.
