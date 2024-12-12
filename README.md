@@ -60,8 +60,9 @@ Note that the resulting number of the decay events in the output file will be lo
 
 ### Example
 
+The followin setup of launching `simulate.py` will run the simulation of `200000` decay events with HNLs with the mixing pattern `(1,0,0)`, all possible decay modes, masses `0.5, 4.5` GeV, and lifetimes ctau `0.01, 10000` for each mass:
+
 ```bash
-python3 simulate.py
 
 SHiP setup (modify ship_setup.py if needed):
 
@@ -136,8 +137,8 @@ Enter the numbers of the decay channels to select (separated by spaces): 0
 Generating LLP phenomenology plots...
 Phenomenology plots generated.
 
-Enter LLP masses in GeV (separated by spaces): 0.5 0.75 1 1.5 2 2.5 3 3.5 4 4.5
-Enter lifetimes c*tau in m for all masses (separated by spaces): 0.01 0.03 0.06 0.1 0.3 0.6 1 10 100 1000 10000 100000 10000000 10000000
+Enter LLP masses in GeV (separated by spaces): 0.5 4.5
+Enter lifetimes c*tau in m for all masses (separated by spaces): 0.01 10000
 ```
 
 
