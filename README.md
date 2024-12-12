@@ -58,6 +58,90 @@ After that, the simulation will start. It produces two outputs in the folder `ou
 
 Note that the resulting number of the decay events in the output file will be lower than the initial one (by a factor `~0.6-1`). This is the effect of the azimuthal acceptance of the SHiP decay volume.
 
+### Example
+
+```bash
+python3 simulate.py
+
+SHiP setup (modify ship_setup.py if needed):
+
+z_min = 32 m, z_max = 82 m, Delta_x_in = 1 m, Delta_x_out = 4 m, Delta_y_in = 2.7 m, Delta_y_out = 6.2 m, theta_max = 0.044960 rad
+
+Enter the number of events to simulate: 200000
+
+Particle Selector
+
+1. Scalar-mixing
+2. ALP-photon
+3. Scalar-quartic
+4. Dark-photons
+5. HNL
+Select particle: 5
+
+Enter xi_e, xi_mu, xi_tau: (Ue2, Umu2, Utau2) = U2(xi_e,xi_mu,xi_tau), summing to 1, separated by spaces: 1 0 0
+
+Select the decay modes:
+0. All
+1. 2ev
+2. 2muv
+3. 2Pie
+4. 2Piebar
+5. 2Pimu
+6. 2Pimubar
+7. 2Pitau
+8. 2Pitaubar
+9. 2Piv
+10. 2tauv
+11. a1v
+12. emuv
+13. emuvbar
+14. EtaPrv
+15. etauv
+16. etauvbar
+17. Etav
+18. Jets-ccv
+19. Jets-cse
+20. Jets-csebar
+21. Jets-csmu
+22. Jets-csmubar
+23. Jets-cstau
+24. Jets-cstaubar
+25. Jets-ddv
+26. Jets-ssv
+27. Jets-ude
+28. Jets-udebar
+29. Jets-udmu
+30. Jets-udmubar
+31. Jets-udtau
+32. Jets-udtaubar
+33. Jets-uuv
+34. Ke
+35. Kebar
+36. Kmu
+37. Kmubar
+38. Ktau
+39. Ktaubar
+40. mutauv
+41. Omegav
+42. Phiv
+43. Pi0v
+44. Pie
+45. Piebar
+46. Pimu
+47. Pimubar
+48. Pitau
+49. Pitaubar
+Enter the numbers of the decay channels to select (separated by spaces): 0
+
+Generating LLP phenomenology plots...
+Phenomenology plots generated.
+
+Enter LLP masses in GeV (separated by spaces): 0.5 0.75 1 1.5 2 2.5 3 3.5 4 4.5
+Enter lifetimes c*tau in m for all masses (separated by spaces): 0.01 0.03 0.06 0.1 0.3 0.6 1 10 100 1000 10000 100000 10000000 10000000
+```
+
+
+
 
 ### Code structure
 
@@ -92,7 +176,7 @@ Note that the resulting number of the decay events in the output file will be lo
  
   - where `...` means the data for the other decay products. The units are GeV (for mass, momentum, and energy) or meters (for coordinates). The center of the coordinate system corresponds to the center of the SHiP target. The first 10 numbers correspond to the decaying LLP info: its 4-momentum, mass, pdg identifier, decay probability in SHiP, decay coordinates. Each next 6 numbers correspond to the individual metastable decay product (electrons, muons, neutrinos and their antiparticles, photons, charged kaons, `K_L`, charged pions): 4-momentum, mass, and pdg identifier. Some of the rows end with the strings `0. 0. 0. 0. 0. -999.`, to account for varying number of decay products in the same decay channel and maintain the flat array if merging all the datasets.
   
-- The file with the total information (located in `outputs/<LLP>/Total`): contains the self-explanatory header describing the meaning of columns. Results of various simulations corresponding to the same LLP setup (such as the choice of the phenomenology within the theoretical uncertainty and the mixing pattern) are added to the corresponding files.
+- The file with the total information about the simulation (located in `outputs/<LLP>/Total`): contains the self-explanatory header describing the meaning of columns. Results of various simulations corresponding to the same LLP setup (such as the choice of the phenomenology within the theoretical uncertainty and the mixing pattern) are added to the corresponding files.
 
 - Plots with the LLP mass dependence phenomenology used to produce the event rates: 
   - The overall LLP production probability per proton-on-target per coupling squared.
