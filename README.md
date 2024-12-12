@@ -107,7 +107,7 @@ The phenomenology is very different from the descriptions in the PBC report. Thi
 
 ## Validation
 
-The code has been intensively cross-checked against `SensCalc` (which, in its turn, has been tested against `FairShip` and other tools). The agreement in all the quantities is within 10%.
+The code has been intensively cross-checked against `SensCalc` (which, in its turn, has been tested against `FairShip` and other tools), see [slides](https://indico.cern.ch/event/1481729/contributions/6256116/). The agreement in all the quantities is within 10%.
 
   
 ## To be done
