@@ -257,8 +257,8 @@ class Grids:
             - np.exp(-z_max * self.m / (np.cos(self.r_theta) * self.c_tau * momentum))
         )
 
-        # Mask for particles decaying inside the volume
-        mask = (
+        # geom_acceptance for particles decaying inside the volume
+        geom_acceptance = (
             (-x_max(z) < x)
             & (x < x_max(z))
             & (-y_max(z) < y)
@@ -268,22 +268,22 @@ class Grids:
         )
 
         self.kinematics_dic = {
-            "px": px[mask],
-            "py": py[mask],
-            "pz": pz[mask],
-            "energy": self.r_energy[mask],
-            "m": self.m * np.ones_like(px[mask]),
-            "PDG": 12345678 * np.ones_like(px[mask]),
-            "P_decay": P_decay[mask],
-            "x": x[mask],
-            "y": y[mask],
-            "z": z[mask]
+            "px": px[geom_acceptance],
+            "py": py[geom_acceptance],
+            "pz": pz[geom_acceptance],
+            "energy": self.r_energy[geom_acceptance],
+            "m": self.m * np.ones_like(px[geom_acceptance]),
+            "PDG": 12345678 * np.ones_like(px[geom_acceptance]),
+            "P_decay": P_decay[geom_acceptance],
+            "x": x[geom_acceptance],
+            "y": y[geom_acceptance],
+            "z": z[geom_acceptance]
         }
 
         if timing:
             print(f"Sampling vertices t = {time.time() - t} s")
 
-        self.momentum = np.column_stack((px[mask], py[mask], pz[mask], self.r_energy[mask]))
+        self.momentum = np.column_stack((px[geom_acceptance], py[geom_acceptance], pz[geom_acceptance], self.r_energy[geom_acceptance]))
 
     def get_kinematics(self):
         dic = self.kinematics_dic

@@ -1,63 +1,8 @@
 import numpy as np
-from numba import jit, njit, prange
-from numpy.random import random, uniform, choice
-from . import rotateVectors
+from numba import njit
+from numpy.random import uniform, choice
+from . import rotateVectors  # Assuming this module is defined elsewhere
 import time
-
-@njit
-def E2valEnergies(m, E1, E3):
-    """
-    Calculate the energy of the second particle in a three-body decay,
-    given the total mass and the energies of the first and third particles.
-
-    Parameters:
-    -----------
-    m : float
-        Total mass of the decaying particle.
-    E1 : float
-        Energy of the first particle.
-    E3 : float
-        Energy of the third particle.
-
-    Returns:
-    --------
-    float
-        Energy of the second particle.
-    """
-    return m - E1 - E3
-
-@njit
-def block_random_energies_old(m, m1, m2, m3):
-    """
-    Generate random energies for the first and third decay products in a three-body decay.
-    This function uses a while loop to ensure energy conservation and kinematic constraints.
-
-    Parameters:
-    -----------
-    m : float
-        Total mass of the decaying particle.
-    m1 : float
-        Mass of the first decay product.
-    m2 : float
-        Mass of the second decay product.
-    m3 : float
-        Mass of the third decay product.
-
-    Returns:
-    --------
-    np.ndarray
-        Array containing the generated energies [E1, E3].
-    """
-    while True:
-        # Randomly sample energies for the third and first decay products
-        E3r = np.random.uniform(m3, (m**2 + m3**2 - (m1 + m2)**2) / (2 * m))
-        E1r = np.random.uniform(m1, (m**2 + m1**2 - (m2 + m3)**2) / (2 * m))
-        E2v = m - E1r - E3r
-
-        # Apply energy and kinematic constraints to ensure a valid decay
-        if E2v > m2 and (E2v**2 - m2**2 - (E1r**2 - m1**2) - (E3r**2 - m3**2))**2 < 4 * (E1r**2 - m1**2) * (E3r**2 - m3**2):
-            break
-    return np.array([E1r, E3r])
 
 def block_random_energies_vectorized(m, m1, m2, m3, n_events, success_rate=1.0):
     """
@@ -90,16 +35,19 @@ def block_random_energies_vectorized(m, m1, m2, m3, n_events, success_rate=1.0):
 
     while n_missing > 0:
         # Clip success_rate to avoid RAM issues
-        success_rate = min(max(success_rate, 0.001), 1.0)
+        current_success_rate = min(max(success_rate, 0.001), 1.0)
+        
+        # Determine the number of samples to generate
+        sample_size = int(1.2 * n_missing / current_success_rate)
         
         # Generate random energy samples for E1 and E3
-        E3r = np.random.uniform(m3, (m ** 2 + m3 ** 2 - (m1 + m2) ** 2) / (2 * m), int(1.2 * n_missing / success_rate))
-        E1r = np.random.uniform(m1, (m ** 2 + m1 ** 2 - (m2 + m3) ** 2) / (2 * m), int(1.2 * n_missing / success_rate))
+        E1r = np.random.uniform(m1, (m**2 + m1**2 - (m2 + m3)**2) / (2 * m), sample_size)
+        E3r = np.random.uniform(m3, (m**2 + m3**2 - (m1 + m2)**2) / (2 * m), sample_size)
         E2v = m - E1r - E3r
 
         # Apply kinematic constraints to filter out invalid configurations
-        term1 = (E2v ** 2 - m2 ** 2 - (E1r ** 2 - m1 ** 2) - (E3r ** 2 - m3 ** 2)) ** 2
-        term2 = 4 * (E1r ** 2 - m1 ** 2) * (E3r ** 2 - m3 ** 2)
+        term1 = (E2v**2 - m2**2 - (E1r**2 - m1**2) - (E3r**2 - m3**2))**2
+        term2 = 4 * (E1r**2 - m1**2) * (E3r**2 - m3**2)
         is_valid = np.logical_and(E2v > m2, term1 < term2)
         current_n_valid = np.sum(is_valid)
 
@@ -108,16 +56,14 @@ def block_random_energies_vectorized(m, m1, m2, m3, n_events, success_rate=1.0):
         E1r_valid[n_valid:n_valid+n_new_to_add] = E1r[is_valid][:n_new_to_add]
         E3r_valid[n_valid:n_valid+n_new_to_add] = E3r[is_valid][:n_new_to_add]
         success_rate = current_n_valid / len(is_valid)
-        n_missing -= current_n_valid
-        n_valid += current_n_valid
+        n_missing -= n_new_to_add
+        n_valid += n_new_to_add
 
     return E1r_valid, E3r_valid
 
-@njit
-def block_random_energies_old1(m, m1, m2, m3, Nevents):
+def block_random_energies_hadrons(m, m1, m2, m3, n_events, distr, pdg1, pdg2, pdg3):
     """
-    Generate random energies for multiple decay events using the old method.
-    This version uses a loop to generate energies for each event.
+    Modified energy sampler that incorporates invariant mass threshold for parton pairs.
 
     Parameters:
     -----------
@@ -129,18 +75,134 @@ def block_random_energies_old1(m, m1, m2, m3, Nevents):
         Mass of the second decay product.
     m3 : float
         Mass of the third decay product.
-    Nevents : int
+    n_events : int
         Number of decay events to simulate.
+    distr : function
+        Function that computes the matrix element for given energies.
+    pdg1, pdg2, pdg3 : int
+        PDG identifiers for the three decay products.
 
     Returns:
     --------
-    np.ndarray
-        Array of generated energies for each event.
+    tuple
+        Arrays containing the generated energies for E1 and E3.
     """
-    result = np.empty((Nevents, 2))  # Preallocate array with the right shape
-    for i in prange(Nevents):
-        result[i] = block_random_energies_old(m, m1, m2, m3)
-    return result
+    # Define parton PDG codes
+    parton_pdgs = {1, 2, 3, 4, 21}
+    
+    # Identify partons among the decay products
+    is_parton1 = abs(pdg1) in parton_pdgs
+    is_parton2 = abs(pdg2) in parton_pdgs
+    is_parton3 = abs(pdg3) in parton_pdgs
+    
+    # Count the number of partons
+    n_partons = is_parton1 + is_parton2 + is_parton3
+    
+    if n_partons < 2:
+        # Less than two partons: use the original vectorized sampler
+        return block_random_energies_vectorized(m, m1, m2, m3, n_events)
+    else:
+        # Exactly two partons: apply invariant mass threshold
+        # Identify the non-parton particle (assumed to be either pdg1 or pdg3)
+        if not is_parton1:
+            non_parton_index = 1  # Corresponds to E1
+            m_non_parton = m1
+        elif not is_parton3:
+            non_parton_index = 3  # Corresponds to E3
+            m_non_parton = m3
+        else:
+            # According to your note, pdg2 is not a non-parton, but handle gracefully
+            raise ValueError("Unexpected scenario: non-parton is pdg2, which is not anticipated.")
+        
+        # Identify the parton PDGs
+        if non_parton_index == 1:
+            parton_pdgs_pair = (pdg2, pdg3)
+        elif non_parton_index == 3:
+            parton_pdgs_pair = (pdg1, pdg2)
+        else:
+            # This case should not occur as per user note
+            parton_pdgs_pair = (pdg1, pdg3)
+        
+        # Define fictitious meson masses based on PDG codes
+        def m_fictitious(pdg):
+            abs_pdg = abs(pdg)
+            if abs_pdg in {1, 2, 21}:
+                return 0.1396
+            elif abs_pdg == 3:
+                return 0.496
+            elif abs_pdg == 4:
+                return 1.875
+            else:
+                # Default value for unexpected PDG codes
+                return 0.0
+        
+        # Compute the invariant mass threshold
+        mthr = m_fictitious(parton_pdgs_pair[0]) + m_fictitious(parton_pdgs_pair[1])
+        
+        # Compute the maximum allowed energy for the non-parton
+        E_non_parton_max = (m**2 + m_non_parton**2 - mthr**2) / (2 * m)
+        
+        # Ensure that the upper bound does not exceed the kinematic limit without threshold
+        if non_parton_index == 1:
+            E_non_parton_limit = (m**2 + m1**2 - (m2 + m3)**2) / (2 * m)
+        elif non_parton_index == 3:
+            E_non_parton_limit = (m**2 + m3**2 - (m1 + m2)**2) / (2 * m)
+        else:
+            # This case should not occur as per user note
+            E_non_parton_limit = E_non_parton_max
+        
+        # The upper bound is the minimum of the two
+        E_non_parton_max = min(E_non_parton_max, E_non_parton_limit)
+        
+        # Initialize arrays to store valid energies
+        n_valid = 0
+        n_missing = n_events
+        E1r_valid = np.zeros(n_events)
+        E3r_valid = np.zeros(n_events)
+        
+        while n_missing > 0:
+            # Estimate the number of samples to generate
+            sample_size = int(1.2 * n_missing)
+            
+            if non_parton_index == 1:
+                # Sample E1 with the new upper bound
+                E1r = np.random.uniform(m1, E_non_parton_max, sample_size)
+                E3r = np.random.uniform(m3, (m**2 + m3**2 - (m1 + m2)**2) / (2 * m), sample_size)
+            elif non_parton_index == 3:
+                # Sample E3 with the new upper bound
+                E3r = np.random.uniform(m3, E_non_parton_max, sample_size)
+                E1r = np.random.uniform(m1, (m**2 + m1**2 - (m2 + m3)**2) / (2 * m), sample_size)
+            else:
+                # This case should not occur
+                raise ValueError("Unexpected non-parton index.")
+            
+            E2v = m - E1r - E3r
+            
+            # Apply kinematic constraints to filter out invalid configurations
+            term1 = (E2v**2 - m2**2 - (E1r**2 - m1**2) - (E3r**2 - m3**2))**2
+            term2 = 4 * (E1r**2 - m1**2) * (E3r**2 - m3**2)
+            is_valid = np.logical_and(E2v > m2, term1 < term2)
+            
+            # Additional invariant mass threshold condition
+            # As per the exact formula: E_non_parton <= (m^2 + m_non_parton^2 - mthr^2)/(2*m)
+            # Since we've already sampled E_non_parton <= E_non_parton_max, which incorporates this,
+            # there's no need for an additional condition here.
+            # However, to be precise, ensure that the parton pair invariant mass >= mthr
+            # Using the exact formula provided:
+            # M_partons^2 = m^2 + m_non_parton^2 - 2 * m * E_non_parton >= mthr^2
+            # Which simplifies to E_non_parton <= (m^2 + m_non_parton^2 - mthr^2)/(2*m)
+            # This condition is already enforced in the sampling range
+            
+            current_n_valid = np.sum(is_valid)
+            
+            # Store valid energies and update counters
+            n_new_to_add = min(current_n_valid, n_missing)
+            E1r_valid[n_valid:n_valid+n_new_to_add] = E1r[is_valid][:n_new_to_add]
+            E3r_valid[n_valid:n_valid+n_new_to_add] = E3r[is_valid][:n_new_to_add]
+            n_missing -= n_new_to_add
+            n_valid += n_new_to_add
+
+        return E1r_valid, E3r_valid
 
 def weights_non_uniform_comp(tabe1e3, MASSM, MASS1, MASS2, MASS3, distr):
     """
@@ -166,16 +228,17 @@ def weights_non_uniform_comp(tabe1e3, MASSM, MASS1, MASS2, MASS3, distr):
     np.ndarray
         Array of weights for each event.
     """
-    e1 = np.array(tabe1e3[:, 0])
-    e3 = np.array(tabe1e3[:, 1])
+    e1 = tabe1e3[:, 0]
+    e3 = tabe1e3[:, 1]
 
     # Calculate the matrix element for each energy pair
     ME = distr(MASSM, e1, e3)
     return ME
 
-def block_random_energies(m, m1, m2, m3, Nevents, distr):
+def block_random_energies(m, m1, m2, m3, Nevents, distr, pdg1, pdg2, pdg3):
     """
     Generate random energies and apply non-uniform weighting to simulate decay events.
+    This function incorporates invariant mass threshold for parton pairs when necessary.
 
     Parameters:
     -----------
@@ -191,26 +254,35 @@ def block_random_energies(m, m1, m2, m3, Nevents, distr):
         Number of decay events to simulate.
     distr : function
         Function that computes the matrix element for given energies.
+    pdg1, pdg2, pdg3 : int
+        PDG identifiers for the three decay products.
 
     Returns:
     --------
     np.ndarray
         Array of weighted energy pairs [E1, E3].
     """
-    # Generate random energies assuming a unit matrix element
-    tabE1E3unweighted = np.array(block_random_energies_vectorized(m, m1, m2, m3, Nevents)).T
+    # Generate energy pairs [E1, E3] with invariant mass constraints if necessary
+    tabE1E3unweighted = np.array(
+        block_random_energies_hadrons(m, m1, m2, m3, Nevents, distr, pdg1, pdg2, pdg3)
+    ).T
 
     # Calculate weights for the generated energies
-    t = time.time()
     weights1 = np.abs(weights_non_uniform_comp(tabE1E3unweighted, m, m1, m2, m3, distr))
 
     # Ensure weights are non-negative
     weights1 = np.where(weights1 < 0, 0, weights1)
 
+    # Normalize weights to form a probability distribution
+    weight_sum = weights1.sum()
+    if weight_sum == 0:
+        raise ValueError("All weights are zero. Check the distribution function and energy sampling.")
+    probabilities = weights1 / weight_sum
+
     # Select events according to the computed weights
-    tabsel_indeces = choice(len(tabE1E3unweighted), size=Nevents, p=weights1/weights1.sum())
-    
-    return tabE1E3unweighted[tabsel_indeces]
+    tabsel_indices = choice(len(tabE1E3unweighted), size=Nevents, p=probabilities)
+
+    return tabE1E3unweighted[tabsel_indices]
 
 @njit
 def tabPS3bodyCompiled(tabPSenergies, MASSM, MASS1, MASS2, MASS3, pdg1, pdg2, pdg3, charge1, charge2, charge3, stability1, stability2, stability3):
@@ -261,9 +333,11 @@ def tabPS3bodyCompiled(tabPSenergies, MASSM, MASS1, MASS2, MASS3, pdg1, pdg2, pd
     pzprod3 = rotateVectors.p3rotatedZ_jit(eprod1, eprod3, MASSM, MASS1, MASS2, MASS3, thetaRand, phiRand, kappaRand)
 
     # Return the momentum components and particle properties
-    return np.array([pxprod1, pyprod1, pzprod1, eprod1, MASS1, pdg1, charge1, stability1,
-                     pxprod2, pyprod2, pzprod2, eprod2, MASS2, pdg2, charge2, stability2,
-                     pxprod3, pyprod3, pzprod3, eprod3, MASS3, pdg3, charge3, stability3])
+    return np.array([
+        pxprod1, pyprod1, pzprod1, eprod1, MASS1, pdg1, charge1, stability1,
+        pxprod2, pyprod2, pzprod2, eprod2, MASS2, pdg2, charge2, stability2,
+        pxprod3, pyprod3, pzprod3, eprod3, MASS3, pdg3, charge3, stability3
+    ])
 
 def decay_products(MASSM, Nevents, SpecificDecay):
     """
@@ -288,11 +362,17 @@ def decay_products(MASSM, Nevents, SpecificDecay):
     def distr(m, E1, E3):
         return Msquared3BodyLLP(m, E1, E3)
 
-    # Generate energy pairs [E1, E3] for the decay products
-    tabE1E3true = block_random_energies(MASSM, MASS1, MASS2, MASS3, Nevents, distr)
+    # Generate energy pairs [E1, E3] for the decay products with invariant mass constraints
+    tabE1E3true = block_random_energies(MASSM, MASS1, MASS2, MASS3, Nevents, distr, pdg1, pdg2, pdg3)
 
     # Compute the momentum components and particle properties for each event
-    result = np.array([tabPS3bodyCompiled(e, MASSM, MASS1, MASS2, MASS3, pdg1, pdg2, pdg3, charge1, charge2, charge3, stability1, stability2, stability3)
-                       for e in tabE1E3true])
+    result = np.array([
+        tabPS3bodyCompiled(
+            e, MASSM, MASS1, MASS2, MASS3, pdg1, pdg2, pdg3,
+            charge1, charge2, charge3, stability1, stability2, stability3
+        )
+        for e in tabE1E3true
+    ])
     
     return result
+
