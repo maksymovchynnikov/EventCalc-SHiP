@@ -1,6 +1,6 @@
 # EventCalc-SHiP
 
-Sampler of decay events with hypothetical Long-Lived Particles (LLPs) for the [SHiP experiment](https://ship.web.cern.ch/). 
+Sampler of decay events with hypothetical Long-Lived Particles (LLPs) for the [SHiP experiment](https://ship.web.cern.ch/). May be easily adapted for any other experiment.
 
 ## Overview
 
