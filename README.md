@@ -88,7 +88,7 @@ Once this is done, the lib path has to be specified in the script `funcs/decayPr
 
 Currently, the following LLPs are implemented:
 
-- HNLs `N` with arbitrary mixing patterns (`HNL`). Corresponds to the so-called BC6 (if the pattern is 1:0:0), BC7 (if the pattern is 0:1:0), BC8 (0:0:1) models according to the [PBC definition](https://arxiv.org/abs/1901.09966).
+- HNLs `N` with arbitrary mixing patterns (`HNL`). Corresponds to the so-called BC6 (if the pattern is 1:0:0), BC7 (if the pattern is 0:1:0), BC8 (0:0:1) models according to the [PBC definition](https://arxiv.org/abs/1901.09966). Of course, the pattern may be made arbitrary.
 - Higgs-like scalars `S` that have mass mixing with the Higgs bosons (`Scalar-mixing`). This corresponds to the BC4 model.
 - Higgs-like scalars `S` produced by the trilinear coupling (`Scalar-quartic`). The default value of the trilinear coupling is fixed in a way such that `Br(h->SS) = 0.01`, which corresponds to the so-called BC5 model. If one wants to compute the total number of events in the BC5 model, one needs just to sum the event rate from the mixing model and the quartic model for the given scalar mass and lifetime.
 - ALPs `a` coupled to photons (`ALP-photon`). Corresponds to the BC9 model.
@@ -98,12 +98,16 @@ Currently, the following LLPs are implemented:
 
 The phenomenology of various LLPs implemented in `EventCalc` follows the description used in `SensCalc`: 
 
-- [1805.08567](https://arxiv.org/abs/1805.08567) for HNLs. Minor changes include improved matching between exclusive and perturbative QCDc descriptions of decays into hadrons.
+- [1805.08567](https://arxiv.org/abs/1805.08567) for HNLs. Minor changes include improved matching between exclusive and perturbative QCD descriptions of decays into hadrons (separately for neutral and charged current processes and for three various mixing).
 - [1904.10447](https://arxiv.org/abs/1904.10447) for Higgs-like scalars. Minor changes include the modification of the decay width into gluons (higher order QCD corrections are taken into account).
 - [1904.02091](https://arxiv.org/abs/1904.02091) for the ALPs coupled to photons.
 - [2409.11096](https://arxiv.org/abs/2409.11096) and references therein for the dark photons. 
 
 The phenomenology is very different from the descriptions in the PBC report. This is because the latter is quite outdated. 
+
+## Validation
+
+The code has been intensively cross-checked against `SensCalc` (which, in its turn, has been tested against `FairShip` and other tools). The agreement in all the quantities is within 10%.
 
   
 ## To be done
