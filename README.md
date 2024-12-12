@@ -18,20 +18,6 @@ Unlike `SensCalc`, the code does not simulate decay products acceptance. Instead
 
 `EventCalc-SHiP` has been intensively cross-checked against `SensCalc` (which, in its turn, has been tested against `FairShip` and other tools), see [slides](https://indico.cern.ch/event/1481729/contributions/6256116/). The agreement in all the quantities (overall number of events, geometric acceptance, averaged decay probability, spectra, etc.) is within 10%.
 
-## Usage
-
-Running the main file `simulate.py` will first ask users about the number of LLPs sampled in the polar range of the SHiP experiment. Then, users will be asked about: 
-
-- Entering the number of decay events to simulate in the polar angle coverage of SHiP.
-- Selecting the LLP.
-- Setting up genuine LLP properties such as the mixing pattern, variation of the theoretical uncertainty, and others (optionally, depending on LLP).
-- Selecting the LLP's decay modes for which the simulation will be launched (their names should be self-explanatory).
-- Range of LLP masses for which the simulation will be launched.
-- Range of LLP lifetimes.
- 
- After that, the simulation will start. It produces two outputs in the folder `outputs/<LLP>` (see description below):
-- The information about the decay events of LLPs and decay products (the file `eventData/<LLP>_<mass>_<lifetime>_....txt`), with dots meaning the other parameters relevant for the simulation (such as the mixing pattern in the case of HNLs, etc.).
-- The information about total quantities from the simulation: mass, coupling, lifetime, number of events, etc. (the file `eventData/<LLP>/total/<LLP>-...-total.txt`).
 
 ## Installation
 
@@ -51,9 +37,24 @@ Once this is done, the lib path has to be specified in the script `funcs/decayPr
 
 `sys.path.insert(0, '/home/name/Downloads/pythia8312/lib')`
 
+## Usage
+
+Running the main file `simulate.py` will first ask users about the number of LLPs sampled in the polar range of the SHiP experiment. Then, users will be asked about: 
+
+- Entering the number of decay events to simulate in the polar angle coverage of SHiP.
+- Selecting the LLP.
+- Setting up genuine LLP properties such as the mixing pattern, variation of the theoretical uncertainty, and others (optionally, depending on LLP).
+- Selecting the LLP's decay modes for which the simulation will be launched (their names should be self-explanatory).
+- Range of LLP masses for which the simulation will be launched.
+- Range of LLP lifetimes.
+ 
+ After that, the simulation will start. It produces two outputs in the folder `outputs/<LLP>` (see description below):
+- The information about the decay events of LLPs and decay products (the file `eventData/<LLP>_<mass>_<lifetime>_....txt`), with dots meaning the other parameters relevant for the simulation (such as the mixing pattern in the case of HNLs, etc.).
+- The information about total quantities from the simulation: mass, coupling, lifetime, number of events, etc. (the file `eventData/<LLP>/total/<LLP>-...-total.txt`).
 
 
-## File Structure
+
+### Code structure
 
 - `funcs/`:
   - `initLLP.py`: Contains the `LLP` class, which initializes the LLP object with attributes like mass, PDGs (Particle Data Group identifiers), and branching ratios.
@@ -76,7 +77,7 @@ Once this is done, the lib path has to be specified in the script `funcs/decayPr
   - `total-plots.py`: the script making the plot of some averaged quantities, such as the polar acceptance, total geometric acceptance, mean decay probability, etc., and the plot with the dependence of the number of events as a function of the LLP's coupling and mass. The output is two plots saved in the folder `plots/<LLP>`.
   - `event-display.py`: the script making .pdf and interactive .html plots showing the decay point of the LLP, the direction of its momentum, and the directions of its decay products. The output is the event display of 10 random events for the selected decay mode saved in the folder `plots/<LLP>/eventDisplay/<LLP>_<mass>_<lifetime>_<other parameters>`.
 
-## Output files of the simulation
+### Output files of the simulation
 
 - The detailed event record file (located in `outputs/<LLP>/eventData/<LLP>_<mass>_<lifetime>_<other parameters>_decayProducts.dat`): 
   - The first string is `Sampled ## events inside SHiP volume. Total number of produced LLPs: ##. Polar acceptance: ##. Azimuthal acceptance: ##. Averaged decay probability: ##. Visible Br Ratio: ##. Total number of events: ##`. The meanings of the numbers are: the total sample size; the total number of LLPs produced during 15 years of SHIP running; the amount of LLPs pointing to the polar range of the experiment; of those, the amount of LLPs that also pass the azimuthal acceptance cut; of those, the averaged probability to decay inside the SHiP volume; the visible branching ratio of selected decay channels; the total number of decay events inside the decay volume.
@@ -94,6 +95,8 @@ Once this is done, the lib path has to be specified in the script `funcs/decayPr
  - The branching ratios of the decay modes selected for the simulation.
 
 
+
+
 ## Implemented LLPs
 
 Currently, the following LLPs are implemented:
@@ -104,7 +107,7 @@ Currently, the following LLPs are implemented:
 - ALPs `a` coupled to photons (`ALP-photon`). Corresponds to the BC9 model.
 - Dark photons `V` (`Dark-photons`). They have a large theoretical uncertainty in the production. Because of this, the users are asked to select the flux within the range of this uncertainty - `lower`, `central`, or `upper` (see [2409.11096](https://arxiv.org/abs/2409.11096) for details). Corresponds to the BC1 model. 
 
-### LLP phenomenology description
+## LLP phenomenology description
 
 The phenomenology of various LLPs implemented in `EventCalc` follows the description used in `SensCalc`: 
 
@@ -137,8 +140,6 @@ Masses of LLPs to be probed at SHiP are in the GeV range, and, therefore, there 
  - When calculating the decay width and the branching ratio, just replace the quark mass with the corresponding lightest meson mass. This way, the decay `S->cc` is replaced with `S->DD`.
  - However, to sample the proper kinematics of the decay, the actual quark masses have to be used. I.e., above the di-D threshold, `S` decays into two `c` quarks, each with mass `m_c = 1.27 GeV`. They are then properly hadronized in `pythia8`.
  - The described approach works trivially for 2-body decays. For 3-body decays like `N -> cc nu`, the situation is more subtle. If sampling the full Dalitz phase space of quarks and neutrinos (of course, reweighted by the squared matrix element of the decay), there may be situations when the invariant mass of the `cc` pair is still below the di-D threshold, which means that such event would be discarded. This would lead to the double counting of the decay suppression - the first comes from the replacement `m_c -> m_D` when calculating the width and branching ratio, while the second comes from the threshold. To avoid the double counting, the invariant mass of the `cc` pair in `EventCalc` is sampled in a way such that it is always above the di-D threshold. The same applies to the other hadronic decays.
-
-
 
   
 ## To be done
