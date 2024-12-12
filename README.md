@@ -6,7 +6,7 @@ Sampler of decay events with hypothetical long-lived particles for the SHiP expe
 
 The code
 - Takes the tabulated distributions of LLPs in mass, polar angle, and energy (the distribution is averaged over all possible production channels), and the tabulated dependence of the maximum LLP energy on the mass and the polar angle, and samples the 3-momentum of the LLPs in the direction of the decay volume of SHiP.
-- Having the generated 4-momenta, samples the decay positions based on the exponential distribution in the LLP decay length.
+- Having the generated 4-momenta, samples LLPs' decay positions based on the exponential distribution in the LLP decay length. The sampling is done within the z coverage of the SHiP decay volume.
 - Simulates 2-, 3-, or 4-body decays of LLPs using an internal phase space simulator and then passes the events to pythia8 for showering and hadronization of jets. 
 - Using the tabulated total yields, decay branching ratios, lifetime-mass dependence, and computed geometric acceptance and decay probability, calculates the total number of decay events.
 
