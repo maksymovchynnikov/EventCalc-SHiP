@@ -29,15 +29,15 @@ Also, [pythia8](https://pythia.org/) must be installed with python config. When 
 
 `./configure --with-python-config=python3-config`
 
-After `make`, the lib folder has to contain the `pythia8.so` file.
+After doing `make`, the pythia's `lib` folder has to contain the `pythia8.so` file.
 
-Once this is done, the lib path has to be specified in the script `funcs/decayProducts.py`. Currently, it is
+Once this is done, the pythia's `lib` folder has to be specified in the script `funcs/decayProducts.py`. Currently, it is
 
 `sys.path.insert(0, '/home/name/Downloads/pythia8312/lib')`
 
 ## Usage
 
-Running the main file `simulate.py` will first ask users about the number of LLPs sampled in the polar range of the SHiP experiment. Then, users will be asked about: 
+Running the main file `simulate.py` will first display the SHiP setup and then ask users about the requested number of LLPs to be sampled in the polar range of the SHiP experiment. Then, users will be asked about: 
 
 - Entering the number of decay events to simulate in the polar angle coverage of SHiP.
 - Selecting the LLP.
@@ -46,10 +46,11 @@ Running the main file `simulate.py` will first ask users about the number of LLP
 - Range of LLP masses for which the simulation will be launched.
 - Range of LLP lifetimes.
  
- After that, the simulation will start. It produces two outputs in the folder `outputs/<LLP>` (see description below):
+After that, the simulation will start. It produces two outputs in the folder `outputs/<LLP>` (see description below):
 - The information about the decay events of LLPs and decay products (the file `eventData/<LLP>_<mass>_<lifetime>_....txt`), with dots meaning the other parameters relevant for the simulation (such as the mixing pattern in the case of HNLs, etc.).
 - The information about total quantities from the simulation: mass, coupling, lifetime, number of events, etc. (the file `eventData/<LLP>/total/<LLP>-...-total.txt`).
 
+Note that the resulting number of the decay events in the output file will be lower than the initial one (by a factor `~0.6-1`). This is the effect of the azimuthal acceptance of the SHiP decay volume.
 
 
 ### Code structure
@@ -91,7 +92,6 @@ Running the main file `simulate.py` will first ask users about the number of LLP
  - The overall LLP production probability per proton-on-target per coupling squared.
  - The LLP lifetime.
  - The branching ratios of the decay modes selected for the simulation.
-
 
 
 
@@ -160,3 +160,4 @@ Masses of LLPs to be probed at SHiP are in the GeV range, and, therefore, there 
 - Adding cascade production from kaons and light mesons for HNLs, Higgs-like scalars, dark photons.
 - Adding more sophisticated simulation codes (such as the machinery to simulate HNL-anti-HNL oscillations).
 - Introduce individual identifiers for various LLPs (currently, it is 12345678).
+- Add the possibility to sample LLPs solely within the azimuthal acceptance (as it is done in the `EventCalc` module in the [SensCalc repository](https://github.com/maksymovchynnikov/SensCalc)).
