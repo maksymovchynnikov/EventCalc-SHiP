@@ -81,7 +81,13 @@ for mass, c_taus in zip(masses, c_taus_list):
         print("No decay events for these decay modes at this mass. Skipping...")
         continue
 
-    for c_tau in c_taus:
+    # Ensure c_taus is a list even if a single value is provided
+    if isinstance(c_taus, (list, tuple, np.ndarray)):
+        c_tau_values = c_taus
+    else:
+        c_tau_values = [c_taus]
+
+    for c_tau in c_tau_values:
         print(f"  Processing c_tau {c_tau}")
         LLP.set_c_tau(c_tau)
 
@@ -141,7 +147,8 @@ for mass, c_taus in zip(masses, c_taus_list):
             motherParticleResults, decayProductsResults, LLP.LLP_name, LLP.mass,
             LLP.MixingPatternArray, LLP.c_tau_input, LLP.decayChannels, size_per_channel,
             finalEvents, epsilon_polar, epsilon_azimuthal, N_LLP_tot, coupling_squared,
-            P_decay_averaged, N_ev_tot, br_visible_val, selected_decay_indices
+            P_decay_averaged, N_ev_tot, br_visible_val, selected_decay_indices,
+            uncertainty  # Passing uncertainty to mergeResults.save
         )
         print("    Total time spent on exporting: ", time.time() - t_export)
         

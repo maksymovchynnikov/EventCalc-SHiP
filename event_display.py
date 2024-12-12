@@ -284,7 +284,7 @@ def main():
 
     # Step 3: Read file
     filepath = os.path.join(directory, selected_file)
-    finalEvents, epsilon_polar, epsilon_azimuthal, br_visible_val, channels = read_file(filepath)
+    finalEvents, coupling, epsilon_polar, epsilon_azimuthal, br_visible_val, channels = read_file(filepath)
 
     if not channels:
         print("No channels found in the selected file.")
