@@ -84,6 +84,11 @@ Once this is done, the lib path has to be specified in the script `funcs/decayPr
   
 - The file with the total information (located in `outputs/<LLP>/Total`): contains the self-explanatory header describing the meaning of columns. Results of various simulations corresponding to the same LLP setup (such as the choice of the phenomenology within the theoretical uncertainty and the mixing pattern) are added to the corresponding files.
 
+- Plots with the LLP mass dependence phenomenology used to produce the event rates: 
+ - The overall LLP production probability per proton-on-target per coupling squared.
+ - The LLP lifetime.
+ - The branching ratios of the decay modes selected for the simulation.
+
 
 ## Implemented LLPs
 
