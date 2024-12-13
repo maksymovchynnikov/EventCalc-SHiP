@@ -92,9 +92,9 @@ def plot_branching_ratios(masses_plot, Br_plot, chosen_channels, selected_decay_
     """
     # Define fixed colors and line styles
     colors = [
-        'green', 'lightyellow', 'red', 'blue', 'cyan', 'magenta', 'black',
-        'lightblue', 'lightcoral', 'brown', 'peru', 'gray', 'lightgray',
-        'lightcyan', 'plum', 'orange', 'moccasin'
+    'green', 'goldenrod', 'red', 'blue', 'cyan', 'magenta', 'black',
+    'deepskyblue', 'lightcoral', 'brown', 'peru', 'gray', 'lightgray',
+    'teal', 'plum', 'orange', 'moccasin'
     ]
     line_styles = ['solid', 'dashed', 'dashdot']
 
