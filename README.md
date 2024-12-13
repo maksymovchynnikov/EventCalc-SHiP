@@ -186,7 +186,7 @@ Enter lifetimes c*tau in m for all masses (separated by spaces): 0.01 10000
   
 ### More information
 
-For more information (description of the phenomenology of LLPs, details of sampling, how fluxes of mother mesons have been generated, etc.), read `DETAILS.md`.
+For more information (description of the phenomenology of LLPs, details of sampling, how fluxes of mother mesons have been generated, etc.), read [`DETAILS.md`](https://github.com/maksymovchynnikov/EventCalc-SHiP/blob/main/DETAILS.md).
 
 
 ## Credits
