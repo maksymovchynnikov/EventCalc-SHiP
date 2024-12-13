@@ -98,16 +98,49 @@ def plot_acceptances(data, save_path, title, selected_lifetimes, selected_styles
     """
     plt.figure(figsize=(10, 7))
     
+    # Define colors for each plot element
+    colors = {
+        'epsilon_polar': 'green',
+        'epsilon_geom': 'blue',
+        'epsilon_geom_P_decay': 'red'
+    }
+    
     for lifetime, style, label in zip(selected_lifetimes, selected_styles, selected_labels):
         subset = data[data['c_tau'] == lifetime].sort_values(by='mass').reset_index(drop=True)
         mass = subset['mass'].to_numpy()
         epsilon_polar = subset['epsilon_polar'].to_numpy()
-        epsilon_geom = epsilon_polar * subset['epsilon_azimuthal'].to_numpy()
+        epsilon_geom = subset['epsilon_polar'].to_numpy() * subset['epsilon_azimuthal'].to_numpy()
         epsilon_geom_P_decay = subset['c_tau'].to_numpy() * epsilon_geom * subset['P_decay_averaged'].to_numpy()
         
-        plt.plot(mass, epsilon_polar, linestyle=style, label=f'ε_polar ({label})', linewidth=2)
-        plt.plot(mass, epsilon_geom, linestyle=style, label=f'ε_geom ({label})', linewidth=2)
-        plt.plot(mass, epsilon_geom_P_decay, linestyle=style, label=f'cτ⋅ε_geom⋅⟨P_decay⟩ ({label})', linewidth=2)
+        # Plot epsilon_polar
+        plt.plot(
+            mass, 
+            epsilon_polar, 
+            color=colors['epsilon_polar'], 
+            linestyle=style, 
+            label=f'ε_polar ({label})', 
+            linewidth=2
+        )
+        
+        # Plot epsilon_geom
+        plt.plot(
+            mass, 
+            epsilon_geom, 
+            color=colors['epsilon_geom'], 
+            linestyle=style, 
+            label=f'ε_geom ({label})', 
+            linewidth=2
+        )
+        
+        # Plot cτ⋅ε_geom⋅⟨P_decay⟩
+        plt.plot(
+            mass, 
+            epsilon_geom_P_decay, 
+            color=colors['epsilon_geom_P_decay'], 
+            linestyle=style, 
+            label=f'cτ⋅ε_geom⋅⟨P_decay⟩ ({label})', 
+            linewidth=2
+        )
     
     plt.xlabel(r'$m_{\mathrm{LLP}}$ [GeV]', fontsize=14)
     plt.ylabel('Fraction', fontsize=14)
@@ -127,7 +160,12 @@ def plot_coupling_vs_events(data, save_path, title):
     plt.figure(figsize=(10, 7))
     for mass in unique_masses:
         subset = data[data['mass'] == mass].sort_values(by='coupling_squared').reset_index(drop=True)
-        plt.loglog(subset['coupling_squared'], subset['N_ev_tot'], marker='o', label=rf'$m_{{\mathrm{{LLP}}}} = {mass:.3f}$ GeV')
+        plt.loglog(
+            subset['coupling_squared'], 
+            subset['N_ev_tot'], 
+            marker='o', 
+            label=rf'$m_{{\mathrm{{LLP}}}} = {mass:.3f}$ GeV'
+        )
     
     plt.xlabel(r'$\mathrm{coupling}^{2}$', fontsize=14)
     plt.ylabel(r'$N_{\mathrm{events}}$', fontsize=14)
@@ -146,7 +184,12 @@ def plot_lifetime_vs_events(data, save_path, title):
     plt.figure(figsize=(10, 7))
     for mass in unique_masses:
         subset = data[data['mass'] == mass].sort_values(by='c_tau').reset_index(drop=True)
-        plt.loglog(subset['c_tau'], subset['N_ev_tot'], marker='o', label=rf'$m_{{\mathrm{{LLP}}}} = {mass:.3f}$ GeV')
+        plt.loglog(
+            subset['c_tau'], 
+            subset['N_ev_tot'], 
+            marker='o', 
+            label=rf'$m_{{\mathrm{{LLP}}}} = {mass:.3f}$ GeV'
+        )
     
     plt.xlabel(r'$c\tau_{\mathrm{LLP}}$ [m]', fontsize=14)
     plt.ylabel(r'$N_{\mathrm{events}}$', fontsize=14)
@@ -204,7 +247,6 @@ def main():
             except ValueError:
                 print("Invalid input. Please enter a valid number.")
         selected_file, identifier = extracted_files[choice - 1]
-
         selected_filepath = os.path.join(total_dir, selected_file)
         mix_label = identifier  # Contains uncertainty
     else:
@@ -264,15 +306,8 @@ def main():
     styles = ['solid', 'dashed']
     for idx, lifetime in enumerate(selected_lifetimes):
         selected_styles.append(styles[idx % len(styles)])
-        if selected_llp == "HNL":
-            # Label with mixing pattern
-            selected_labels.append(f"{mix_label}")
-        elif selected_llp == "Dark-photons":
-            # Label with uncertainty choice
-            selected_labels.append(f"{mix_label}")
-        else:
-            # Label with LLP name only
-            selected_labels.append(f"{selected_llp}")
+        # Label with the selected lifetime
+        selected_labels.append(f"cτ = {lifetime:.2f} m")
     
     # Prepare plot directory
     plot_dir = os.path.join(basedir, 'plots', selected_llp)
@@ -304,5 +339,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
