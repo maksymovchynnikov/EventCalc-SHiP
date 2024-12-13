@@ -10,7 +10,7 @@ from funcs.ship_setup import (
 )
 
 # Print SHiP setup information
-print("SHiP setup (modify ship_setup.py if needed):\n")
+print("\nSHiP setup (modify ship_setup.py if needed):\n")
 print(f"z_min = {z_min} m, z_max = {z_max} m, "
       f"Delta_x_in = {Delta_x_in} m, Delta_x_out = {Delta_x_out} m, "
       f"Delta_y_in = {Delta_y_in} m, Delta_y_out = {Delta_y_out} m, "
@@ -61,17 +61,26 @@ plot_branching_ratios(
 
 print("Phenomenology plots generated.")
 
+# Prompt for masses and c_taus
 masses, c_taus_list = prompt_masses_and_c_taus()
 timing = False
 
-for mass, c_taus in zip(masses, c_taus_list):
+# Set ifExportEvents parameter
+ifExportEvents = True
+
+# Total number of masses
+total_masses = len(masses)
+print(f"\nTotal masses to process: {total_masses}")
+
+# Enumerate over masses with indices starting at 1
+for mass_idx, (mass, c_taus) in enumerate(zip(masses, c_taus_list), start=1):
     # Check if mass within tabulated range
     if not (LLP.m_min_tabulated < mass < LLP.m_max_tabulated):
         print(f"The current mass {mass} is outside the tabulated data range "
               f"({LLP.m_min_tabulated}, {LLP.m_max_tabulated}). Skipping...")
         continue
 
-    print(f"\nProcessing mass {mass}")
+    print(f"\nProcessing mass {mass} GeV")
     LLP.set_mass(mass)
     LLP.compute_mass_dependent_properties()
 
@@ -87,8 +96,14 @@ for mass, c_taus in zip(masses, c_taus_list):
     else:
         c_tau_values = [c_taus]
 
-    for c_tau in c_tau_values:
-        print(f"  Processing c_tau {c_tau}")
+    # Total number of c_tau values for this mass
+    total_c_taus = len(c_tau_values)
+    print(f"  Total lifetimes (c_tau) to process for mass {mass} GeV: {total_c_taus}")
+
+    # Enumerate over c_tau with indices starting at 1
+    for c_tau_idx, c_tau in enumerate(c_tau_values, start=1):
+        print(f"  Processing c_tau {c_tau} m")
+
         LLP.set_c_tau(c_tau)
 
         coupling_squared = LLP.c_tau_int / c_tau
@@ -97,9 +112,9 @@ for mass, c_taus in zip(masses, c_taus_list):
         else:
             yield_times_coupling = LLP.Yield * 0.01
         N_LLP_tot = N_pot * yield_times_coupling 
-        
+
         if yield_times_coupling < 1e-21:
-            print("The overall yield of produced LLPs is effectively zero for this mass. Skipping...")
+            print("    The overall yield of produced LLPs is effectively zero for this mass. Skipping...")
             continue
 
         val = math.exp(-z_min / (c_tau * 400 / LLP.mass))
@@ -140,7 +155,7 @@ for mass, c_taus in zip(masses, c_taus_list):
         N_ev_tot = (N_LLP_tot * epsilon_polar * epsilon_azimuthal 
                    * P_decay_averaged * br_visible_val)
 
-        print(f"    Exporting results...")
+        print("    Exporting results...")
 
         t_export = time.time()
         mergeResults.save(
@@ -148,24 +163,24 @@ for mass, c_taus in zip(masses, c_taus_list):
             LLP.MixingPatternArray, LLP.c_tau_input, LLP.decayChannels, size_per_channel,
             finalEvents, epsilon_polar, epsilon_azimuthal, N_LLP_tot, coupling_squared,
             P_decay_averaged, N_ev_tot, br_visible_val, selected_decay_indices,
-            uncertainty  # Passing uncertainty to mergeResults.save
+            uncertainty, ifExportEvents  # Passing ifExportEvents to mergeResults.save
         )
         print("    Total time spent on exporting: ", time.time() - t_export)
-        
-        # Print all relevant information at the end of the iteration before marking as done
+
+        # Print explanations: value per line
         print(
-            f"Sampled {finalEvents:.6e} events inside SHiP volume. "
-            f"Squared coupling: {coupling_squared:.6e}. "
-            f"Total number of produced LLPs: {N_LLP_tot:.6e}. "
-            f"Polar acceptance: {epsilon_polar:.6e}. "
-            f"Azimuthal acceptance: {epsilon_azimuthal:.6e}. "
-            f"Averaged decay probability: {P_decay_averaged:.6e}. "
-            f"Visible Br Ratio: {br_visible_val:.6e}. " 
+            f"LLP mass {mass} GeV ({mass_idx}/{total_masses}) and lifetime ctau {c_tau} m "f"({c_tau_idx}/{total_c_taus}) has been processed.\n"
+            f"Sampled: {finalEvents:.6e}\n"
+            f"Squared coupling: {coupling_squared:.6e}\n"
+            f"Total number of produced LLPs: {N_LLP_tot:.6e}\n"
+            f"Polar acceptance: {epsilon_polar:.6e}\n"
+            f"Azimuthal acceptance: {epsilon_azimuthal:.6e}\n"
+            f"Averaged decay probability: {P_decay_averaged:.6e}\n"
+            f"Visible Br Ratio: {br_visible_val:.6e}\n"
             f"Total number of events: {N_ev_tot:.6e}\n\n"
         )
 
-        print(f"    Done\n")
+        print("    Done\n")
+
         
-# As before, branching ratios and decay widths are interpolated by reading their tabular data and
-# using RegularGridInterpolator to provide continuous interpolation within the valid mass range.
 
