@@ -52,7 +52,7 @@ will first display the SHiP setup and then ask users about the requested number 
 - Range of LLP masses for which the simulation will be launched.
 - Range of LLP lifetimes.
  
-After that, the simulation will start. It produces two outputs in the folder `outputs/<LLP>` (see description below):
+After that, the simulation will start. If the given combination of the mass and lifetime has too small production yield (< 1) or decay probability (<10^-21), its simulation terminates. In the other case, it produces two outputs in the folder `outputs/<LLP>` (see description below):
 - The information about the decay events of LLPs and decay products (the file `eventData/<LLP>_<mass>_<lifetime>_....txt`), with dots meaning the other parameters relevant for the simulation (such as the mixing pattern in the case of HNLs, etc.).
 - The information about total quantities from the simulation: mass, coupling, lifetime, number of events, etc. (the file `eventData/<LLP>/total/<LLP>-...-total.txt`).
 
