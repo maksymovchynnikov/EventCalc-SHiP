@@ -61,12 +61,12 @@ def plot_event_matplotlib(ax, x_mother, y_mother, z_mother, p_mother_norm, decay
     ax.scatter(x_mother, y_mother, z_mother, color='black', s=50, label='Decay Vertex')
 
     # Plot mother momentum vector
-    N = 20  # Increased scaling factor for better visibility
+    N = 35  # Increased scaling factor for better visibility
     mother_vector = p_mother_norm * N  # Scale by N=20
     ax.quiver(
         x_mother, y_mother, z_mother,
         mother_vector[0], mother_vector[1], mother_vector[2],
-        color='red', linewidth=2, label='Mother Momentum', arrow_length_ratio=0.1
+        color='black', linewidth=2, label='Mother Momentum', arrow_length_ratio=0.1
     )
 
     # Plot decay products' momentum vectors with assigned colors
@@ -108,7 +108,7 @@ def plot_event_plotly(fig, x_mother, y_mother, z_mother, p_mother_norm, decay_pr
     ))
 
     # Define scaling factors
-    vector_scale = 20  # Length of the vectors (lines)
+    vector_scale = 30  # Length of the vectors (lines)
     cone_scale = 1.66  # Reduced size of the cones (arrows), 5 / 3 ≈ 1.66
 
     # Plot mother momentum vector as a line
@@ -122,7 +122,7 @@ def plot_event_plotly(fig, x_mother, y_mother, z_mother, p_mother_norm, decay_pr
         y=[y_mother, mother_end[1]],
         z=[z_mother, mother_end[2]],
         mode='lines',
-        line=dict(color='red', width=6),  # Increased line width
+        line=dict(color='black', width=6),  # Increased line width
         name='Mother momentum',
         hoverinfo='skip',
         showlegend=False  # Hide in legend; will add a dummy trace later
@@ -136,7 +136,7 @@ def plot_event_plotly(fig, x_mother, y_mother, z_mother, p_mother_norm, decay_pr
         u=[p_mother_norm[0]],
         v=[p_mother_norm[1]],
         w=[p_mother_norm[2]],
-        colorscale=[[0, 'red'], [1, 'red']],
+        colorscale=[[0, 'black'], [1, 'black']],
         sizemode="absolute",
         sizeref=cone_scale,  # Reduced sizeref for smaller cones
         showscale=False,
@@ -470,7 +470,7 @@ def main():
         ))
 
         # Define scaling factors
-        vector_scale = 20  # Length of the vectors (lines)
+        vector_scale = 30  # Length of the vectors (lines)
         cone_scale = 1.66  # Reduced size of the cones (arrows), 5 / 3 ≈ 1.66
 
         # Plot mother momentum vector as a line
@@ -484,7 +484,7 @@ def main():
             y=[y_mother, mother_end[1]],
             z=[z_mother, mother_end[2]],
             mode='lines',
-            line=dict(color='red', width=6),  # Increased line width
+            line=dict(color='black', width=6),  # Increased line width
             name='Mother Momentum',
             hoverinfo='skip',
             showlegend=False  # Hide in legend; will add a dummy trace later
@@ -498,7 +498,7 @@ def main():
             u=[p_mother_norm[0]],
             v=[p_mother_norm[1]],
             w=[p_mother_norm[2]],
-            colorscale=[[0, 'red'], [1, 'red']],
+            colorscale=[[0, 'black'], [1, 'black']],
             sizemode="absolute",
             sizeref=cone_scale,  # Reduced sizeref for smaller cones
             showscale=False,
