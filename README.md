@@ -246,7 +246,7 @@ In `EventCalc`, this is performed in the following way:
   
 ## To be done
 
-- Adding more LLPs (ALPs, B-L mediators, HNLs with dipole coupling, inelastic and elastic LDM, etc.).
+- Adding more LLPs (ALPs, B-L mediators, HNLs with dipole coupling, inelastic and elastic LDM, etc.). Pending due to their phenomenology revision.
 - Adding theoretical uncertainty (decay widths for Higgs-like scalars, B-L production uncertainties, etc.).
 - Improving the performance of the code (parallelization of pythia8 run, etc.).
 - Adjusting the SHiP setup with the up-to-date setup if needed.
