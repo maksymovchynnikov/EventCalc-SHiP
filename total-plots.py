@@ -279,7 +279,7 @@ def main():
     print("Plotting averaged quantities as a function of mass for fixed lifetimes.")
     print("Select up to 2 lifetimes by typing their numbers separated by space (e.g., 1 2):")
     for i, lifetime in enumerate(unique_lifetimes, start=1):
-        print(f"{i}. {lifetime:.2f} m")
+        print(f"{i}. {lifetime:.3f} m")
     
     selected_lifetimes = []
     selected_styles = []
@@ -307,7 +307,7 @@ def main():
     for idx, lifetime in enumerate(selected_lifetimes):
         selected_styles.append(styles[idx % len(styles)])
         # Label with the selected lifetime
-        selected_labels.append(f"cτ = {lifetime:.2f} m")
+        selected_labels.append(f"cτ = {lifetime:.3f} m")
     
     # Prepare plot directory
     plot_dir = os.path.join(basedir, 'plots', selected_llp)
