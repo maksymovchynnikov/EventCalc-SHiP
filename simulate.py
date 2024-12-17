@@ -4,6 +4,7 @@ import os
 import time
 import numpy as np
 import math
+import pandas as pd 
 
 from funcs.ship_setup import (
     z_min, z_max, Delta_x_in, Delta_x_out, Delta_y_in, Delta_y_out, theta_max_dec_vol
@@ -142,9 +143,18 @@ for mass_idx, (mass, c_taus) in enumerate(zip(masses, c_taus_list), start=1):
             LLP.mass, LLP.PDGs, LLP.BrRatios_distr, finalEvents, LLP.Matrix_elements,
             selected_decay_indices, br_visible_val
         )
+        #Exporting the unboosted decay products. For cross-checking
+        #df_unBoostedProducts = pd.DataFrame(unBoostedProducts)
+        #with open('unBoostedProducts.txt', 'w') as file:
+        #    file.write(df_unBoostedProducts.to_string(index=False))
+       
         boostedProducts = boost.tab_boosted_decay_products(
             LLP.mass, momentum, unBoostedProducts
         )
+        #Exporting the unboosted decay products. For cross-checking
+        #df_boostedProducts = pd.DataFrame(boostedProducts)
+        #with open('boostedProducts.txt', 'w') as file:
+        #    file.write(df_boostedProducts.to_string(index=False))
 
         motherParticleResults = kinematics_samples.get_kinematics()
         decayProductsResults = boostedProducts
