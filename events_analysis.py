@@ -20,7 +20,6 @@ def plot_channels(channels, finalEvents, output_path, LLP_name, mass, lifetime):
     plt.ylabel("Number of events", fontsize=34)
     plt.xticks(rotation=45, ha='right', fontsize=39)
     plt.yticks(fontsize=39)
-
     plt.tick_params(axis='both', which='both', labelsize=39, width=2, length=10)
 
     textstr = f"LLP: {LLP_name}\nMass: {mass:.2f} GeV\nLifetime: {lifetime:.2e} s"
@@ -42,7 +41,22 @@ def extract_quantities(channels, ifDisplaypdgs=False):
     """
     Extracts required quantities from the data lines.
     Returns a dictionary with the extracted quantities.
+
+    Important Points:
+    - The first 10 values are mother particle info.
+    - Each decay product has 6 values: px, py, pz, E, mass, PDG.
+    - Invariant masses are computed from 4-vectors of the decay products.
+
+    Modified according to the new requirements:
+    - We do not break early when a particle doesn't point.
+    - If a detectable decay product points to the detector, we add its 4-momentum to a reconstructible sum.
+    - If at least two pointing detectable decay products exist, we compute reconstructed invariant mass weighted by P_decay_mother.
+
+    Restoring the functionality for ifAllPoint_ratio:
+    - For each event, if ALL detectable decay products (non-neutrino, non -999) point to the detector,
+      we add P_decay_mother to ifAllPoint_counts for that channel. If at least one does not point, we don't add it.
     """
+
     quantities = {
         'px_mother': [],
         'py_mother': [],
@@ -62,6 +76,10 @@ def extract_quantities(channels, ifDisplaypdgs=False):
         'sum_P_decay_mother_per_channel': defaultdict(float),
         'ifAllPoint_ratios': {},
         'final_states_per_channel': defaultdict(lambda: defaultdict(int)),
+        'invariant_mass_all_per_channel': defaultdict(list),
+        'invariant_mass_detectable_per_channel': defaultdict(list),
+        'reconstructed_invariant_mass_per_channel': defaultdict(lambda: {'mass': [], 'weight': []}),
+        'reconstructed_invariant_mass_all': {'mass': [], 'weight': []}
     }
 
     detailed_final_state_particles = [
@@ -96,12 +114,17 @@ def extract_quantities(channels, ifDisplaypdgs=False):
         if ifDisplaypdgs:
             print(f"Channel {channel_idx}: {channel}")
         data_lines = channel_data['data']
+
         for event_idx, data_line in enumerate(data_lines, start=1):
-            numbers = list(map(float, data_line.strip().split()))
-            if len(numbers) < 10:
-                if ifDisplaypdgs:
-                    print(f"Error: Data line has less than 10 numbers: {data_line}")
+            parts = data_line.strip().split()
+            try:
+                numbers = list(map(float, parts))
+            except ValueError:
                 continue
+
+            if len(numbers) < 10:
+                continue
+
             px_mother = numbers[0]
             py_mother = numbers[1]
             pz_mother = numbers[2]
@@ -114,9 +137,12 @@ def extract_quantities(channels, ifDisplaypdgs=False):
             z_mother = numbers[9]
 
             decay_products = numbers[10:]
-            num_decay_products = len(decay_products) // 6
-            pdg_list = [int(decay_products[6*i + 5]) for i in range(num_decay_products)]
+            if len(decay_products) % 6 != 0:
+                continue
 
+            num_decay_products = len(decay_products)//6
+
+            pdg_list = [int(decay_products[6*i + 5]) for i in range(num_decay_products)]
             if ifDisplaypdgs:
                 print(f"  Event {event_idx}: pdg list = {pdg_list}")
 
@@ -138,44 +164,83 @@ def extract_quantities(channels, ifDisplaypdgs=False):
             nu_count = 0
             final_state_counts = {ptype: 0 for ptype in detailed_final_state_particles}
 
+            # Restoring all_point logic:
+            # Start with all_point = True
             all_point = True
 
-            for i in range(num_decay_products):
-                base_idx = i * 6
-                px = decay_products[base_idx]
-                py = decay_products[base_idx + 1]
-                pz = decay_products[base_idx + 2]
-                e = decay_products[base_idx + 3]
-                mass = decay_products[base_idx + 4]
-                pdg = int(decay_products[6*i + 5])
+            pointing_detectables = 0
+            total_px_pointing = 0.0
+            total_py_pointing = 0.0
+            total_pz_pointing = 0.0
+            total_e_pointing = 0.0
 
-                if pdg == -999:
-                    continue
+            # For all products (including neutrinos)
+            total_decay_energy_all = 0.0
+            total_decay_px_all = 0.0
+            total_decay_py_all = 0.0
+            total_decay_pz_all = 0.0
+
+            # For detectable decay products only
+            total_decay_energy_detectable = 0.0
+            total_decay_px_detectable = 0.0
+            total_decay_py_detectable = 0.0
+            total_decay_pz_detectable = 0.0
+
+            for i in range(num_decay_products):
+                base = i*6
+                px = decay_products[base]
+                py = decay_products[base + 1]
+                pz_dp = decay_products[base + 2]
+                e = decay_products[base + 3]
+                mass_dp = decay_products[base + 4]
+                pdg = int(decay_products[base + 5])
+
+                # All products sum
+                if pdg != -999:
+                    total_decay_energy_all += e
+                    total_decay_px_all += px
+                    total_decay_py_all += py
+                    total_decay_pz_all += pz_dp
 
                 if pdg in [12, -12, 14, -14, 16, -16]:
-                    nu_count +=1
-                    final_state_counts['nu'] +=1
-                    continue
+                    # Neutrino
+                    nu_count += 1
+                    final_state_counts['nu'] += 1
+                elif pdg == -999:
+                    # Placeholder, ignore
+                    pass
+                else:
+                    # Detectable decay product
+                    total_decay_energy_detectable += e
+                    total_decay_px_detectable += px
+                    total_decay_py_detectable += py
+                    total_decay_pz_detectable += pz_dp
 
-                particle = pdg_to_particle.get(pdg, 'other')
+                    particle = pdg_to_particle.get(pdg, 'other')
+                    if particle in final_state_counts:
+                        final_state_counts[particle] += 1
 
-                if particle in final_state_counts:
-                    final_state_counts[particle] +=1
+                    decay_products_count += 1
+                    # Charged: exclude gamma, K_L, n, bar[n], nu
+                    if particle not in ['gamma', 'K_L', 'n', 'bar[n]', 'nu']:
+                        charged_decay_products_count += 1
 
-                decay_products_count += 1
-
-                if particle not in ['gamma', 'K_L', 'n', 'bar[n]', 'nu']:
-                    charged_decay_products_count += 1
-
-                if pz == 0:
-                    all_point = False
-                    continue
-
-                x_proj = x_mother + (z_max - z_mother) * px / pz
-                y_proj = y_mother + (z_max - z_mother) * py / pz
-
-                if not (-y_max(z_max) < y_proj < y_max(z_max) and -x_max(z_max) < x_proj < x_max(z_max)):
-                    all_point = False
+                    # Check if this detectable decay product points to the detector
+                    if pz_dp != 0:
+                        x_proj = x_mother + (z_max - z_mother)*px/pz_dp
+                        y_proj = y_mother + (z_max - z_mother)*py/pz_dp
+                        if (-y_max(z_max)<y_proj<y_max(z_max) and -x_max(z_max)<x_proj<x_max(z_max)):
+                            pointing_detectables += 1
+                            total_px_pointing += px
+                            total_py_pointing += py
+                            total_pz_pointing += pz_dp
+                            total_e_pointing += e
+                        else:
+                            # This detectable decay product does not point, set all_point = False
+                            all_point = False
+                    else:
+                        # pz_dp=0 means no pointing
+                        all_point = False
 
             quantities['decay_products_counts'].append(decay_products_count)
             quantities['charged_decay_products_counts'].append(charged_decay_products_count)
@@ -187,13 +252,52 @@ def extract_quantities(channels, ifDisplaypdgs=False):
             state_tuple = tuple(final_state_counts[ptype] for ptype in detailed_final_state_particles)
             quantities['final_states_per_channel'][channel][state_tuple] += 1
 
+            # Invariant mass for all products
+            if num_decay_products > 0:
+                invariant_mass_sq_all = total_decay_energy_all**2 - (total_decay_px_all**2 + total_decay_py_all**2 + total_decay_pz_all**2)
+                if invariant_mass_sq_all < 0:
+                    continue
+                invariant_mass_all = np.sqrt(invariant_mass_sq_all)
+            else:
+                invariant_mass_all = 0.0
+
+            # Invariant mass for detectable decay products
+            if num_decay_products > 0:
+                invariant_mass_sq_detectable = total_decay_energy_detectable**2 - (total_decay_px_detectable**2 + total_decay_py_detectable**2 + total_decay_pz_detectable**2)
+                if invariant_mass_sq_detectable < 0:
+                    continue
+                invariant_mass_detectable = np.sqrt(invariant_mass_sq_detectable)
+            else:
+                invariant_mass_detectable = 0.0
+
+            # Reconstructible invariant mass for pointing detectable decay products
+            if pointing_detectables >= 2:
+                inv_mass_sq_recon = total_e_pointing**2 - (total_px_pointing**2 + total_py_pointing**2 + total_pz_pointing**2)
+                if inv_mass_sq_recon >= 0:
+                    reconstructed_mass = np.sqrt(inv_mass_sq_recon)
+                    quantities['reconstructed_invariant_mass_per_channel'][channel]['mass'].append(reconstructed_mass)
+                    quantities['reconstructed_invariant_mass_per_channel'][channel]['weight'].append(P_decay_mother)
+                    quantities['reconstructed_invariant_mass_all']['mass'].append(reconstructed_mass)
+                    quantities['reconstructed_invariant_mass_all']['weight'].append(P_decay_mother)
+
+            if ifDisplaypdgs:
+                print(f"Event {event_idx}: p_x,mother = {px_mother}, p_x,products,total = {total_decay_px_all}, "
+                      f"p_y,mother = {py_mother}, p_y,products,total = {total_decay_py_all}, "
+                      f"p_z,mother = {pz_mother}, p_z,products,total = {total_decay_pz_all}, "
+                      f"E_mother = {energy_mother}, E_products,total = {total_decay_energy_all}")
+                print(f"m_mother = {m_mother}, m_inv,products = {invariant_mass_all}")
+
+            quantities['invariant_mass_all_per_channel'][channel].append(invariant_mass_all)
+            quantities['invariant_mass_detectable_per_channel'][channel].append(invariant_mass_detectable)
+
+            # Restore adding P_decay_mother if ALL detectable decay products point
             if all_point:
                 quantities['ifAllPoint_counts'][channel] += P_decay_mother
 
     for channel in channels.keys():
         sum_P_decay = quantities['sum_P_decay_mother_per_channel'][channel]
         if sum_P_decay > 0:
-            ratio = quantities['ifAllPoint_counts'][channel] / sum_P_decay
+            ratio = quantities['ifAllPoint_counts'][channel]/sum_P_decay
         else:
             ratio = 0
         quantities['ifAllPoint_ratios'][channel] = ratio
@@ -206,6 +310,15 @@ def plot_histograms(quantities, channels, output_path, LLP_name, mass, lifetime)
     All histograms are normalized to represent probability densities.
     Adds LLP information text to each plot.
     """
+
+    multiplicities_path = os.path.join(output_path, "multiplicities")
+    if not os.path.exists(multiplicities_path):
+        os.makedirs(multiplicities_path)
+
+    invariant_mass_path = os.path.join(output_path, "invariant-mass")
+    if not os.path.exists(invariant_mass_path):
+        os.makedirs(invariant_mass_path)
+
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
@@ -218,6 +331,13 @@ def plot_histograms(quantities, channels, output_path, LLP_name, mass, lifetime)
     y_mother = np.array(quantities['y_mother'])
     nu_counts = np.array(quantities['nu_counts'])
 
+    # Determine mother mass for setting plot range
+    if len(quantities['m_mother']) > 0:
+        mother_mass = quantities['m_mother'][0]
+    else:
+        mother_mass = mass  # fallback if no events
+
+    # Energy Histograms Unweighted
     plt.figure(figsize=(18, 12))
     plt.hist(energy_mother, bins=50, color='skyblue', edgecolor='black', density=True)
     plt.yscale('log')
@@ -225,23 +345,16 @@ def plot_histograms(quantities, channels, output_path, LLP_name, mass, lifetime)
     plt.ylabel("Probability density", fontsize=48)
     plt.title("LLP energy distribution (unweighted)", fontsize=39)
     plt.text(0.95, 0.95, textstr,
-             horizontalalignment='right',
-             verticalalignment='top',
-             transform=plt.gca().transAxes,
-             fontsize=36,
-             bbox=dict(boxstyle="round,pad=0.5",
-                       facecolor="white",
-                       edgecolor="black",
-                       alpha=0.8))
-    plt.tick_params(axis='both', labelsize=50, width=2, length=10)
-
-    plt.setp(plt.gca().get_xticklabels(), fontsize=50)
-    plt.setp(plt.gca().get_yticklabels(), fontsize=50)
-
+             horizontalalignment='right', verticalalignment='top',
+             transform=plt.gca().transAxes, fontsize=36,
+             bbox=dict(boxstyle="round,pad=0.5", facecolor="white",
+                       edgecolor="black", alpha=0.8))
+    plt.tick_params(axis='both', which='both', labelsize=50, width=2, length=10)
     plt.tight_layout()
     plt.savefig(os.path.join(output_path, "energy_mother_unweighted.pdf"), bbox_inches='tight')
     plt.close()
 
+    # Energy Histograms Weighted
     plt.figure(figsize=(18, 12))
     plt.hist(energy_mother, bins=50, weights=P_decay_mother, color='salmon', edgecolor='black', density=True)
     plt.yscale('log')
@@ -249,23 +362,16 @@ def plot_histograms(quantities, channels, output_path, LLP_name, mass, lifetime)
     plt.ylabel("Probability density", fontsize=48)
     plt.title("LLP energy distribution (weighted by $P_{\\mathrm{decay}}$)", fontsize=39)
     plt.text(0.95, 0.95, textstr,
-             horizontalalignment='right',
-             verticalalignment='top',
-             transform=plt.gca().transAxes,
-             fontsize=36,
-             bbox=dict(boxstyle="round,pad=0.5",
-                       facecolor="white",
-                       edgecolor="black",
-                       alpha=0.8))
-    plt.tick_params(axis='both', labelsize=50, width=2, length=10)
-
-    plt.setp(plt.gca().get_xticklabels(), fontsize=50)
-    plt.setp(plt.gca().get_yticklabels(), fontsize=50)
-
+             horizontalalignment='right', verticalalignment='top',
+             transform=plt.gca().transAxes, fontsize=36,
+             bbox=dict(boxstyle="round,pad=0.5", facecolor="white",
+                       edgecolor="black", alpha=0.8))
+    plt.tick_params(axis='both', which='both', labelsize=50, width=2, length=10)
     plt.tight_layout()
     plt.savefig(os.path.join(output_path, "energy_mother_weighted.pdf"), bbox_inches='tight')
     plt.close()
 
+    # P_decay_mother Histogram
     plt.figure(figsize=(18, 12))
     plt.hist(P_decay_mother, bins=50, color='lightgreen', edgecolor='black', density=True)
     plt.xscale('log')
@@ -274,21 +380,17 @@ def plot_histograms(quantities, channels, output_path, LLP_name, mass, lifetime)
     plt.ylabel("Probability density", fontsize=59)
     plt.title("LLP decay probability distribution", fontsize=39)
     plt.text(0.95, 0.95, textstr,
-             horizontalalignment='right',
-             verticalalignment='top',
-             transform=plt.gca().transAxes,
-             fontsize=36,
-             bbox=dict(boxstyle="round,pad=0.5",
-                       facecolor="white",
-                       edgecolor="black",
-                       alpha=0.8))
+             horizontalalignment='right', verticalalignment='top',
+             transform=plt.gca().transAxes, fontsize=36,
+             bbox=dict(boxstyle="round,pad=0.5", facecolor="white",
+                       edgecolor="black", alpha=0.8))
     ax = plt.gca()
     ax.tick_params(axis='both', which='both', labelsize=48, width=2, length=10)
-
     plt.tight_layout()
     plt.savefig(os.path.join(output_path, "P_decay_mother.pdf"), bbox_inches='tight')
     plt.close()
 
+    # z_mother Weighted Histogram
     plt.figure(figsize=(18, 12))
     plt.hist(z_mother, bins=50, weights=P_decay_mother, color='violet', edgecolor='black', density=True)
     plt.yscale('log')
@@ -296,21 +398,17 @@ def plot_histograms(quantities, channels, output_path, LLP_name, mass, lifetime)
     plt.ylabel("Probability density", fontsize=39)
     plt.title("LLP decay positions (weighted by $P_{\\mathrm{decay}}$)", fontsize=30)
     plt.text(0.95, 0.95, textstr,
-             horizontalalignment='right',
-             verticalalignment='top',
-             transform=plt.gca().transAxes,
-             fontsize=36,
-             bbox=dict(boxstyle="round,pad=0.5",
-                       facecolor="white",
-                       edgecolor="black",
-                       alpha=0.8))
+             horizontalalignment='right', verticalalignment='top',
+             transform=plt.gca().transAxes, fontsize=36,
+             bbox=dict(boxstyle="round,pad=0.5", facecolor="white",
+                       edgecolor="black", alpha=0.8))
     ax = plt.gca()
     ax.tick_params(axis='both', which='both', labelsize=41, width=2, length=10)
-
     plt.tight_layout()
     plt.savefig(os.path.join(output_path, "z_mother_weighted.pdf"), bbox_inches='tight')
     plt.close()
 
+    # z_mother Unweighted Histogram
     plt.figure(figsize=(18, 12))
     plt.hist(z_mother, bins=50, color='cyan', edgecolor='black', density=True)
     plt.yscale('log')
@@ -318,28 +416,20 @@ def plot_histograms(quantities, channels, output_path, LLP_name, mass, lifetime)
     plt.ylabel("Probability density", fontsize=36)
     plt.title("LLP decay positions (unweighted)", fontsize=30)
     plt.text(0.95, 0.95, textstr,
-             horizontalalignment='right',
-             verticalalignment='top',
-             transform=plt.gca().transAxes,
-             fontsize=36,
-             bbox=dict(boxstyle="round,pad=0.5",
-                       facecolor="white",
-                       edgecolor="black",
-                       alpha=0.8))
-    plt.tick_params(axis='both', labelsize=50, width=2, length=10)
-
-    plt.setp(plt.gca().get_xticklabels(), fontsize=50)
-    plt.setp(plt.gca().get_yticklabels(), fontsize=50)
-
+             horizontalalignment='right', verticalalignment='top',
+             transform=plt.gca().transAxes, fontsize=36,
+             bbox=dict(boxstyle="round,pad=0.5", facecolor="white",
+                       edgecolor="black", alpha=0.8))
+    plt.tick_params(axis='both', which='both', labelsize=50, width=2, length=10)
     plt.tight_layout()
     plt.savefig(os.path.join(output_path, "decay_positions_unweighted.pdf"), bbox_inches='tight')
     plt.close()
 
+    # Decay products multiplicity histograms merged
     plt.figure(figsize=(18, 12))
-    max_count = max(
-        max(quantities['decay_products_counts']) if quantities['decay_products_counts'] else 0, 
-        max(quantities['charged_decay_products_counts']) if quantities['charged_decay_products_counts'] else 0
-    )
+    max_count_all = max(quantities['decay_products_counts']) if quantities['decay_products_counts'] else 0
+    max_count_charged = max(quantities['charged_decay_products_counts']) if quantities['charged_decay_products_counts'] else 0
+    max_count = max(max_count_all, max_count_charged)
     bins = np.arange(-0.5, int(max_count) + 1.5, 1)
     plt.hist(quantities['decay_products_counts'], bins=bins, alpha=0.5, label='All decay products', color='blue', edgecolor='black', density=True)
     plt.hist(quantities['charged_decay_products_counts'], bins=bins, alpha=0.5, label='Charged decay products', color='yellow', edgecolor='black', density=True)
@@ -347,27 +437,22 @@ def plot_histograms(quantities, channels, output_path, LLP_name, mass, lifetime)
     plt.title("Decay products multiplicity", fontsize=39)
     plt.legend(loc='best', fontsize=24)
     plt.text(0.95, 0.95, textstr,
-             horizontalalignment='right',
-             verticalalignment='top',
-             transform=plt.gca().transAxes,
-             fontsize=36,
-             bbox=dict(boxstyle="round,pad=0.5",
-                       facecolor="white",
-                       edgecolor="black",
-                       alpha=0.8))
+             horizontalalignment='right', verticalalignment='top',
+             transform=plt.gca().transAxes, fontsize=36,
+             bbox=dict(boxstyle="round,pad=0.5", facecolor="white",
+                       edgecolor="black", alpha=0.8))
     if max_count <=10:
         tick_positions = np.arange(0, 11, 1)
     else:
         tick_positions = np.arange(0, int(max_count) + 1, 2)
     plt.xticks(tick_positions, fontsize=50)
     plt.yticks(fontsize=50)
-
-    plt.tick_params(axis='both', labelsize=50, width=2, length=10)
-
+    plt.tick_params(axis='both', which='both', labelsize=50, width=2, length=10)
     plt.tight_layout()
-    plt.savefig(os.path.join(output_path, "decay_products_counts_merged.pdf"), bbox_inches='tight')
+    plt.savefig(os.path.join(multiplicities_path, "decay_products_counts_merged.pdf"), bbox_inches='tight')
     plt.close()
 
+    # Combined Decay Products Types
     combine_mapping = {
         'e': ['e-', 'e+'],
         'mu': ['mu-', 'mu+'],
@@ -379,66 +464,59 @@ def plot_histograms(quantities, channels, output_path, LLP_name, mass, lifetime)
         'gamma': ['gamma']
     }
 
-    combined_counts = defaultdict(list)
+    if len(quantities['decay_products_per_event_counts']['e-']) > 0:
+        combined_counts = defaultdict(list)
+        for combined_ptype, constituent_ptypes in combine_mapping.items():
+            for event_idx in range(len(quantities['decay_products_per_event_counts']['e-'])):
+                total = 0
+                for ptype in constituent_ptypes:
+                    total += quantities['decay_products_per_event_counts'][ptype][event_idx]
+                combined_counts[combined_ptype].append(total)
 
-    for combined_ptype, constituent_ptypes in combine_mapping.items():
-        for event_idx in range(len(quantities['decay_products_per_event_counts']['e-'])):
-            total = 0
-            for ptype in constituent_ptypes:
-                total += quantities['decay_products_per_event_counts'][ptype][event_idx]
-            combined_counts[combined_ptype].append(total)
+        for ptype, counts in combined_counts.items():
+            if counts:
+                plt.figure(figsize=(18, 12))
+                max_count = max(counts)
+                bins = np.arange(-0.5, int(max_count) + 1.5, 1)
+                plt.hist(counts, bins=bins, align='mid', edgecolor='black', color='lightcoral', density=True)
+                if ptype == 'e':
+                    xlabel = r"$e^{\pm}$ multiplicity"
+                elif ptype == 'mu':
+                    xlabel = r"$\mu^{\pm}$ multiplicity"
+                elif ptype == 'pi':
+                    xlabel = r"$\pi^{\pm}$ multiplicity"
+                elif ptype == 'k':
+                    xlabel = r"$K^{\pm}$ multiplicity"
+                elif ptype == 'K_L':
+                    xlabel = r"$K_{L}$ multiplicity"
+                elif ptype == 'p':
+                    xlabel = r"$p^{\pm}$ multiplicity"
+                elif ptype == 'n':
+                    xlabel = r"$n^{\pm}$ multiplicity"
+                elif ptype == 'gamma':
+                    xlabel = r"$\gamma$ multiplicity"
+                else:
+                    xlabel = f"{ptype} multiplicity"
 
-    decay_products_types = combined_counts.keys()
-    for ptype in decay_products_types:
-        counts = combined_counts[ptype]
-        if counts:
-            plt.figure(figsize=(18, 12))
-            max_count = max(counts)
-            bins = np.arange(-0.5, int(max_count) + 1.5, 1)
-            plt.hist(counts, bins=bins, align='mid', edgecolor='black', color='lightcoral', density=True)
-            if ptype == 'e':
-                xlabel = r"$e^{\pm}$ multiplicity"
-            elif ptype == 'mu':
-                xlabel = r"$\mu^{\pm}$ multiplicity"
-            elif ptype == 'pi':
-                xlabel = r"$\pi^{\pm}$ multiplicity"
-            elif ptype == 'k':
-                xlabel = r"$K^{\pm}$ multiplicity"
-            elif ptype == 'K_L':
-                xlabel = r"$K_{L}$ multiplicity"
-            elif ptype == 'p':
-                xlabel = r"$p^{\pm}$ multiplicity"
-            elif ptype == 'n':
-                xlabel = r"$n^{\pm}$ multiplicity"
-            elif ptype == 'gamma':
-                xlabel = r"$\gamma$ multiplicity"
-            else:
-                xlabel = f"{ptype} multiplicity"
+                plt.ylabel("Probability density", fontsize=48)
+                plt.title(xlabel, fontsize=39)
+                if max_count <=10:
+                    tick_positions = np.arange(0, 11, 1)
+                else:
+                    tick_positions = np.arange(0, int(max_count) + 1, 2)
+                plt.xticks(tick_positions, fontsize=50)
+                plt.yticks(fontsize=50)
+                plt.tick_params(axis='both', which='both', labelsize=50, width=2, length=10)
+                plt.text(0.95, 0.95, textstr,
+                         horizontalalignment='right', verticalalignment='top',
+                         transform=plt.gca().transAxes, fontsize=36,
+                         bbox=dict(boxstyle="round,pad=0.5", facecolor="white",
+                                   edgecolor="black", alpha=0.8))
+                plt.tight_layout()
+                plt.savefig(os.path.join(multiplicities_path, f"decay_products_counts_{ptype}.pdf"), bbox_inches='tight')
+                plt.close()
 
-            plt.ylabel("Probability density", fontsize=48)
-            plt.title(f"{xlabel}", fontsize=39)
-            if max_count <=10:
-                tick_positions = np.arange(0, 11, 1)
-            else:
-                tick_positions = np.arange(0, int(max_count) + 1, 2)
-            plt.xticks(tick_positions, fontsize=50)
-            plt.yticks(fontsize=50)
-
-            plt.tick_params(axis='both', labelsize=50, width=2, length=10)
-
-            plt.text(0.95, 0.95, textstr,
-                     horizontalalignment='right',
-                     verticalalignment='top',
-                     transform=plt.gca().transAxes,
-                     fontsize=36,
-                     bbox=dict(boxstyle="round,pad=0.5",
-                               facecolor="white",
-                               edgecolor="black",
-                               alpha=0.8))
-            plt.tight_layout()
-            plt.savefig(os.path.join(output_path, f"decay_products_counts_{ptype}.pdf"), bbox_inches='tight')
-            plt.close()
-
+    # Neutrino Counts
     if 'nu' in quantities['decay_products_per_event_counts']:
         nu_counts_list = quantities['nu_counts']
         if len(nu_counts_list) > 0:
@@ -449,24 +527,17 @@ def plot_histograms(quantities, channels, output_path, LLP_name, mass, lifetime)
             plt.xlabel("Number of neutrinos per event", fontsize=48)
             plt.ylabel("Probability density", fontsize=48)
             plt.title("Neutrino multiplicity per event", fontsize=39)
-            plt.tick_params(axis='both', labelsize=50, width=2, length=10)
-
-            plt.setp(plt.gca().get_xticklabels(), fontsize=50)
-            plt.setp(plt.gca().get_yticklabels(), fontsize=50)
-
+            plt.tick_params(axis='both', which='both', labelsize=50, width=2, length=10)
             plt.text(0.95, 0.95, textstr,
-                     horizontalalignment='right',
-                     verticalalignment='top',
-                     transform=plt.gca().transAxes,
-                     fontsize=36,
-                     bbox=dict(boxstyle="round,pad=0.5",
-                               facecolor="white",
-                               edgecolor="black",
-                               alpha=0.8))
+                     horizontalalignment='right', verticalalignment='top',
+                     transform=plt.gca().transAxes, fontsize=36,
+                     bbox=dict(boxstyle="round,pad=0.5", facecolor="white",
+                               edgecolor="black", alpha=0.8))
             plt.tight_layout()
-            plt.savefig(os.path.join(output_path, "decay_products_counts_nu.pdf"), bbox_inches='tight')
+            plt.savefig(os.path.join(multiplicities_path, "decay_products_counts_nu.pdf"), bbox_inches='tight')
             plt.close()
 
+    # 3D Decay Positions Unweighted
     max_points = 10000
     total_points = len(x_mother)
     if total_points > max_points:
@@ -482,50 +553,33 @@ def plot_histograms(quantities, channels, output_path, LLP_name, mass, lifetime)
 
     fig = plt.figure(figsize=(24, 16))
     ax = fig.add_subplot(111, projection='3d')
-    
     ax.scatter(x_plot_unw, y_plot_unw, z_plot_unw, s=10, alpha=0.5, c='blue')
-
     plot_decay_volume(ax)
-
     ax.set_xlabel("x [m]", fontsize=36)
     ax.set_ylabel("y [m]", fontsize=36)
     ax.set_zlabel("z [m]", fontsize=36)
     ax.xaxis.labelpad = 15
     ax.yaxis.labelpad = 15
     ax.zaxis.labelpad = 15
-
     plt.title("Decay positions of LLP (unweighted)", fontsize=30)
 
     ax.text2D(0.95, 0.95, textstr,
-              horizontalalignment='right',
-              verticalalignment='top',
-              transform=ax.transAxes,
-              fontsize=24,
-              bbox=dict(boxstyle="round,pad=0.5",
-                        facecolor="white",
-                        edgecolor="black",
-                        alpha=0.8))
-
+              horizontalalignment='right', verticalalignment='top',
+              transform=ax.transAxes, fontsize=24,
+              bbox=dict(boxstyle="round,pad=0.5", facecolor="white",
+                        edgecolor="black", alpha=0.8))
     ax.tick_params(axis='both', which='both', labelsize=24, width=2, length=10)
-
-    for axis in ['x', 'y', 'z']:
-        for label in getattr(ax, f'get_{axis}ticklabels')():
-            label.set_fontsize(24)
-
     right_padding = ax.text2D(1.2, 0.5, '', transform=ax.transAxes)
-
-    plt.savefig(os.path.join(output_path, "decay_positions_unweighted.pdf"), 
-                bbox_inches='tight', 
-                bbox_extra_artists=[right_padding], 
+    plt.savefig(os.path.join(output_path, "decay_positions_unweighted_3D.pdf"),
+                bbox_inches='tight', bbox_extra_artists=[right_padding],
                 pad_inches=0.5)
-    
     plt.close()
 
+    # 3D Decay Positions Weighted
     N_selected = len(x_mother) // 10
     max_selected = 10000
     if N_selected > max_selected:
         N_selected = max_selected
-
     if N_selected > len(x_mother):
         N_selected = len(x_mother)
 
@@ -534,10 +588,8 @@ def plot_histograms(quantities, channels, output_path, LLP_name, mass, lifetime)
         np.random.seed(24)
         try:
             indices_w = np.random.choice(len(x_mother), size=N_selected, replace=False, p=probabilities)
-        except ValueError as e:
-            print(f"Error during weighted sampling: {e}")
+        except ValueError:
             indices_w = np.random.choice(len(x_mother), size=N_selected, replace=False)
-
         x_plot_w = x_mother[indices_w]
         y_plot_w = y_mother[indices_w]
         z_plot_w = z_mother[indices_w]
@@ -548,50 +600,32 @@ def plot_histograms(quantities, channels, output_path, LLP_name, mass, lifetime)
 
     fig = plt.figure(figsize=(24, 16))
     ax = fig.add_subplot(111, projection='3d')
-    
-    if N_selected > 0:
+    if len(x_plot_w) > 0:
         ax.scatter(x_plot_w, y_plot_w, z_plot_w, s=10, alpha=0.5, c='red')
-
     plot_decay_volume(ax)
-
     ax.set_xlabel("x [m]", fontsize=36)
     ax.set_ylabel("y [m]", fontsize=36)
     ax.set_zlabel("z [m]", fontsize=36)
     ax.xaxis.labelpad = 15
     ax.yaxis.labelpad = 15
     ax.zaxis.labelpad = 15
-
     plt.title("Decay positions of LLP (weighted by $P_{\\mathrm{decay}}$)", fontsize=30)
-
     ax.set_zlim(z_min, z_max + 5)
-
     ax.text2D(0.95, 0.95, textstr,
-              horizontalalignment='right',
-              verticalalignment='top',
-              transform=ax.transAxes,
-              fontsize=24,
-              bbox=dict(boxstyle="round,pad=0.5",
-                        facecolor="white",
-                        edgecolor="black",
-                        alpha=0.8))
-
+              horizontalalignment='right', verticalalignment='top',
+              transform=ax.transAxes, fontsize=24,
+              bbox=dict(boxstyle="round,pad=0.5", facecolor="white",
+                        edgecolor="black", alpha=0.8))
     ax.tick_params(axis='both', which='both', labelsize=24, width=2, length=10)
-
-    for axis in ['x', 'y', 'z']:
-        for label in getattr(ax, f'get_{axis}ticklabels')():
-            label.set_fontsize(24)
-
     right_padding = ax.text2D(1.2, 0.5, '', transform=ax.transAxes)
-
-    plt.savefig(os.path.join(output_path, "decay_positions_weighted.pdf"), 
-                bbox_inches='tight', 
-                bbox_extra_artists=[right_padding], 
+    plt.savefig(os.path.join(output_path, "decay_positions_weighted_3D.pdf"),
+                bbox_inches='tight', bbox_extra_artists=[right_padding],
                 pad_inches=0.5)
     plt.close()
 
+    # Decay Positions z < z_min_decay Unweighted
     z_min_decay = z_min + 1
     mask_z = z_mother < z_min_decay
-
     plt.figure(figsize=(20, 15))
     plt.scatter(x_mother[mask_z], y_mother[mask_z], s=10, alpha=0.5, c='blue')
     plt.xlabel("x [m]", fontsize=36)
@@ -599,28 +633,23 @@ def plot_histograms(quantities, channels, output_path, LLP_name, mass, lifetime)
     plt.title(f"Decay positions (z < {z_min_decay:.0f} m) unweighted", fontsize=39)
     plt.legend(fontsize=36)
     plt.text(0.95, 0.95, textstr,
-             horizontalalignment='right',
-             verticalalignment='top',
-             transform=plt.gca().transAxes,
-             fontsize=36,
-             bbox=dict(boxstyle="round,pad=0.5",
-                       facecolor="white",
-                       edgecolor="black",
-                       alpha=0.8))
-    plt.tick_params(axis='both', labelsize=50, width=2, length=10)
-
-    plt.setp(plt.gca().get_xticklabels(), fontsize=50)
-    plt.setp(plt.gca().get_yticklabels(), fontsize=50)
-
+             horizontalalignment='right', verticalalignment='top',
+             transform=plt.gca().transAxes, fontsize=36,
+             bbox=dict(boxstyle="round,pad=0.5", facecolor="white",
+                       edgecolor="black", alpha=0.8))
+    plt.tick_params(axis='both', which='both', labelsize=50, width=2, length=10)
     plt.tight_layout()
-    plt.savefig(os.path.join(output_path, f"decay_positions_xy_unweighted_z_less_{int(z_min_decay)}.pdf"), bbox_inches='tight')
+    plt.savefig(os.path.join(output_path, f"decay_positions_xy_unweighted_z_less_{int(z_min_decay)}.pdf"),
+                bbox_inches='tight')
     plt.close()
 
+    # Decay Positions z < z_min_decay Weighted
     x_masked = x_mother[mask_z]
     y_masked = y_mother[mask_z]
     P_decay_masked = P_decay_mother[mask_z]
     total_masked = len(x_masked)
     N_selected_xy = total_masked // 10
+    max_selected = 10000
     if N_selected_xy > max_selected:
         N_selected_xy = max_selected
     if N_selected_xy > total_masked:
@@ -631,10 +660,8 @@ def plot_histograms(quantities, channels, output_path, LLP_name, mass, lifetime)
         np.random.seed(100)
         try:
             indices_xy = np.random.choice(total_masked, size=N_selected_xy, replace=False, p=probabilities_xy)
-        except ValueError as e:
-            print(f"Error during weighted sampling for 2D plot: {e}")
+        except ValueError:
             indices_xy = np.random.choice(total_masked, size=N_selected_xy, replace=False)
-
         x_plot_xy_w = x_masked[indices_xy]
         y_plot_xy_w = y_masked[indices_xy]
     else:
@@ -642,31 +669,25 @@ def plot_histograms(quantities, channels, output_path, LLP_name, mass, lifetime)
         y_plot_xy_w = np.array([])
 
     plt.figure(figsize=(20, 15))
-    if N_selected_xy > 0:
+    if len(x_plot_xy_w) > 0:
         plt.scatter(x_plot_xy_w, y_plot_xy_w, s=15, alpha=0.5, c='red')
     plt.xlabel("x [m]", fontsize=36)
     plt.ylabel("y [m]", fontsize=36)
     plt.title(f"Decay positions (z < {z_min_decay:.0f} m) weighted by $P_{{\\mathrm{{decay}}}}$", fontsize=51)
-    if N_selected_xy > 0:
+    if len(x_plot_xy_w) > 0:
         plt.legend(fontsize=36)
     plt.text(0.95, 0.95, textstr,
-             horizontalalignment='right',
-             verticalalignment='top',
-             transform=plt.gca().transAxes,
-             fontsize=36,
-             bbox=dict(boxstyle="round,pad=0.5",
-                       facecolor="white",
-                       edgecolor="black",
-                       alpha=0.8))
-    plt.tick_params(axis='both', labelsize=50, width=2, length=10)
-
-    plt.setp(plt.gca().get_xticklabels(), fontsize=50)
-    plt.setp(plt.gca().get_yticklabels(), fontsize=50)
-
+             horizontalalignment='right', verticalalignment='top',
+             transform=plt.gca().transAxes, fontsize=36,
+             bbox=dict(boxstyle="round,pad=0.5", facecolor="white",
+                       edgecolor="black", alpha=0.8))
+    plt.tick_params(axis='both', which='both', labelsize=50, width=2, length=10)
     plt.tight_layout()
-    plt.savefig(os.path.join(output_path, f"decay_positions_xy_weighted_z_less_{int(z_min_decay)}.pdf"), bbox_inches='tight')
+    plt.savefig(os.path.join(output_path, f"decay_positions_xy_weighted_z_less_{int(z_min_decay)}.pdf"),
+                bbox_inches='tight')
     plt.close()
 
+    # Channels IfAllPoint Ratio
     plt.figure(figsize=(20, 15))
     channel_names = list(channels.keys())
     ratios = [quantities['ifAllPoint_ratios'].get(ch, 0) for ch in channel_names]
@@ -677,85 +698,154 @@ def plot_histograms(quantities, channels, output_path, LLP_name, mass, lifetime)
     plt.xticks(rotation=45, ha='right', fontsize=39)
     plt.yticks(fontsize=39)
     plt.text(0.95, 0.95, textstr,
-             horizontalalignment='right',
-             verticalalignment='top',
-             transform=plt.gca().transAxes,
-             fontsize=36,
-             bbox=dict(boxstyle="round,pad=0.5",
-                       facecolor="white",
-                       edgecolor="black",
-                       alpha=0.8))
-    plt.tick_params(axis='both', labelsize=39, width=2, length=10)
-
+             horizontalalignment='right', verticalalignment='top',
+             transform=plt.gca().transAxes, fontsize=36,
+             bbox=dict(boxstyle="round,pad=0.5", facecolor="white",
+                       edgecolor="black", alpha=0.8))
+    plt.tick_params(axis='both', which='both', labelsize=39, width=2, length=10)
     plt.tight_layout()
     plt.savefig(os.path.join(output_path, "channels_ifAllPoint_ratio.pdf"), bbox_inches='tight')
     plt.close()
 
+    # Commenting out old invariant mass plots:
+    # These were originally plotting invariant mass distributions for all products and detectable decay products.
+    # They served as a cross-check for the invariant mass distributions.
+    # The code below is commented out as requested.
+    #
+    # for channel in channels.keys():
+    #     invariant_mass_all_channel = quantities['invariant_mass_all_per_channel'][channel]
+    #     invariant_mass_detectable_channel = quantities['invariant_mass_detectable_per_channel'][channel]
+    #
+    #     # All products (commented out, used to cross-check):
+    #     # if invariant_mass_all_channel:
+    #     #     plt.figure(figsize=(18, 12))
+    #     #     plt.hist(invariant_mass_all_channel, bins=50, color='purple', edgecolor='black', density=True)
+    #     #     plt.yscale('log')
+    #     #     plt.xlim(mother_mass - 0.01, mother_mass + 0.01)
+    #     #     plt.xlabel("Invariant Mass [GeV]", fontsize=48)
+    #     #     plt.ylabel("Probability density", fontsize=48)
+    #     #     plt.title(f"Invariant Mass Distribution (unweighted, all products) - {channel}", fontsize=39)
+    #     #     plt.text(0.95, 0.95, textstr,
+    #     #              horizontalalignment='right', verticalalignment='top',
+    #     #              transform=plt.gca().transAxes, fontsize=36,
+    #     #              bbox=dict(boxstyle="round,pad=0.5", facecolor="white",
+    #     #                        edgecolor="black", alpha=0.8))
+    #     #     plt.tick_params(axis='both', which='both', labelsize=50, width=2, length=10)
+    #     #     sanitized_channel = channel.replace(" ", "_").replace("/", "_")
+    #     #     plt.tight_layout()
+    #     #     plt.savefig(os.path.join(invariant_mass_path, f"invariant_mass_unweighted_all_{sanitized_channel}.pdf"), bbox_inches='tight')
+    #     #     plt.close()
+    #
+    #     # Detectable decay products (commented out, used to cross-check):
+    #     # if invariant_mass_detectable_channel:
+    #     #     plt.figure(figsize=(18, 12))
+    #     #     plt.hist(invariant_mass_detectable_channel, bins=50, color='purple', edgecolor='black', density=True)
+    #     #     plt.yscale('log')
+    #     #     plt.xlim(0, mother_mass)
+    #     #     plt.xlabel("Invariant Mass [GeV]", fontsize=48)
+    #     #     plt.ylabel("Probability density", fontsize=48)
+    #     #     plt.title(f"Invariant Mass Distribution (unweighted, detectable decay products) - {channel}", fontsize=39)
+    #     #     plt.text(0.95, 0.95, textstr,
+    #     #              horizontalalignment='right', verticalalignment='top',
+    #     #              transform=plt.gca().transAxes, fontsize=36,
+    #     #              bbox=dict(boxstyle="round,pad=0.5", facecolor="white",
+    #     #                        edgecolor="black", alpha=0.8))
+    #     #     plt.tick_params(axis='both', which='both', labelsize=50, width=2, length=10)
+    #     #     sanitized_channel = channel.replace(" ", "_").replace("/", "_")
+    #     #     plt.tight_layout()
+    #     #     plt.savefig(os.path.join(invariant_mass_path, f"invariant_mass_unweighted_detectable_{sanitized_channel}.pdf"), bbox_inches='tight')
+    #     #     plt.close()
+
+    # Now we plot weighted reconstructible invariant mass histograms per channel and a global one.
+    # Range: from 0 to mother_mass, density=True, weights=P_decay_mother
+    x_min_recon = 0
+    x_max_recon = mother_mass+0.02
+
+    # Per channel
+    for channel in channels.keys():
+        mass_arr = np.array(quantities['reconstructed_invariant_mass_per_channel'][channel]['mass'])
+        weight_arr = np.array(quantities['reconstructed_invariant_mass_per_channel'][channel]['weight'])
+        if len(mass_arr) > 0:
+            plt.figure(figsize=(18, 12))
+            plt.hist(mass_arr, bins=50, color='purple', edgecolor='black', density=True, weights=weight_arr)
+            plt.yscale('log')
+            plt.xlim(x_min_recon, x_max_recon)
+            plt.xlabel(r"$m_{\mathrm{inv}}$ [GeV]", fontsize=48)
+            plt.ylabel("Probability density", fontsize=48)
+            plt.title(f"Reconstructible $m_{{\\mathrm{{inv}}}}$ - {channel}", fontsize=39)
+            plt.text(0.95, 0.95, textstr,
+                     horizontalalignment='right', verticalalignment='top',
+                     transform=plt.gca().transAxes, fontsize=36,
+                     bbox=dict(boxstyle="round,pad=0.5", facecolor="white",
+                               edgecolor="black", alpha=0.8))
+            plt.tick_params(axis='both', which='both', labelsize=50, width=2, length=10)
+            sanitized_channel = channel.replace(" ", "_").replace("/", "_")
+            plt.tight_layout()
+            plt.savefig(os.path.join(invariant_mass_path, f"reconstructible_m_inv_weighted_{sanitized_channel}.pdf"), bbox_inches='tight')
+            plt.close()
+
+    # Combined over all channels
+    mass_all = np.array(quantities['reconstructed_invariant_mass_all']['mass'])
+    weight_all = np.array(quantities['reconstructed_invariant_mass_all']['weight'])
+    if len(mass_all) > 0:
+        plt.figure(figsize=(18, 12))
+        plt.hist(mass_all, bins=50, color='purple', edgecolor='black', density=True, weights=weight_all)
+        plt.yscale('log')
+        plt.xlim(x_min_recon, x_max_recon)
+        plt.xlabel(r"$m_{\mathrm{inv}}$ [GeV]", fontsize=48)
+        plt.ylabel("Probability density", fontsize=48)
+        plt.title("Reconstructible $m_{\\mathrm{inv}}$ (all channels)", fontsize=39)
+        plt.text(0.95, 0.95, textstr,
+                 horizontalalignment='right', verticalalignment='top',
+                 transform=plt.gca().transAxes, fontsize=36,
+                 bbox=dict(boxstyle="round,pad=0.5", facecolor="white",
+                           edgecolor="black", alpha=0.8))
+        plt.tick_params(axis='both', which='both', labelsize=50, width=2, length=10)
+        plt.tight_layout()
+        plt.savefig(os.path.join(invariant_mass_path, "reconstructible_m_inv_weighted_all_channels.pdf"), bbox_inches='tight')
+        plt.close()
+
 def main():
-    # Directory containing the files
     directory = 'outputs'
+    ifExportData = True
+    #Change to True if you want to display event details in console (pdg list, 4-momentum, etc.)
+    ifDisplaypdgs = False
 
-    # Hardcoded export option
-    ifExportData = True  # Set to True to export the data table
-
-    # Hardcoded display option for PDGs
-    ifDisplaypdgs = False  # Set to True to enable PDG display
-
-    # Step 1: Parse filenames
     LLP_dict = parse_filenames(directory)
-
     if not LLP_dict:
         print("No LLP files found in the specified directory.")
         sys.exit(1)
 
-    # Step 2: User selection
     selected_file, selected_LLP, selected_mass, selected_lifetime, selected_mixing_patterns = user_selection(LLP_dict)
-
-    # Set plots_directory to 'plots/selected_LLP'
     plots_directory = os.path.join('plots', selected_LLP)
-
-    # Get the output filename without extension
     output_filename = os.path.splitext(os.path.basename(selected_file))[0]
     output_path = os.path.join(plots_directory, output_filename)
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
-    # Step 3: Read file
-    filepath = os.path.join(directory, selected_file)
-    finalEvents, coupling_squared, epsilon_polar, epsilon_azimuthal, br_visible_val, channels = read_file(filepath)
+    finalEvents, coupling_squared, epsilon_polar, epsilon_azimuthal, br_visible_val, channels = read_file(os.path.join(directory, selected_file))
 
-    # Step 4: Plot channels with LLP info
     plot_channels(channels, finalEvents, output_path, selected_LLP, selected_mass, selected_lifetime)
-
-    # Step 5: Extract quantities (with debugging)
     quantities = extract_quantities(channels, ifDisplaypdgs=ifDisplaypdgs)
 
-    # Step 6: Export data table if option is True
     if ifExportData:
         energy_mother = np.array(quantities['energy_mother'])
         P_decay_mother = np.array(quantities['P_decay_mother'])
         z_mother = np.array(quantities['z_mother'])
-
         data_table = np.column_stack((P_decay_mother, energy_mother, z_mother))
-
         np.savetxt(os.path.join(output_path, 'data_table.txt'), data_table, fmt='%.6e', delimiter=' ')
+        print(f"Data table exported to '{output_path}/data_table.txt'.")
 
-        print(f"Data table with P_decay, energy, z_mother has been exported to '{output_path}/data_table.txt'.")
-
-    # Step 7: Plot histograms with LLP info
     plot_histograms(quantities, channels, output_path, selected_LLP, selected_mass, selected_lifetime)
 
-    # Step 8: Write final_states.txt
     final_states_path = os.path.join(output_path, 'final_states.txt')
     detailed_final_state_particles = [
         'e-', 'e+', 'mu-', 'mu+', 'pi-', 'pi+', 'K-', 'K+', 'K_L',
         'p', 'bar[p]', 'n', 'bar[n]', 'nu', 'gamma'
     ]
-
     with open(final_states_path, 'w') as f:
         header = 'N_occurences ' + ' '.join([f'N_{ptype}' for ptype in detailed_final_state_particles])
         f.write('channel ' + header + '\n')
-
         for channel, state_counter in quantities['final_states_per_channel'].items():
             if not state_counter:
                 continue
@@ -764,7 +854,7 @@ def main():
                 state_counts = ' '.join(map(str, state))
                 f.write(f"{count} {state_counts}\n")
 
-    print(f"Final states have been exported to '{final_states_path}'.")
+    print(f"Final states exported to '{final_states_path}'.")
 
 if __name__ == '__main__':
     main()
