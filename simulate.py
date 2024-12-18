@@ -10,7 +10,6 @@ from funcs.ship_setup import (
     z_min, z_max, Delta_x_in, Delta_x_out, Delta_y_in, Delta_y_out, theta_max_dec_vol
 )
 
-# Print SHiP setup information
 print("\nSHiP setup (modify ship_setup.py if needed):\n")
 print(f"z_min = {z_min} m, z_max = {z_max} m, "
       f"Delta_x_in = {Delta_x_in} m, Delta_x_out = {Delta_x_out} m, "
@@ -62,20 +61,16 @@ plot_branching_ratios(
 
 print("Phenomenology plots generated.")
 
-# Prompt for masses and c_taus
 masses, c_taus_list = prompt_masses_and_c_taus()
 timing = False
 
-# Set ifExportEvents parameter
 ifExportEvents = True
+min_events_threshold = 2  # Unified threshold
 
-# Total number of masses
 total_masses = len(masses)
 print(f"\nTotal masses to process: {total_masses}")
 
-# Enumerate over masses with indices starting at 1
 for mass_idx, (mass, c_taus) in enumerate(zip(masses, c_taus_list), start=1):
-    # Check if mass within tabulated range
     if not (LLP.m_min_tabulated < mass < LLP.m_max_tabulated):
         print(f"The current mass {mass} is outside the tabulated data range "
               f"({LLP.m_min_tabulated}, {LLP.m_max_tabulated}). Skipping...")
@@ -91,17 +86,14 @@ for mass_idx, (mass, c_taus) in enumerate(zip(masses, c_taus_list), start=1):
         print("No decay events for these decay modes at this mass. Skipping...")
         continue
 
-    # Ensure c_taus is a list even if a single value is provided
     if isinstance(c_taus, (list, tuple, np.ndarray)):
         c_tau_values = c_taus
     else:
         c_tau_values = [c_taus]
 
-    # Total number of c_tau values for this mass
     total_c_taus = len(c_tau_values)
     print(f"  Total lifetimes (c_tau) to process for mass {mass} GeV: {total_c_taus}")
 
-    # Enumerate over c_tau with indices starting at 1
     for c_tau_idx, c_tau in enumerate(c_tau_values, start=1):
         print(f"  Processing c_tau {c_tau} m")
 
@@ -139,25 +131,7 @@ for mass_idx, (mass, c_taus) in enumerate(zip(masses, c_taus_list), start=1):
         finalEvents = len(momentum)
         epsilon_azimuthal = finalEvents / resampleSize
 
-        unBoostedProducts, size_per_channel = decayProducts.simulateDecays_rest_frame(
-            LLP.mass, LLP.PDGs, LLP.BrRatios_distr, finalEvents, LLP.Matrix_elements,
-            selected_decay_indices, br_visible_val
-        )
-        #Exporting the unboosted decay products. For cross-checking
-        #df_unBoostedProducts = pd.DataFrame(unBoostedProducts)
-        #with open('unBoostedProducts.txt', 'w') as file:
-        #    file.write(df_unBoostedProducts.to_string(index=False))
-       
-        boostedProducts = boost.tab_boosted_decay_products(
-            LLP.mass, momentum, unBoostedProducts
-        )
-        #Exporting the unboosted decay products. For cross-checking
-        #df_boostedProducts = pd.DataFrame(boostedProducts)
-        #with open('boostedProducts.txt', 'w') as file:
-        #    file.write(df_boostedProducts.to_string(index=False))
-
         motherParticleResults = kinematics_samples.get_kinematics()
-        decayProductsResults = boostedProducts
 
         P_decay_data = motherParticleResults[:, 6]
         P_decay_averaged = np.mean(P_decay_data)
@@ -165,21 +139,43 @@ for mass_idx, (mass, c_taus) in enumerate(zip(masses, c_taus_list), start=1):
         N_ev_tot = (N_LLP_tot * epsilon_polar * epsilon_azimuthal 
                    * P_decay_averaged * br_visible_val)
 
+        # Check threshold before computing decay products
+        if N_ev_tot < min_events_threshold:
+            print(f"    N_ev_tot = {N_ev_tot:.6e} < {min_events_threshold}, skipping decay computations...")
+            mergeResults.save_total_only(
+                LLP.LLP_name, LLP.mass, coupling_squared, c_tau, N_LLP_tot, epsilon_polar, 
+                epsilon_azimuthal, P_decay_averaged, br_visible_val, N_ev_tot, uncertainty, 
+                LLP.MixingPatternArray, LLP.decayChannels
+            )
+            print("    Only total results appended.")
+            continue
+        print(f"    N_ev_tot = {N_ev_tot:.6e} > {min_events_threshold}, proceeding to simulating phase space of decay products...")
+        # If above threshold, proceed with decay computations
+        unBoostedProducts, size_per_channel = decayProducts.simulateDecays_rest_frame(
+            LLP.mass, LLP.PDGs, LLP.BrRatios_distr, finalEvents, LLP.Matrix_elements,
+            selected_decay_indices, br_visible_val
+        )
+
+        boostedProducts = boost.tab_boosted_decay_products(
+            LLP.mass, momentum, unBoostedProducts
+        )
+
         print("    Exporting results...")
 
         t_export = time.time()
+        # Removed redundant N_ev_tot check from mergeResults logic
         mergeResults.save(
-            motherParticleResults, decayProductsResults, LLP.LLP_name, LLP.mass,
+            motherParticleResults, boostedProducts, LLP.LLP_name, LLP.mass,
             LLP.MixingPatternArray, LLP.c_tau_input, LLP.decayChannels, size_per_channel,
             finalEvents, epsilon_polar, epsilon_azimuthal, N_LLP_tot, coupling_squared,
             P_decay_averaged, N_ev_tot, br_visible_val, selected_decay_indices,
-            uncertainty, ifExportEvents  # Passing ifExportEvents to mergeResults.save
+            uncertainty, ifExportEvents
         )
         print("    Total time spent on exporting: ", time.time() - t_export)
 
-        # Print explanations: value per line
         print(
-            f"LLP mass {mass} GeV ({mass_idx}/{total_masses}) and lifetime ctau {c_tau} m "f"({c_tau_idx}/{total_c_taus}) has been processed.\n"
+            f"LLP mass {mass} GeV ({mass_idx}/{total_masses}) and lifetime ctau {c_tau} m "
+            f"({c_tau_idx}/{total_c_taus}) has been processed.\n"
             f"Sampled: {finalEvents:.6e}\n"
             f"Squared coupling: {coupling_squared:.6e}\n"
             f"Total number of produced LLPs: {N_LLP_tot:.6e}\n"
@@ -191,6 +187,4 @@ for mass_idx, (mass, c_taus) in enumerate(zip(masses, c_taus_list), start=1):
         )
 
         print("    Done\n")
-
-        
 
