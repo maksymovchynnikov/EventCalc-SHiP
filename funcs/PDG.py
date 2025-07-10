@@ -45,6 +45,13 @@ particle_db = {
     -14: [0, 0, 1],         # Muon anti-neutrino (ν̅μ)
     16: [0, 0, 1],          # Tau neutrino (ντ)
     -16: [0, 0, 1],         # Tau anti-neutrino (ν̅τ)
+    
+    # ------------------------------------------------------------------
+    # *** TEST PARTICLES ***
+    # Added for prompt-decay studies; feel free to change masses at run-time.
+    # ------------------------------------------------------------------
+    1111: [0.4, 0, 1],    # TestParticle-A
+    2222: [0.3, 0, 1],    # TestParticle-B
 }
 
 def get_particle_properties(pdg_code):

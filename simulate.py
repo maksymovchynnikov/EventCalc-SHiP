@@ -1,190 +1,164 @@
-# simulate.py
-import sys
-import os
-import time
-import numpy as np
-import math
-import pandas as pd 
+#!/usr/bin/env python3
+# simulate.py – original workflow with θ_max_sim forwarding
 
+import os, sys, time, math, numpy as np, pandas as pd
 from funcs.ship_setup import (
-    z_min, z_max, Delta_x_in, Delta_x_out, Delta_y_in, Delta_y_out, theta_max_dec_vol
+    z_min, z_max, Delta_x_in, Delta_x_out, Delta_y_in, Delta_y_out,
+    theta_max_dec_vol
 )
 
-print("\nSHiP setup (modify ship_setup.py if needed):\n")
-print(f"z_min = {z_min} m, z_max = {z_max} m, "
-      f"Delta_x_in = {Delta_x_in} m, Delta_x_out = {Delta_x_out} m, "
-      f"Delta_y_in = {Delta_y_in} m, Delta_y_out = {Delta_y_out} m, "
-      f"theta_max = {theta_max_dec_vol:.6f} rad\n")
+# ---------------------------------------------------------------------
+# Angle range used by the kinematics sampler
+# ---------------------------------------------------------------------
+theta_max_sim = theta_max_dec_vol          # **keep this**
 
+print("\nSHiP setup (modify ship_setup.py if needed):\n")
+print(f"z_min={z_min} m, z_max={z_max} m, "
+      f"Δx_in={Delta_x_in} m, Δx_out={Delta_x_out} m, "
+      f"Δy_in={Delta_y_in} m, Δy_out={Delta_y_out} m, "
+      f"θ_max_dec_vol={theta_max_dec_vol:.6f} rad\n")
+
+# --- local imports ----------------------------------------------------
 from funcs import initLLP, decayProducts, boost, kinematics, mergeResults
 from funcs.LLP_selection import (
-    select_particle, prompt_uncertainty, prompt_mixing_pattern, 
-    prompt_masses_and_c_taus, prompt_decay_channels, 
-    resampleSize, particle_selection, mixing_pattern, 
-    uncertainty, nEvents, N_pot
+    prompt_masses_and_c_taus, prompt_decay_channels,
+    particle_selection, mixing_pattern, uncertainty,
+    resampleSize, nEvents, N_pot
 )
 from funcs.plot_phenomenology import (
     plot_production_probability, plot_lifetime, plot_branching_ratios
 )
 
-# Initialize LLP
+# -------------------- LLP selection / plots ---------------------------
 LLP = initLLP.LLP(
-    mass=None, 
-    particle_selection=particle_selection, 
-    mixing_pattern=mixing_pattern, 
+    mass=None,
+    particle_selection=particle_selection,
+    mixing_pattern=mixing_pattern,
     uncertainty=uncertainty
 )
 selected_decay_indices = prompt_decay_channels(LLP.decayChannels)
 
 print("\nGenerating LLP phenomenology plots...")
-
 masses_plot = np.logspace(
-    np.log10(LLP.m_min_tabulated), 
-    np.log10(LLP.m_max_tabulated), 
+    np.log10(LLP.m_min_tabulated),
+    np.log10(LLP.m_max_tabulated),
     250
 )
-Yield_plot = np.array([LLP.get_total_yield(m) for m in masses_plot])
+Yield_plot    = np.array([LLP.get_total_yield(m) for m in masses_plot])
 ctau_int_plot = np.array([LLP.get_ctau(m) for m in masses_plot])
-Br_arr = [LLP.get_Br(m) for m in masses_plot]
-Br_plot = np.vstack(Br_arr)
-chosen_channels = [LLP.decayChannels[i] for i in selected_decay_indices]
-
-plot_folder = f"plots/{LLP.LLP_name}/phenomenology"
-if not os.path.exists(plot_folder):
-    os.makedirs(plot_folder)
-
+Br_plot       = np.vstack([LLP.get_Br(m) for m in masses_plot])
+plot_folder   = f"plots/{LLP.LLP_name}/phenomenology"
+os.makedirs(plot_folder, exist_ok=True)
 plot_production_probability(masses_plot, Yield_plot, LLP, plot_folder)
 plot_lifetime(masses_plot, ctau_int_plot, LLP, plot_folder)
-plot_branching_ratios(
-    masses_plot, Br_plot, chosen_channels, selected_decay_indices, LLP, plot_folder
-)
-
+plot_branching_ratios(masses_plot, Br_plot,
+                      [LLP.decayChannels[i] for i in selected_decay_indices],
+                      selected_decay_indices, LLP, plot_folder)
 print("Phenomenology plots generated.")
 
+# --------------------------- main loop --------------------------------
 masses, c_taus_list = prompt_masses_and_c_taus()
-timing = False
+total_masses        = len(masses)
+min_events_threshold = 0.1
+ifExportEvents       = True
 
-ifExportEvents = True
-min_events_threshold = 2  # Unified threshold
-
-total_masses = len(masses)
 print(f"\nTotal masses to process: {total_masses}")
 
-for mass_idx, (mass, c_taus) in enumerate(zip(masses, c_taus_list), start=1):
+for mass_idx, (mass, c_taus) in enumerate(zip(masses, c_taus_list), 1):
+
     if not (LLP.m_min_tabulated < mass < LLP.m_max_tabulated):
-        print(f"The current mass {mass} is outside the tabulated data range "
-              f"({LLP.m_min_tabulated}, {LLP.m_max_tabulated}). Skipping...")
+        print(f"Mass {mass} GeV outside tabulated range. Skipping.")
         continue
 
-    print(f"\nProcessing mass {mass} GeV")
+    print(f"\nProcessing mass {mass} GeV  ({mass_idx}/{total_masses})")
     LLP.set_mass(mass)
     LLP.compute_mass_dependent_properties()
 
-    br_visible_val = sum(LLP.BrRatios_distr[idx] for idx in selected_decay_indices)
-
+    br_visible_val = sum(LLP.BrRatios_distr[i] for i in selected_decay_indices)
     if br_visible_val == 0:
-        print("No decay events for these decay modes at this mass. Skipping...")
+        print("No visible decay channels at this mass. Skipping.")
         continue
 
-    if isinstance(c_taus, (list, tuple, np.ndarray)):
-        c_tau_values = c_taus
-    else:
-        c_tau_values = [c_taus]
+    c_tau_values      = c_taus if isinstance(c_taus, (list, tuple, np.ndarray)) else [c_taus]
+    total_c_taus      = len(c_tau_values)
+    print(f"  Lifetimes to process: {total_c_taus}")
 
-    total_c_taus = len(c_tau_values)
-    print(f"  Total lifetimes (c_tau) to process for mass {mass} GeV: {total_c_taus}")
-
-    for c_tau_idx, c_tau in enumerate(c_tau_values, start=1):
-        print(f"  Processing c_tau {c_tau} m")
+    for c_tau_idx, c_tau in enumerate(c_tau_values, 1):
+        print(f"  Processing c_tau = {c_tau} m  ({c_tau_idx}/{total_c_taus})")
 
         LLP.set_c_tau(c_tau)
-
-        coupling_squared = LLP.c_tau_int / c_tau
-        if LLP.LLP_name != "Scalar-quartic":
-            yield_times_coupling = LLP.Yield * coupling_squared
-        else:
-            yield_times_coupling = LLP.Yield * 0.01
-        N_LLP_tot = N_pot * yield_times_coupling 
-
-        if yield_times_coupling < 1e-21:
-            print("    The overall yield of produced LLPs is effectively zero for this mass. Skipping...")
+        coupling_squared = LLP.c_tau_int / c_tau if LLP.LLP_name != "Scalar-quartic" else 0.01
+        N_LLP_tot        = N_pot * LLP.Yield * coupling_squared
+        if LLP.Yield * coupling_squared < 1e-21:
+            print("    Negligible yield. Skipping.")
             continue
 
-        val = math.exp(-z_min / (c_tau * 400 / LLP.mass))
-        if val < 1e-21:
-            print(f"For the given mass {LLP.mass} GeV and proper lifetime {c_tau} m, "
-                  f"all LLPs decay before entering the decay volume. Skipping")
-            continue
-
-        t = time.time()
-
-        kinematics_samples = kinematics.Grids(
-            LLP.Distr, LLP.Energy_distr, nEvents, LLP.mass, LLP.c_tau_input
+        # -------- kinematic sampling (with θ_max_sim) -----------------
+        kin = kinematics.Grids(
+            LLP.Distr, LLP.Energy_distr,
+            nEvents, LLP.mass, LLP.c_tau_input,
+            theta_max_sim=theta_max_sim
         )
+        kin.interpolate(False)
+        kin.resample(resampleSize, False)
+        np.savetxt(f"angle-energy-{LLP.LLP_name}-{LLP.mass}.txt",
+                   np.column_stack((kin.get_theta(), kin.get_energy())),
+                   fmt='%.8e')
 
-        kinematics_samples.interpolate(timing)
-        kinematics_samples.resample(resampleSize, timing)
-        epsilon_polar = kinematics_samples.epsilon_polar
-        kinematics_samples.true_samples(timing)
-        momentum = kinematics_samples.get_momentum()
-
-        finalEvents = len(momentum)
+        kin.true_samples(False)
+        momentum       = kin.get_momentum()
+        finalEvents    = len(momentum)
+        epsilon_polar  = kin.epsilon_polar
         epsilon_azimuthal = finalEvents / resampleSize
 
-        motherParticleResults = kinematics_samples.get_kinematics()
+        motherParticleResults = kin.get_kinematics()      # <— fixed name
+        P_decay_averaged      = motherParticleResults[:, 6].mean()
 
-        P_decay_data = motherParticleResults[:, 6]
-        P_decay_averaged = np.mean(P_decay_data)
+        N_ev_tot = (N_LLP_tot * epsilon_polar * epsilon_azimuthal *
+                    P_decay_averaged * br_visible_val)
 
-        N_ev_tot = (N_LLP_tot * epsilon_polar * epsilon_azimuthal 
-                   * P_decay_averaged * br_visible_val)
-
-        # Check threshold before computing decay products
         if N_ev_tot < min_events_threshold:
-            print(f"    N_ev_tot = {N_ev_tot:.6e} < {min_events_threshold}, skipping decay computations...")
+            print(f"    N_ev_tot = {N_ev_tot:.6e} < {min_events_threshold}. "
+                  "Skipping decay computation...")
             mergeResults.save_total_only(
-                LLP.LLP_name, LLP.mass, coupling_squared, c_tau, N_LLP_tot, epsilon_polar, 
-                epsilon_azimuthal, P_decay_averaged, br_visible_val, N_ev_tot, uncertainty, 
+                LLP.LLP_name, LLP.mass, coupling_squared, c_tau, N_LLP_tot,
+                epsilon_polar, epsilon_azimuthal, P_decay_averaged,
+                br_visible_val, N_ev_tot, uncertainty,
                 LLP.MixingPatternArray, LLP.decayChannels
             )
-            print("    Only total results appended.")
             continue
-        print(f"    N_ev_tot = {N_ev_tot:.6e} > {min_events_threshold}, proceeding to simulating phase space of decay products...")
-        # If above threshold, proceed with decay computations
-        unBoostedProducts, size_per_channel = decayProducts.simulateDecays_rest_frame(
-            LLP.mass, LLP.PDGs, LLP.BrRatios_distr, finalEvents, LLP.Matrix_elements,
-            selected_decay_indices, br_visible_val
-        )
 
+        # ---- simulate visible decays --------------------------------
+        unBoostedProducts, size_per_channel = decayProducts.simulateDecays_rest_frame(
+            LLP.mass, LLP.PDGs, LLP.BrRatios_distr, finalEvents,
+            LLP.Matrix_elements, selected_decay_indices, br_visible_val
+        )
         boostedProducts = boost.tab_boosted_decay_products(
             LLP.mass, momentum, unBoostedProducts
         )
 
-        print("    Exporting results...")
-
-        t_export = time.time()
-        # Removed redundant N_ev_tot check from mergeResults logic
+        # ---- save ----------------------------------------------------
+        t0 = time.time()
         mergeResults.save(
             motherParticleResults, boostedProducts, LLP.LLP_name, LLP.mass,
-            LLP.MixingPatternArray, LLP.c_tau_input, LLP.decayChannels, size_per_channel,
-            finalEvents, epsilon_polar, epsilon_azimuthal, N_LLP_tot, coupling_squared,
-            P_decay_averaged, N_ev_tot, br_visible_val, selected_decay_indices,
-            uncertainty, ifExportEvents
+            LLP.MixingPatternArray, LLP.c_tau_input, LLP.decayChannels,
+            size_per_channel, finalEvents, epsilon_polar, epsilon_azimuthal,
+            N_LLP_tot, coupling_squared, P_decay_averaged, N_ev_tot,
+            br_visible_val, selected_decay_indices, uncertainty, ifExportEvents
         )
-        print("    Total time spent on exporting: ", time.time() - t_export)
+        print(f"    Exported in {time.time() - t0:.1f} s")
 
+        # ---- summary -------------------------------------------------
         print(
-            f"LLP mass {mass} GeV ({mass_idx}/{total_masses}) and lifetime ctau {c_tau} m "
-            f"({c_tau_idx}/{total_c_taus}) has been processed.\n"
-            f"Sampled: {finalEvents:.6e}\n"
-            f"Squared coupling: {coupling_squared:.6e}\n"
-            f"Total number of produced LLPs: {N_LLP_tot:.6e}\n"
-            f"Polar acceptance: {epsilon_polar:.6e}\n"
-            f"Azimuthal acceptance: {epsilon_azimuthal:.6e}\n"
-            f"Averaged decay probability: {P_decay_averaged:.6e}\n"
-            f"Visible Br Ratio: {br_visible_val:.6e}\n"
-            f"Total number of events: {N_ev_tot:.6e}\n\n"
+            f"LLP mass {mass} GeV ({mass_idx}/{total_masses}) "
+            f"cτ {c_tau} m ({c_tau_idx}/{total_c_taus}) processed.\n"
+            f"Sampled inside volume: {finalEvents:.6e}\n"
+            f"Squared coupling:      {coupling_squared:.6e}\n"
+            f"N_LLP_total:           {N_LLP_tot:.6e}\n"
+            f"ε_polar:               {epsilon_polar:.6e}\n"
+            f"ε_azimuthal:           {epsilon_azimuthal:.6e}\n"
+            f"⟨P_decay⟩:             {P_decay_averaged:.6e}\n"
+            f"Visible Br:            {br_visible_val:.6e}\n"
+            f"N_events_tot:          {N_ev_tot:.6e}\n"
         )
-
-        print("    Done\n")
 
