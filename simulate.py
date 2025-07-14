@@ -101,9 +101,9 @@ for mass_idx, (mass, c_taus) in enumerate(zip(masses, c_taus_list), 1):
         )
         kin.interpolate(False)
         kin.resample(resampleSize, False)
-        np.savetxt(f"angle-energy-{LLP.LLP_name}-{LLP.mass}.txt",
-                   np.column_stack((kin.get_theta(), kin.get_energy())),
-                   fmt='%.8e')
+        #np.savetxt(f"angle-energy-{LLP.LLP_name}-{LLP.mass}.txt",
+        #           np.column_stack((kin.get_theta(), kin.get_energy())),
+        #           fmt='%.8e')
 
         kin.true_samples(False)
         momentum       = kin.get_momentum()
