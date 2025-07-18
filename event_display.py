@@ -48,6 +48,8 @@ def get_pdg_color(pdg):
         return 'lime'  # Charged kaons
     elif pdg in [12, -12, 14, -14, 16, -16]:
         return 'gray'  # Neutrinos
+    elif pdg == 1000022:
+        return 'pink'  # Dark Matter
     else:
         return '#4d4d4d'  # Others
 
@@ -346,6 +348,7 @@ def main():
         {'label': 'Charged Pions', 'color': 'blue', 'marker': False},
         {'label': 'Charged Kaons', 'color': 'lime', 'marker': False},
         {'label': 'Neutrinos', 'color': 'gray', 'marker': False},
+        {'label': 'Dark Matter', 'color': 'pink', 'marker': False},
         {'label': 'Others', 'color': '#4d4d4d', 'marker': False},
         {'label': f'Decay Vertex (x={x_mother:.1f}, y={y_mother:.1f}, z={z_mother:.1f})', 'color': 'black', 'marker': True},
         {'label': 'Mother Momentum', 'color': 'black', 'marker': False}

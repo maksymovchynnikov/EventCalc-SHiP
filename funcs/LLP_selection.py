@@ -1,7 +1,9 @@
 # funcs/LLP_selection.py
 import os
 import sys
+import re
 import numpy as np
+from . import inelasticDMCalcs as idmc
 
 try:
     resampleSize = int(input("\nEnter the number of events to simulate: "))
@@ -15,7 +17,7 @@ N_pot = 6e20
 
 def select_particle():
     main_folder = "./Distributions"
-    folders = np.array(os.listdir(main_folder))
+    folders = np.array([name for name in os.listdir(main_folder)]) # SDPs should not show up here
                 
     print("\nParticle Selector\n")
     for i, folder in enumerate(folders):
@@ -30,18 +32,24 @@ def select_particle():
     particle_path = os.path.join(main_folder, particle_distr_folder)
     LLP_name = particle_distr_folder.replace("_", " ")
 
+    if LLP_name == "Inelastic-DM":
+        # iDM was selected, but really we are decaying SDPs first
+        particle_path = os.path.join(main_folder, "Dark-photons")
+        LLP_name = "Short-Dark-photons"
+
     return {'particle_path': particle_path, 'LLP_name': LLP_name}
 
 particle_selection = select_particle()
 
 def prompt_uncertainty():
     # Always defined. If not Dark-photons, return None.
-    if particle_selection['LLP_name'] != "Dark-photons":
+    if particle_selection['LLP_name'] != "Dark-photons" and particle_selection['LLP_name'] != "Short-Dark-photons":
         return None
-    print("\nWhich variation of the dark photon flux within the uncertainty to select?")
-    print("1. lower")
-    print("2. central")
-    print("3. upper")
+    else:
+        print("\nWhich variation of the particle flux within the uncertainty to select?")
+        print("1. lower")
+        print("2. central")
+        print("3. upper")
 
     try:
         selected_uncertainty = int(input("Select uncertainty level (1-3): "))
@@ -91,6 +99,9 @@ def prompt_masses_and_c_taus():
 
         ifSameLifetimes = True
         c_taus_list = []
+
+        if particle_selection['LLP_name'] == "Short-Dark-photons":
+            return masses, c_taus_list # note here that "masses" is actually mass of chiPr
         if ifSameLifetimes:
             c_taus_input = input("Enter lifetimes c*tau in m for all masses (separated by spaces): ")
             c_taus = [float(tau) for tau in c_taus_input.replace(',', ' ').split()]
@@ -101,6 +112,14 @@ def prompt_masses_and_c_taus():
         raise ValueError("Invalid input for masses or c*taus. Please enter numerical values.")
 
 def prompt_decay_channels(decayChannels):
+    
+    if particle_selection['LLP_name'] == "Short-Dark-photons":
+        for i, ch in enumerate(decayChannels):
+            if "ChiPr_Chi" in ch:
+                return [i - 1]
+            else:
+                raise ValueError("No decay channels found for SDP")
+    
     print("\nSelect the decay modes:")
     print("0. All")
     for i, channel in enumerate(decayChannels):
@@ -122,3 +141,69 @@ def prompt_decay_channels(decayChannels):
     except ValueError as e:
         raise ValueError(f"Invalid input for decay channel selection: {e}")
 
+def prompt_model():
+
+    if particle_selection['LLP_name'] != "Short-Dark-photons":
+        return None
+
+    user_input = input("Enter the model number for iDM decays (1-4 inclusive): ")
+    try:
+        if not user_input:
+            raise ValueError("No model selected.")
+        
+        value = float(user_input)
+
+        if value < 0 or value > 4:
+            raise ValueError("Value must be between 1 and 4 (inclusive)")
+        elif value % 1 != 0:
+            raise ValueError("Model number must be an integer.")
+        else:
+            return int(value)
+    except ValueError as e:
+        raise ValueError(f"Invalid input for model selection: {e}")
+    
+model = prompt_model()
+
+def _parse_float_list(user_input: str, what: str):
+    """Utility: parse comma/space separated floats; raise on error/<=0."""
+    if not user_input.strip():
+        raise ValueError(f"No {what} input.")
+    toks = re.split(r'[,\s]+', user_input.strip())
+    vals = []
+    for t in toks:
+        if not t:
+            continue
+        try:
+            v = float(t)
+        except ValueError:
+            raise ValueError(f"Cannot parse {what} value '{t}'.")
+        if v <= 0.0:
+            raise ValueError(f"{what} values must be > 0 (got {v}).")
+        vals.append(v)
+    if not vals:
+        raise ValueError(f"No valid {what} values parsed.")
+    return vals
+
+def prompt_couplingSqr_list():
+    """
+    Prompt for one *or more* coupling^2 values that scale the iDM–SM interaction.
+    Applies when LLP is Inelastic-DM *or* Short-Dark-photons (SDP→iDM).
+    Return list[float]; sorted ascending for convenience.
+    """
+    if particle_selection['LLP_name'] not in ("Short-Dark-photons", "Inelastic-DM"):
+        return None
+    user_input = input(
+        "Enter one or more coupling^2 values for iDM to SM "
+        "(comma/space separated): "
+    )
+    vals = _parse_float_list(user_input, "coupling^2")
+    # sort small→large; not strictly required but nice for plotting
+    vals.sort()
+    return vals
+
+# Collect list; keep a scalar for backward compatibility with legacy imports.
+couplingSqr_list = prompt_couplingSqr_list()
+if couplingSqr_list is None:
+    couplingSqr = None
+else:
+    couplingSqr = couplingSqr_list[0]   # legacy single value interface

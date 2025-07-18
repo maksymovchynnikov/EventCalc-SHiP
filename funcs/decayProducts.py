@@ -13,6 +13,7 @@ import pythia8
 
 from . import TwoBodyDecay, ThreeBodyDecay, FourBodyDecay
 from . import PDG
+from . import inelasticDMCalcs
 
 def distribute_events(total_events, branching_ratios):
     """
@@ -39,7 +40,7 @@ def distribute_events(total_events, branching_ratios):
                     difference += 1
     return rounded_events
 
-def simulateDecays_rest_frame(mass, PDGdecay, BrRatio, size, Msquared3BodyLLP, selected_decay_indices, br_visible_val):
+def simulateDecays_rest_frame(mass, PDGdecay, BrRatio, size, Msquared3BodyLLP, selected_decay_indices, br_visible_val, process_in_pythia=True):
     """
     Simulates the decays of a particle in its rest frame, distributing events among selected decay channels.
     """
@@ -126,21 +127,26 @@ def simulateDecays_rest_frame(mass, PDGdecay, BrRatio, size, Msquared3BodyLLP, s
     print(f"\nTotal decay events generated: {len(all_decay_events)}")
     print(f"Time taken for decay simulations: {decay_sim_time:.2f} seconds")
 
-    # Start timing for Pythia processing
-    pythia_start_time = time.time()
+    if process_in_pythia:
+        # Start timing for Pythia processing
+        pythia_start_time = time.time()
 
-    # Process all decay events through Pythia sequentially
-    if all_decay_events:
-        print("\nStarting Pythia processing of decay events...")
-        processed_results = process_events_with_pythia(all_decay_events, mass)
+        # Process all decay events through Pythia sequentially
+        if all_decay_events:
+            print("\nStarting Pythia processing of decay events...")
+            processed_results = process_events_with_pythia(all_decay_events, mass)
+        else:
+            print("\nNo decay events to process with Pythia.")
+            processed_results = []
+
+        # End timing for Pythia processing
+        pythia_end_time = time.time()
+        pythia_time = pythia_end_time - pythia_start_time
+        print(f"Time taken for Pythia processing: {pythia_time:.2f} seconds")
+
     else:
         print("\nNo decay events to process with Pythia.")
-        processed_results = []
-
-    # End timing for Pythia processing
-    pythia_end_time = time.time()
-    pythia_time = pythia_end_time - pythia_start_time
-    print(f"Time taken for Pythia processing: {pythia_time:.2f} seconds")
+        processed_results = _strip_and_pad(all_decay_events)
 
     # Total time
     total_end_time = time.time()
@@ -156,12 +162,17 @@ def process_events_with_pythia(decay_events_list, mass):
     """
     # Initialize Pythia
     pythia = pythia8.Pythia()
+
+    # Register chi and chiPr particles in pythia
+    inelasticDMCalcs.register_stable_particle(pythia, inelasticDMCalcs.CHI_PDG, inelasticDMCalcs.CHI_NAME)
+    inelasticDMCalcs.register_stable_particle(pythia, inelasticDMCalcs.CHI_PR_PDG, inelasticDMCalcs.CHI_PR_PDG)
+
     #pythia.readString("Print:quiet = on")  # Suppress banners and output
     pythia.readString("ProcessLevel:all = off")
     pythia.readString("PartonLevel:all = on")
     pythia.readString("HadronLevel:all = on")
     # Keep certain particles stable
-    stable_particles = [13, -13, 211, -211, 321, -321, 130]
+    stable_particles = [13, -13, 211, -211, 321, -321, 130, inelasticDMCalcs.CHI_PR_PDG, inelasticDMCalcs.CHI_PDG]
     for pid in stable_particles:
         pythia.readString(f"{pid}:mayDecay = off")
     mother_id = 25  # PDG ID for the mother particle (e.g., Higgs boson)
@@ -283,3 +294,30 @@ def process_events_with_pythia(decay_events_list, mass):
 
     return padded_events_array
 
+def _strip_and_pad(decay_events_list):
+    """
+    Convert internal (8-slot) decay records to the 6-slot records normally
+    returned after Pythia, and pad every event to the same particle count.
+    """
+    processed = []
+    for ev in decay_events_list:
+        out = []
+        n = len(ev) // 8
+        for i in range(n):
+            base = 8 * i
+            # copy px,py,pz,E,m  (slots 0..4) + pdgId (slot 5)
+            out.extend(ev[base : base + 5])
+            out.append(ev[base + 5])
+        processed.append(out)
+
+    # ------------------------------------------------------------------ pad --
+    max_n = max(len(ev) // 6 for ev in processed) if processed else 0
+    pad_tpl = [0.0, 0.0, 0.0, 0.0, 0.0, -999]               # one "blank" part.
+    padded = []
+    for ev in processed:
+        miss = max_n - len(ev) // 6
+        if miss:
+            ev = list(ev) + pad_tpl * miss
+        padded.append(ev)
+
+    return np.asarray(padded, dtype=float)

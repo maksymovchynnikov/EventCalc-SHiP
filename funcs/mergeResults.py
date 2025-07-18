@@ -22,6 +22,7 @@ def save(
     br_visible_val, 
     selected_decay_indices, 
     uncertainty,
+    model,
     ifExportEvents
 ):
     """
@@ -63,6 +64,17 @@ def save(
         else:
             outputfileName = os.path.join(
                 eventData_dir, 
+                f'{LLP_name}_{mass:.3e}_{c_tau:.3e}_data.dat'
+            )
+    elif LLP_name == "Inelastic-DM":
+        if uncertainty is not None and model is not None:
+            outputfileName = os.path.join(
+                eventData_dir,
+                f'{LLP_name}_{mass:.3e}_{c_tau:.3e}_{uncertainty}_Model{model}_data.dat'
+            )
+        else:
+            outputfileName = os.path.join(
+                eventData_dir,
                 f'{LLP_name}_{mass:.3e}_{c_tau:.3e}_data.dat'
             )
     else:
@@ -119,6 +131,9 @@ def save(
             total_filename = f"{LLP_name}_{uncertainty}_total.txt"
         else:
             total_filename = f"{LLP_name}_total.txt"
+    elif LLP_name == "Inelastic-DM":
+        if uncertainty is not None:
+            total_filename = f"{LLP_name}_{uncertainty}_Model{model}_total.txt"
     elif "Scalar" in LLP_name:
         total_filename = f"{LLP_name}_total.txt"
     else:
@@ -161,6 +176,7 @@ def save_total_only(
     br_visible_val,
     N_ev_tot,
     uncertainty,
+    model,
     MixingPatternArray,
     decayChannels
 ):
@@ -180,6 +196,9 @@ def save_total_only(
             total_filename = f"{LLP_name}_{uncertainty}_total.txt"
         else:
             total_filename = f"{LLP_name}_total.txt"
+    elif LLP_name == "Inelastic-DM":
+        if uncertainty is not None and model is not None:
+            total_filename = f"{LLP_name}_{uncertainty}_Model{model}_total.txt"
     elif "Scalar" in LLP_name:
         total_filename = f"{LLP_name}_total.txt"
     else:

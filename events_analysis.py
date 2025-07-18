@@ -84,7 +84,7 @@ def extract_quantities(channels, ifDisplaypdgs=False):
 
     detailed_final_state_particles = [
         'e-', 'e+', 'mu-', 'mu+', 'pi-', 'pi+', 'K-', 'K+', 'K_L',
-        'p', 'bar[p]', 'n', 'bar[n]', 'nu', 'gamma'
+        'p', 'bar[p]', 'n', 'bar[n]', 'nu', 'gamma', 'chi'
     ]
 
     pdg_to_particle = {
@@ -107,7 +107,8 @@ def extract_quantities(channels, ifDisplaypdgs=False):
         14: 'nu',
         -14: 'nu',
         16: 'nu',
-        -16: 'nu'
+        -16: 'nu',
+        1000022: 'chi'
     }
 
     for channel_idx, (channel, channel_data) in enumerate(channels.items(), start=1):
@@ -222,7 +223,7 @@ def extract_quantities(channels, ifDisplaypdgs=False):
 
                     decay_products_count += 1
                     # Charged: exclude gamma, K_L, n, bar[n], nu
-                    if particle not in ['gamma', 'K_L', 'n', 'bar[n]', 'nu']:
+                    if particle not in ['gamma', 'K_L', 'n', 'bar[n]', 'nu', 'chi']:
                         charged_decay_products_count += 1
 
                     # Check if this detectable decay product points to the detector
@@ -461,7 +462,8 @@ def plot_histograms(quantities, channels, output_path, LLP_name, mass, lifetime)
         'K_L': ['K_L'],
         'p': ['p', 'bar[p]'],
         'n': ['n', 'bar[n]'],
-        'gamma': ['gamma']
+        'gamma': ['gamma'],
+        'chi': ['chi']
     }
 
     if len(quantities['decay_products_per_event_counts']['e-']) > 0:
@@ -495,6 +497,8 @@ def plot_histograms(quantities, channels, output_path, LLP_name, mass, lifetime)
                     xlabel = r"$n^{\pm}$ multiplicity"
                 elif ptype == 'gamma':
                     xlabel = r"$\gamma$ multiplicity"
+                elif ptype == 'chi':
+                    xlabel = r"$\chi$ multiplicity"
                 else:
                     xlabel = f"{ptype} multiplicity"
 
@@ -841,7 +845,7 @@ def main():
     final_states_path = os.path.join(output_path, 'final_states.txt')
     detailed_final_state_particles = [
         'e-', 'e+', 'mu-', 'mu+', 'pi-', 'pi+', 'K-', 'K+', 'K_L',
-        'p', 'bar[p]', 'n', 'bar[n]', 'nu', 'gamma'
+        'p', 'bar[p]', 'n', 'bar[n]', 'nu', 'gamma', 'chi'
     ]
     with open(final_states_path, 'w') as f:
         header = 'N_occurences ' + ' '.join([f'N_{ptype}' for ptype in detailed_final_state_particles])

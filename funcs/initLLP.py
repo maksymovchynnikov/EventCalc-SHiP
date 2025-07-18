@@ -5,6 +5,8 @@ import numpy as np
 import pandas as pd
 from funcs import HNLmerging
 from scipy.interpolate import RegularGridInterpolator
+from numbers import Integral
+from .inelasticDMCalcs import calc_mChiPr_mA_ratio
 import sympy as sp
 
 class LLP:
@@ -24,10 +26,13 @@ class LLP:
         self.mass = mass
         self.particle_path = particle_selection['particle_path']
         self.MixingPatternArray = mixing_pattern if mixing_pattern is not None else None
-        self.uncertainty = uncertainty if self.LLP_name == "Dark-photons" else None
+        self.uncertainty = uncertainty if self.LLP_name in ("Dark-photons", "Short-Dark-photons", "Inelastic-DM") else None
         self.Matrix_elements = None
         self.Matrix_elements_expr = []  # To store symbolic expressions
 
+        self.model = particle_selection.get("model", None)
+        self.couplingSqr = particle_selection.get("couplingSqr", None)
+        
         self.import_particle()
         self.mass_range = self._get_mass_range()
 
@@ -55,8 +60,10 @@ class LLP:
             self.compute_mass_dependent_properties_HNL()
         elif self.LLP_name == "ALP-photon":
             self.compute_mass_dependent_properties_ALP_photon()
-        elif self.LLP_name == "Dark-photons":
+        elif self.LLP_name in ("Dark-photons", "Short-Dark-photons"):
             self.compute_mass_dependent_properties_dark_photons()
+        elif self.LLP_name == "Inelastic-DM":
+            self.compute_mass_dependent_properties_inelastic_dark_matter()
         else:
             raise ValueError("Unknown LLP name.")
 
@@ -75,6 +82,11 @@ class LLP:
         self.c_tau_int = self.get_ctau(self.mass)
         self.Yield = self.get_total_yield(self.mass)
 
+    def compute_mass_dependent_properties_inelastic_dark_matter(self):
+        self.BrRatios_distr = self.get_Br(self.mass)
+        self.c_tau_int = self.get_ctau(self.mass)
+        self.Yield = self.get_total_yield(self.mass / calc_mChiPr_mA_ratio(self.model, self.mass))
+        
     def compute_mass_dependent_properties_HNL(self):
         self.c_tau_int = self.get_ctau(self.mass)
         self.Yield = self.get_total_yield(self.mass)
@@ -91,10 +103,16 @@ class LLP:
             self.import_HNL()
         elif self.LLP_name == "ALP-photon":
             self.import_ALP_photon()
-        elif self.LLP_name == "Dark-photons":
+        elif self.LLP_name in ("Dark-photons", "Short-Dark-photons"):
             if self.uncertainty is None:
                 raise ValueError("Uncertainty must be provided for Dark-photons.")
             self.import_dark_photons()
+        elif self.LLP_name == "Inelastic-DM":
+            if self.uncertainty is None:
+                raise ValueError("Uncertainty must be provided for Inelastic-DM.")
+            if self.model is None:
+                raise ValueError("Model number must be provided for Inelastic-DM.")
+            self.import_Inelastic_DM()
         else:
             raise ValueError("Unknown LLP name.")
 
@@ -234,7 +252,10 @@ class LLP:
         energy_file_path = os.path.join(self.particle_path, f"Emax-DP-{self.uncertainty}.txt")
         yield_path = os.path.join(self.particle_path, f"Total-yield-DP-{self.uncertainty}.txt")
         ctau_path = os.path.join(self.particle_path, "ctau-DP.txt")
-        decay_json_path = os.path.join(self.particle_path, "DP-decay.json")
+        if self.LLP_name == "Short-Dark-photons":
+            decay_json_path = os.path.join(self.particle_path, "SDP-decay.json")
+        else:
+            decay_json_path = os.path.join(self.particle_path, "DP-decay.json")
 
         self.Distr = pd.read_csv(distribution_file_path, header=None, sep="\t")
         self.Energy_distr = pd.read_csv(energy_file_path, header=None, sep="\t")
@@ -270,6 +291,55 @@ class LLP:
 
         # Print the matrix elements table
         #self.print_matrix_elements()
+
+    def import_Inelastic_DM(self):
+        model = self.model
+        if model not in [1, 2, 3, 4]:
+            raise ValueError("Model must be 1, 2, 3, or 4.")
+        
+
+        distribution_file_path = os.path.join(self.particle_path, f"DoubleDistr-iDM.txt")
+        energy_file_path = os.path.join(self.particle_path, f"Emax-iDM.txt")
+        yield_path = os.path.join(self.particle_path, f"Total-yield-iDM-{self.uncertainty}.txt")
+        ctau_path = os.path.join(self.particle_path, f"ctau-iDM_Model{model}.txt")
+        decay_json_path = os.path.join(self.particle_path, f"iDM-decay_Model{model}.json")
+
+        # Shared files
+        self.Distr = pd.read_csv(distribution_file_path, header=None, sep="\t")
+        self.Energy_distr = pd.read_csv(energy_file_path, header=None ,sep="\t")
+        self.Yield_data = pd.read_csv(yield_path, header=None, sep="\t")
+        self.ctau_data = pd.read_csv(ctau_path, header=None, sep="\t")
+
+        mass_ctau = self.ctau_data.iloc[:, 0].to_numpy()
+        ctau_values = self.ctau_data.iloc[:, 1].to_numpy()
+        self.ctau_interpolator = RegularGridInterpolator((mass_ctau,), ctau_values, bounds_error=False, fill_value=None)
+
+        mass_yield = self.Yield_data.iloc[:, 0].to_numpy()
+        yield_values = self.Yield_data.iloc[:, 1].to_numpy()
+        self.yield_interpolator = RegularGridInterpolator((mass_yield,), yield_values, bounds_error=False, fill_value=None)
+
+        iDM_decay = pd.read_json(decay_json_path)
+        self.decayChannels = iDM_decay.iloc[:, 0].to_numpy() 
+        self.PDGs = iDM_decay.iloc[:, 1].apply(np.array).to_numpy()
+        self.BrRatios = iDM_decay.iloc[:, 2].to_numpy()
+
+        self.Matrix_elements_raw = iDM_decay.iloc[:, -1].to_numpy()
+
+        # Compile matrix elements
+        self.Matrix_elements = self.compile_matrix_elements(self.Matrix_elements_raw)
+
+        self.get_ctau = lambda m: self.ctau_interpolator([m])[0] / self.couplingSqr # divide by chosen coupling
+        self.get_total_yield = lambda m: self.yield_interpolator([m])[0]
+        self.get_Br = self.setup_br_interpolators(self.BrRatios)
+        self.get_distribution = lambda m: self.Distr
+        self.get_MatrixElements = lambda m: self.Matrix_elements
+
+
+        # define tabulated range
+        self.define_tabulated_range_nonHNL(mass_yield, yield_values, self.Distr, self.ctau_data)
+
+        # Print the matrix elements table
+        # self.print_matrix_elements()
 
     def import_HNL(self):
         (
@@ -364,7 +434,12 @@ class LLP:
         compiled_expressions = []
         for expr_str in matrix_elements_raw:
             if expr_str not in [None, "", "-"]:
-                if expr_str.strip() == "1.":
+                if isinstance(expr_str, Integral) and int(expr_str) == 1:
+                    # a single matrix element which is unitary
+                    func = lambda m, e1, e3: 1.0
+                    compiled_expressions.append(func)
+                    self.Matrix_elements_expr.append("1.0")
+                elif expr_str.strip() == "1.":
                     # Define a function that returns 1.0
                     func = lambda m, e1, e3: 1.0
                     compiled_expressions.append(func)
@@ -382,7 +457,7 @@ class LLP:
 
                     try:
                         # Parse the corrected expression with local variables
-                        expr = sp.sympify(expr_str_corrected, locals=local_dict)
+                        expr = sp.sympify(expr_str_corrected, locals=local_dict) 
                     except Exception as e:
                         raise ValueError(f"Failed to sympify expression: {expr_str_corrected}") from e
                     func = sp.lambdify((mLLP, E_1, E_3), expr, 'numpy')
@@ -432,4 +507,3 @@ class LLP:
             'Mprocess(channel)': self.Matrix_elements_expr
         })
         print(df.to_string(index=False))
-

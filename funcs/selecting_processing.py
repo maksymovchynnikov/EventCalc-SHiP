@@ -6,8 +6,8 @@ import sys
 
 def parse_filenames(directory):
     """
-    Parses filenames in the given directory and its subdirectories to extract LLP names, masses, lifetimes, mixing patterns, and uncertainty choices.
-    Returns a dictionary llp_dict[llp_name][(mass, lifetime)][mixing_patterns_or_uncertainty] = filepath
+    Parses filenames in the given directory and its subdirectories to extract LLP names, masses, lifetimes, mixing patterns, uncertainty and model choices.
+    Returns a dictionary llp_dict[llp_name][(mass, lifetime)][mixing_patterns_or_uncertainty_or_model] = filepath
     """
     llp_dict = {}  # LLP_name: { (mass, lifetime): { mixing_patterns_or_uncertainty: filepath } }
 
@@ -63,15 +63,22 @@ def parse_filenames(directory):
                     if mass_lifetime not in llp_dict[llp_name]:
                         llp_dict[llp_name][mass_lifetime] = {}
                     llp_dict[llp_name][mass_lifetime][uncertainty_choice] = filepath
-                else:
-                    # For other LLPs, expected pattern: LLP_name_mass_c_tau_data.dat
-                    if len(tokens) < 3:
-                        print(f"Filename {filename} does not have enough tokens for LLP '{llp_name}'. Skipping.")
+
+                elif llp_name == "Inelastic-DM":
+                    # Expected pattern: Inelastic-DM_mass_c_tau_uncertainty_modelNum_data.dat
+                    if len(tokens) < 5:
+                        print(f"[WARN] {filename}: not enogh tokens for Inelastic-DM")
                         continue
                     try:
                         mass = float(tokens[1])
                         lifetime = float(tokens[2])
-                        mixing_patterns_or_uncertainty = None  # No additional identifiers
+                        uncertainty_choice = tokens[3] # 'lower', 'central', 'upper'
+                        model_num = int(tokens[4].strip("Model")) # 1, 2, 3 or 4
+                        if uncertainty_choice not in ['lower', 'central', 'upper']:
+                            print(f"Invalid uncertainty choice '{uncertainty_choice}' in filename {filename}. Skipping.")
+                            continue
+                        elif model_num not in [1, 2, 3, 4]:
+                            print(f"Invalid model number '{model_num}' in filename {filename}. Skipping.")
                     except ValueError:
                         print(f"Invalid numerical values in filename {filename}. Skipping.")
                         continue
@@ -81,7 +88,26 @@ def parse_filenames(directory):
                     mass_lifetime = (mass, lifetime)
                     if mass_lifetime not in llp_dict[llp_name]:
                         llp_dict[llp_name][mass_lifetime] = {}
-                    llp_dict[llp_name][mass_lifetime][mixing_patterns_or_uncertainty] = filepath
+                    llp_dict[llp_name][mass_lifetime][(uncertainty_choice, model_num)] = filepath
+                else:
+                    # For other LLPs, expected pattern: LLP_name_mass_c_tau_data.dat
+                    if len(tokens) < 3:
+                        print(f"Filename {filename} does not have enough tokens for LLP '{llp_name}'. Skipping.")
+                        continue
+                    try:
+                        mass = float(tokens[1])
+                        lifetime = float(tokens[2])
+                        mixing_patterns_or_uncertainty_or_model = None  # No additional identifiers
+                    except ValueError:
+                        print(f"Invalid numerical values in filename {filename}. Skipping.")
+                        continue
+                    # Store in llp_dict
+                    if llp_name not in llp_dict:
+                        llp_dict[llp_name] = {}
+                    mass_lifetime = (mass, lifetime)
+                    if mass_lifetime not in llp_dict[llp_name]:
+                        llp_dict[llp_name][mass_lifetime] = {}
+                    llp_dict[llp_name][mass_lifetime][mixing_patterns_or_uncertainty_or_model] = filepath
             else:
                 continue  # Skip files not ending with '_data.dat'
     return llp_dict
@@ -174,6 +200,27 @@ def user_selection(llp_dict):
             selected_mixing_patterns = selected_uncertainty
         else:
             selected_mixing_patterns = None
+    elif selected_llp == "Inelastic-DM":
+        if any(options_list):
+            print(f"Available uncertainty and model choices for {selected_llp} with mass {selected_mass:.2e} GeV and lifetime {selected_lifetime:.2e} s:")
+            for i, (uncertainty_choice, model) in enumerate(options_list):
+                print(f"{i + 1}. {uncertainty_choice}, {model}")
+            # Ask user to choose an uncertainty choice
+            while True:
+                try:
+                    uncertainty_model_choice_num = int(input("Choose an uncertainty and model choice by typing the number: "))
+                    if 1 <= uncertainty_model_choice_num <= len(options_list):
+                        break
+                    else:
+                        print(f"Please enter a number between 1 and {len(options_list)}.")
+                except ValueError:
+                    print("Invalid input. Please enter a valid number.")
+            selected_uncertainty_model = options_list[uncertainty_model_choice_num - 1]
+            print(f"Selected uncertainty choice: {selected_uncertainty_model}")
+            selected_mixing_patterns = selected_uncertainty_model
+        else:
+            selected_mixing_patterns = None
+            
     else:
         selected_mixing_patterns = None  # For other LLPs
 

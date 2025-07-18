@@ -1,6 +1,8 @@
 import numpy as np
 import numba as nb
 from scipy.interpolate import RegularGridInterpolator
+from random import uniform
+from . import inelasticDMCalcs
 
 """
 Indices referring to the meaning of the final table columns.
@@ -52,7 +54,7 @@ def simulate_decays(m, m1, m2, pdg1, pdg2, charge1, charge2, stability1, stabili
     Random angles are used to determine the momentum directions.
     """
     # Random polar and azimuthal angles
-    thetaVals = np.random.rand() * np.pi
+    thetaVals = np.arccos(uniform(-1, 1))
     phiVals = np.random.rand() * 2 * np.pi
 
     # Calculate the energies of the decay products in the rest frame
