@@ -5,7 +5,7 @@ import math, sys, numpy as np
 from funcs import initLLP, kinematics, boost, PDG
 from funcs.LLP_selection import (
     particle_selection, mixing_pattern, uncertainty,
-    prompt_masses_and_c_taus, resampleSize
+    alp_production_mode, prompt_masses_and_c_taus, resampleSize
 )
 from funcs.TwoBodyDecay import decay_products
 
@@ -15,6 +15,7 @@ LLP = initLLP.LLP(
     particle_selection=particle_selection,
     mixing_pattern=mixing_pattern,
     uncertainty=uncertainty,
+    alp_production_mode=alp_production_mode,
 )
 masses, c_taus_list = prompt_masses_and_c_taus()
 

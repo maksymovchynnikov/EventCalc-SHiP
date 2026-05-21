@@ -35,6 +35,11 @@ def plot_production_probability(masses_plot, Yield_plot, LLP, plot_folder):
         ax.text(0.05, 0.95, uncertainty_text, transform=ax.transAxes,
                 fontsize=10, verticalalignment='top',
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.5))
+    elif LLP.LLP_name == "ALP-photon":
+        production_text = f"Production mode: {LLP.alp_production_mode}"
+        ax.text(0.05, 0.95, production_text, transform=ax.transAxes,
+                fontsize=10, verticalalignment='top',
+                bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.5))
     
     ax.grid(True, which="both", linestyle='--', linewidth=0.5)
     fig.tight_layout()
@@ -70,6 +75,11 @@ def plot_lifetime(masses_plot, ctau_int_plot, LLP, plot_folder):
     elif LLP.LLP_name == "Dark-photons":
         uncertainty_text = f"The {LLP.uncertainty} position of production yield"
         ax.text(0.05, 0.95, uncertainty_text, transform=ax.transAxes,
+                fontsize=10, verticalalignment='top',
+                bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.5))
+    elif LLP.LLP_name == "ALP-photon":
+        production_text = f"Production mode: {LLP.alp_production_mode}"
+        ax.text(0.05, 0.95, production_text, transform=ax.transAxes,
                 fontsize=10, verticalalignment='top',
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.5))
     
@@ -163,6 +173,11 @@ def plot_branching_ratios(masses_plot, Br_plot, chosen_channels, selected_decay_
         ax.text(0.05, 0.95, uncertainty_text, transform=ax.transAxes,
                 fontsize=10, verticalalignment='top',
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.5))
+    elif LLP.LLP_name == "ALP-photon":
+        production_text = f"Production mode: {LLP.alp_production_mode}"
+        ax.text(0.05, 0.95, production_text, transform=ax.transAxes,
+                fontsize=10, verticalalignment='top',
+                bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.5))
     
     # Add grid
     ax.grid(True, which="both", linestyle='--', linewidth=0.5)
@@ -186,4 +201,3 @@ def plot_branching_ratios(masses_plot, Br_plot, chosen_channels, selected_decay_
     # Save the figure with tight bounding box to include all elements
     fig.savefig(os.path.join(plot_folder, "branching_ratios.png"), dpi=300, bbox_inches='tight')
     plt.close(fig)
-

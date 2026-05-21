@@ -24,6 +24,7 @@ Once this is done, we have all the ingredients for calculating the event rate fo
 When producing LLP fluxes, the following setups have been used to get the fluxes of mesons (their mother particles):
 
 - For light mesons (`Pi0`, `Eta`, `Eta'`, `Rho0`, `Omega`, etc.): `pythia8` setup from [1904.02091](https://arxiv.org/abs/1904.02091). This means that the cascade enhancement of the fluxes is not included. It would typically result in too soft particles that would be outside of the SHiP acceptance, so there should not be any significant impact on the event rate. Nevertheless, it will be implemented in the future.
+- For photons, for the production of the ALPs coupled to photons: the primary photons (resulting from the primary proton-target interactions) have been generated using the fluxes of `Pi0`, `Eta`, `Eta'` and decaying them into two photons; the secondary photons (resulting from EM cascades inside the thick target), the approach from Ref. [2509.14310](https://arxiv.org/abs/2509.14310) has been used to generate their flux.
 - For charm and bottom: [SHiP study](https://cds.cern.ch/record/2115534).
 - For kaons: [2004.07974](https://arxiv.org/abs/2004.07974) (will be regenerated as well).
 
@@ -67,7 +68,7 @@ In `EventCalc`, this is performed in the following way:
   
 ## To be done
 
-- Adding more LLPs (ALPs, B-L mediators, HNLs with dipole coupling, inelastic and elastic LDM, etc.). Pending due to their phenomenology revision.
+- Adding more LLPs (ALPs coupled to hadrons of W bosons, B-L mediators, HNLs with dipole coupling, inelastic and elastic LDM, etc.). Pending due to their active phenomenology revision.
 - Adding theoretical uncertainty (decay widths for Higgs-like scalars, B-L production uncertainties, etc.).
 - Improving the performance of the code (parallelization of pythia8 run, etc.).
 - Adjusting the SHiP setup with the up-to-date setup if needed.
