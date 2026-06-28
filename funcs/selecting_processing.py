@@ -6,7 +6,7 @@ import sys
 
 def parse_filenames(directory):
     """
-    Parses filenames in the given directory and its subdirectories to extract LLP names, masses, lifetimes, mixing patterns, and uncertainty choices.
+    Parses filenames in the given directory and its subdirectories to extract LLP names, masses, lifetimes, mixing patterns, uncertainty choices, and ALP-photon production modes.
     Returns a dictionary llp_dict[llp_name][(mass, lifetime)][mixing_patterns_or_uncertainty] = filepath
     """
     llp_dict = {}  # LLP_name: { (mass, lifetime): { mixing_patterns_or_uncertainty: filepath } }
@@ -41,6 +41,28 @@ def parse_filenames(directory):
                     if mass_lifetime not in llp_dict[llp_name]:
                         llp_dict[llp_name][mass_lifetime] = {}
                     llp_dict[llp_name][mass_lifetime][mixing_patterns] = filepath
+                elif llp_name == "ALP-photon":
+                    # Expected pattern: ALP-photon_mass_c_tau_primary_data.dat
+                    # or ALP-photon_mass_c_tau_cascades_data.dat
+                    if len(tokens) < 4:
+                        print(f"Filename {filename} does not have enough tokens for ALP-photon.")
+                        continue
+                    try:
+                        mass = float(tokens[1])
+                        lifetime = float(tokens[2])
+                        alp_production_mode = tokens[3]
+                        if alp_production_mode not in ['primary', 'cascade', 'cascades']:
+                            print(f"Invalid ALP-photon production mode '{alp_production_mode}' in filename {filename}. Skipping.")
+                            continue
+                    except ValueError:
+                        print(f"Invalid numerical values in filename {filename}. Skipping.")
+                        continue
+                    if llp_name not in llp_dict:
+                        llp_dict[llp_name] = {}
+                    mass_lifetime = (mass, lifetime)
+                    if mass_lifetime not in llp_dict[llp_name]:
+                        llp_dict[llp_name][mass_lifetime] = {}
+                    llp_dict[llp_name][mass_lifetime][alp_production_mode] = filepath
                 elif llp_name == "Dark-photons":
                     # Expected pattern: Dark-photons_mass_c_tau_uncertainty_data.dat
                     if len(tokens) < 4:
@@ -88,8 +110,8 @@ def parse_filenames(directory):
 
 def user_selection(llp_dict):
     """
-    Allows the user to select an LLP, mass-lifetime combination, and mixing patterns or uncertainty choices.
-    Returns the selected filepath, the selected LLP name, mass, lifetime, and mixing patterns or uncertainty.
+    Allows the user to select an LLP, mass-lifetime combination, and mixing patterns, uncertainty choices, or ALP-photon production modes.
+    Returns the selected filepath, the selected LLP name, mass, lifetime, and the selected extra identifier.
     """
     print("Available LLPs:")
     llp_names_list = sorted(llp_dict.keys())
@@ -152,6 +174,25 @@ def user_selection(llp_dict):
                     print("Invalid input. Please enter a valid number.")
             selected_mixing_patterns = options_list[mixing_choice - 1]
             print(f"Selected mixing pattern: {selected_mixing_patterns}")
+        else:
+            selected_mixing_patterns = None
+    elif selected_llp == "ALP-photon":
+        if any(options_list):
+            print(f"Available production modes for {selected_llp} with mass {selected_mass:.2e} GeV and lifetime {selected_lifetime:.2e} s:")
+            for i, alp_production_mode in enumerate(options_list):
+                print(f"{i+1}. {alp_production_mode}")
+            while True:
+                try:
+                    alp_choice_num = int(input("Choose a production mode by typing the number: "))
+                    if 1 <= alp_choice_num <= len(options_list):
+                        break
+                    else:
+                        print(f"Please enter a number between 1 and {len(options_list)}.")
+                except ValueError:
+                    print("Invalid input. Please enter a valid number.")
+            selected_alp_production_mode = options_list[alp_choice_num - 1]
+            print(f"Selected production mode: {selected_alp_production_mode}")
+            selected_mixing_patterns = selected_alp_production_mode
         else:
             selected_mixing_patterns = None
     elif selected_llp == "Dark-photons":
@@ -275,4 +316,3 @@ def read_file(filepath):
                 'size': current_channel_size, 'data': current_data}
 
     return finalEvents, epsilon_polar, epsilon_azimuthal, br_visible_val, coupling_squared, channels
-

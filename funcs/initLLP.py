@@ -18,13 +18,14 @@ class LLP:
       from DistrHNL_e (distribution), HNL_yield_e (yield), DW_e (decay width)
     """
 
-    def __init__(self, mass, particle_selection, mixing_pattern=None, uncertainty=None):
+    def __init__(self, mass, particle_selection, mixing_pattern=None, uncertainty=None, alp_production_mode=None):
         self.main_folder = "./Distributions"
         self.LLP_name = particle_selection['LLP_name']
         self.mass = mass
         self.particle_path = particle_selection['particle_path']
         self.MixingPatternArray = mixing_pattern if mixing_pattern is not None else None
         self.uncertainty = uncertainty if self.LLP_name == "Dark-photons" else None
+        self.alp_production_mode = alp_production_mode if self.LLP_name == "ALP-photon" else None
         self.Matrix_elements = None
         self.Matrix_elements_expr = []  # To store symbolic expressions
 
@@ -90,6 +91,8 @@ class LLP:
                 raise ValueError("Mixing pattern must be provided for HNL.")
             self.import_HNL()
         elif self.LLP_name == "ALP-photon":
+            if self.alp_production_mode is None:
+                raise ValueError("ALP-photon production mode must be provided.")
             self.import_ALP_photon()
         elif self.LLP_name == "Dark-photons":
             if self.uncertainty is None:
@@ -188,10 +191,24 @@ class LLP:
         #self.print_matrix_elements()
 
     def import_ALP_photon(self):
-        distribution_file_path = os.path.join(self.particle_path, "DoubleDistr-ALP-photon.txt")
-        energy_file_path = os.path.join(self.particle_path, "Emax-ALP-photon.txt")
-        yield_path = os.path.join(self.particle_path, "Total-yield-ALP-photon.txt")
-        ctau_path = os.path.join(self.particle_path, "ctau-ALP.txt")
+        suffix_candidates = [self.alp_production_mode]
+        if self.alp_production_mode == "cascades":
+            suffix_candidates.append("cascade")
+        elif self.alp_production_mode == "cascade":
+            suffix_candidates.append("cascades")
+
+        def source_file(prefix):
+            for suffix in suffix_candidates:
+                path = os.path.join(self.particle_path, f"{prefix}_{suffix}.txt")
+                if os.path.exists(path):
+                    return path
+            searched = ", ".join(f"{prefix}_{suffix}.txt" for suffix in suffix_candidates)
+            raise FileNotFoundError(f"Could not find ALP-photon source file. Tried: {searched}")
+
+        distribution_file_path = source_file("DoubleDistr-ALP-photon")
+        energy_file_path = source_file("Emax-ALP-photon")
+        yield_path = source_file("Total-yield-ALP-photon")
+        ctau_path = os.path.join(self.particle_path, "ctau-ALP-photon.txt")
         decay_json_path = os.path.join(self.particle_path, "ALP-photon-decay.json")
 
         self.Distr = pd.read_csv(distribution_file_path, header=None, sep="\t")
@@ -432,4 +449,3 @@ class LLP:
             'Mprocess(channel)': self.Matrix_elements_expr
         })
         print(df.to_string(index=False))
-

@@ -5,14 +5,107 @@ import os
 import numpy as np
 import time  # Import time module for timing
 
-#Path to the library containing pythia8.so
-sys.path.insert(0, '/home/name/Downloads/pythia8312/lib')
-
-# Import Pythia8 and other required modules
-import pythia8
-
 from . import TwoBodyDecay, ThreeBodyDecay, FourBodyDecay
 from . import PDG
+
+PYTHIA8_LIB_PATH = os.environ.get("PYTHIA8_LIB", "/home/name/Downloads/pythia8312/lib")
+_PYTHIA8 = None
+
+# Particles that this code either treats as detector-level products directly
+# or explicitly keeps stable when routing an event through PYTHIA8.
+STABLE_WITHOUT_PYTHIA = {
+    11, -11,          # e-/e+
+    13, -13,          # mu-/mu+
+    12, -12, 14, -14, 16, -16,
+    22,               # gamma
+    211, -211,        # charged pions
+    321, -321,        # charged kaons
+    130,              # K_L
+}
+
+
+def load_pythia8():
+    """
+    Import pythia8 only when a selected decay channel requires showering,
+    hadronization, or decays of unstable products.
+    """
+    global _PYTHIA8
+    if _PYTHIA8 is None:
+        if PYTHIA8_LIB_PATH and PYTHIA8_LIB_PATH not in sys.path:
+            sys.path.insert(0, PYTHIA8_LIB_PATH)
+        try:
+            import pythia8 as pythia8_module
+        except ImportError as exc:
+            raise ImportError(
+                "pythia8 is required for the selected decay channel because it "
+                "contains partons or unstable particles. Install PYTHIA8 with "
+                "Python bindings, set PYTHIA8_LIB to the directory containing "
+                "pythia8.so, or select only stable final-state decay channels."
+            ) from exc
+        _PYTHIA8 = pythia8_module
+    return _PYTHIA8
+
+
+def decay_event_requires_pythia(decay):
+    """
+    Return True if PYTHIA8 is needed to turn this internal decay record into
+    detector-level final-state products.
+    """
+    num_particles = len(decay) // 8
+    for i_particle in range(num_particles):
+        idx = i_particle * 8
+        pdg_id = int(decay[idx + 5])
+        if pdg_id == -999:
+            continue
+        if pdg_id not in STABLE_WITHOUT_PYTHIA:
+            return True
+    return False
+
+
+def convert_events_without_pythia(decay_events_list):
+    """
+    Convert internal 8-field particle records to the 6-field event format used
+    downstream, preserving only already-stable final-state products.
+    """
+    processed_events = []
+    for decay in decay_events_list:
+        final_state_particles = []
+        num_particles = len(decay) // 8
+        for i_particle in range(num_particles):
+            idx = i_particle * 8
+            pdg_id = int(decay[idx + 5])
+            if pdg_id == -999:
+                continue
+            final_state_particles.extend([
+                decay[idx],
+                decay[idx + 1],
+                decay[idx + 2],
+                decay[idx + 3],
+                decay[idx + 4],
+                pdg_id,
+            ])
+        processed_events.append(final_state_particles)
+
+    return pad_processed_events(processed_events)
+
+
+def pad_processed_events(processed_events):
+    """
+    Pad processed 6-field event records so all events have equal length.
+    """
+    max_n = max((len(event) // 6 for event in processed_events), default=0)
+    padding = [0.0, 0.0, 0.0, 0.0, 0.0, -999]
+
+    padded_events = []
+    for event in processed_events:
+        n = len(event) // 6
+        missing = max_n - n
+        if missing > 0:
+            event = event + padding * missing
+        padded_events.append(event)
+
+    return np.array(padded_events, dtype=np.float64)
+
 
 def distribute_events(total_events, branching_ratios):
     """
@@ -129,10 +222,14 @@ def simulateDecays_rest_frame(mass, PDGdecay, BrRatio, size, Msquared3BodyLLP, s
     # Start timing for Pythia processing
     pythia_start_time = time.time()
 
-    # Process all decay events through Pythia sequentially
+    # Process only when the selected products need Pythia.
     if all_decay_events:
-        print("\nStarting Pythia processing of decay events...")
-        processed_results = process_events_with_pythia(all_decay_events, mass)
+        if any(decay_event_requires_pythia(decay) for decay in all_decay_events):
+            print("\nStarting Pythia processing of decay events...")
+            processed_results = process_events_with_pythia(all_decay_events, mass)
+        else:
+            print("\nAll selected decay products are stable. Skipping Pythia processing.")
+            processed_results = convert_events_without_pythia(all_decay_events)
     else:
         print("\nNo decay events to process with Pythia.")
         processed_results = []
@@ -154,6 +251,8 @@ def process_events_with_pythia(decay_events_list, mass):
     Processes a list of decay events through Pythia sequentially, pads each event to have the same number of particles,
     and writes the processed events to external files.
     """
+    pythia8 = load_pythia8()
+
     # Initialize Pythia
     pythia = pythia8.Pythia()
     #pythia.readString("Print:quiet = on")  # Suppress banners and output
@@ -261,25 +360,4 @@ def process_events_with_pythia(decay_events_list, mass):
     if not processed_events:
         print("\nNo processed events were generated.")
 
-    # After processing all events, determine the maximum number of particles in any event
-    max_n = max((len(event) // 6 for event in processed_events), default=0)
-
-    # Define the padding to append for each missing particle
-    padding = [0.0, 0.0, 0.0, 0.0, 0.0, -999]
-
-    # Pad each event to have the same number of particles
-    padded_events = []
-    for event in processed_events:
-        n = len(event) // 6
-        m = max_n - n
-        if m > 0:
-            event_padded = event + padding * m
-        else:
-            event_padded = event
-        padded_events.append(event_padded)
-
-    # Convert the list of padded events to a NumPy array for efficient storage and computation
-    padded_events_array = np.array(padded_events)
-
-    return padded_events_array
-
+    return pad_processed_events(processed_events)

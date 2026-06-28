@@ -22,7 +22,8 @@ def save(
     br_visible_val, 
     selected_decay_indices, 
     uncertainty,
-    ifExportEvents
+    ifExportEvents,
+    alp_production_mode=None
 ):
     """
     Saves simulation results to data files.
@@ -63,6 +64,17 @@ def save(
         else:
             outputfileName = os.path.join(
                 eventData_dir, 
+                f'{LLP_name}_{mass:.3e}_{c_tau:.3e}_data.dat'
+            )
+    elif LLP_name == "ALP-photon":
+        if alp_production_mode is not None:
+            outputfileName = os.path.join(
+                eventData_dir,
+                f'{LLP_name}_{mass:.3e}_{c_tau:.3e}_{alp_production_mode}_data.dat'
+            )
+        else:
+            outputfileName = os.path.join(
+                eventData_dir,
                 f'{LLP_name}_{mass:.3e}_{c_tau:.3e}_data.dat'
             )
     else:
@@ -119,6 +131,11 @@ def save(
             total_filename = f"{LLP_name}_{uncertainty}_total.txt"
         else:
             total_filename = f"{LLP_name}_total.txt"
+    elif LLP_name == "ALP-photon":
+        if alp_production_mode is not None:
+            total_filename = f"{LLP_name}_{alp_production_mode}_total.txt"
+        else:
+            total_filename = f"{LLP_name}_total.txt"
     elif "Scalar" in LLP_name:
         total_filename = f"{LLP_name}_total.txt"
     else:
@@ -162,7 +179,8 @@ def save_total_only(
     N_ev_tot,
     uncertainty,
     MixingPatternArray,
-    decayChannels
+    decayChannels,
+    alp_production_mode=None
 ):
     base_output_dir = os.path.join('.', 'outputs', LLP_name)
     os.makedirs(base_output_dir, exist_ok=True)
@@ -178,6 +196,11 @@ def save_total_only(
     elif LLP_name == "Dark-photons":
         if uncertainty is not None:
             total_filename = f"{LLP_name}_{uncertainty}_total.txt"
+        else:
+            total_filename = f"{LLP_name}_total.txt"
+    elif LLP_name == "ALP-photon":
+        if alp_production_mode is not None:
+            total_filename = f"{LLP_name}_{alp_production_mode}_total.txt"
         else:
             total_filename = f"{LLP_name}_total.txt"
     elif "Scalar" in LLP_name:
@@ -208,4 +231,3 @@ def save_total_only(
         ]
         data_string = ' '.join("{:.9e}".format(x) for x in data_values) + "\n"
         total_file.write(data_string)
-

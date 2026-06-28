@@ -23,7 +23,7 @@ from funcs import initLLP, decayProducts, boost, kinematics, mergeResults
 from funcs.LLP_selection import (
     prompt_masses_and_c_taus, prompt_decay_channels,
     particle_selection, mixing_pattern, uncertainty,
-    resampleSize, nEvents, N_pot
+    alp_production_mode, resampleSize, nEvents, N_pot
 )
 from funcs.plot_phenomenology import (
     plot_production_probability, plot_lifetime, plot_branching_ratios
@@ -34,7 +34,8 @@ LLP = initLLP.LLP(
     mass=None,
     particle_selection=particle_selection,
     mixing_pattern=mixing_pattern,
-    uncertainty=uncertainty
+    uncertainty=uncertainty,
+    alp_production_mode=alp_production_mode
 )
 selected_decay_indices = prompt_decay_channels(LLP.decayChannels)
 
@@ -48,6 +49,8 @@ Yield_plot    = np.array([LLP.get_total_yield(m) for m in masses_plot])
 ctau_int_plot = np.array([LLP.get_ctau(m) for m in masses_plot])
 Br_plot       = np.vstack([LLP.get_Br(m) for m in masses_plot])
 plot_folder   = f"plots/{LLP.LLP_name}/phenomenology"
+if LLP.LLP_name == "ALP-photon":
+    plot_folder = f"{plot_folder}_{LLP.alp_production_mode}"
 os.makedirs(plot_folder, exist_ok=True)
 plot_production_probability(masses_plot, Yield_plot, LLP, plot_folder)
 plot_lifetime(masses_plot, ctau_int_plot, LLP, plot_folder)
@@ -124,7 +127,8 @@ for mass_idx, (mass, c_taus) in enumerate(zip(masses, c_taus_list), 1):
                 LLP.LLP_name, LLP.mass, coupling_squared, c_tau, N_LLP_tot,
                 epsilon_polar, epsilon_azimuthal, P_decay_averaged,
                 br_visible_val, N_ev_tot, uncertainty,
-                LLP.MixingPatternArray, LLP.decayChannels
+                LLP.MixingPatternArray, LLP.decayChannels,
+                LLP.alp_production_mode
             )
             continue
 
@@ -144,7 +148,8 @@ for mass_idx, (mass, c_taus) in enumerate(zip(masses, c_taus_list), 1):
             LLP.MixingPatternArray, LLP.c_tau_input, LLP.decayChannels,
             size_per_channel, finalEvents, epsilon_polar, epsilon_azimuthal,
             N_LLP_tot, coupling_squared, P_decay_averaged, N_ev_tot,
-            br_visible_val, selected_decay_indices, uncertainty, ifExportEvents
+            br_visible_val, selected_decay_indices, uncertainty, ifExportEvents,
+            LLP.alp_production_mode
         )
         print(f"    Exported in {time.time() - t0:.1f} s")
 
@@ -161,4 +166,3 @@ for mass_idx, (mass, c_taus) in enumerate(zip(masses, c_taus_list), 1):
             f"Visible Br:            {br_visible_val:.6e}\n"
             f"N_events_tot:          {N_ev_tot:.6e}\n"
         )
-

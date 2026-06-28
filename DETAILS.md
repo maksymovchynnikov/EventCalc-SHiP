@@ -24,6 +24,7 @@ Once this is done, we have all the ingredients for calculating the event rate fo
 When producing LLP fluxes, the following setups have been used to get the fluxes of mesons (their mother particles):
 
 - For light mesons (`Pi0`, `Eta`, `Eta'`, `Rho0`, `Omega`, etc.): `pythia8` setup from [1904.02091](https://arxiv.org/abs/1904.02091). This means that the cascade enhancement of the fluxes is not included. It would typically result in too soft particles that would be outside of the SHiP acceptance, so there should not be any significant impact on the event rate. Nevertheless, it will be implemented in the future.
+- For photons used in the production of ALPs coupled to photons: the primary photons (from the primary proton-target interactions) have been generated from the fluxes of `Pi0`, `Eta`, `Eta'` by decaying them into two photons. For the secondary photons from EM cascades inside the thick target, the approach from Ref. [2509.14310](https://arxiv.org/abs/2509.14310) has been used.
 - For charm and bottom: [SHiP study](https://cds.cern.ch/record/2115534).
 - For kaons: [2004.07974](https://arxiv.org/abs/2004.07974) (will be regenerated as well).
 
@@ -48,7 +49,7 @@ It is split into three steps:
   - Two-body decays are sampled isotropically, with the two decay products having the same energy.
   - Three-body decays `LLP -> 1+2+3` are sampled using the squared matrix element of the process in terms of the LLP mass and energies `E_1`, `E_3` of the decay products.
   - Currently, four-body decays `LLP->1+2+3+4` are sampled assuming unit squared matrix element (to be improved in the future).
-- The phase space is passed to `pythia8` for decaying unstable particles such as `pi^0`, showering and hadronization.
+- If the selected decay products contain partons or unstable particles, the phase space is passed to `pythia8` for showering, hadronization, or decays such as `pi^0 -> gamma gamma`. Already-stable final states are kept without calling `pythia8`.
 - The resulting phase space is boosted into the LLP's lab frame.
 
 ### How hadronic decays of LLPs are handled
@@ -67,7 +68,7 @@ In `EventCalc`, this is performed in the following way:
   
 ## To be done
 
-- Adding more LLPs (ALPs, B-L mediators, HNLs with dipole coupling, inelastic and elastic LDM, etc.). Pending due to their phenomenology revision.
+- Adding more LLPs (ALPs coupled to hadrons of W bosons, B-L mediators, HNLs with dipole coupling, inelastic and elastic LDM, etc.). Pending due to their active phenomenology revision.
 - Adding theoretical uncertainty (decay widths for Higgs-like scalars, B-L production uncertainties, etc.).
 - Improving the performance of the code (parallelization of pythia8 run, etc.).
 - Adjusting the SHiP setup with the up-to-date setup if needed.

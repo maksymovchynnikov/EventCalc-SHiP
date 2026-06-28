@@ -59,6 +59,28 @@ def prompt_uncertainty():
 
 uncertainty = prompt_uncertainty()
 
+def prompt_alp_production_mode():
+    # Always defined. If not ALP-photon, return None.
+    if particle_selection['LLP_name'] != "ALP-photon":
+        return None
+    print("\nUse distribution from primary collision, or from cascades?")
+    print("1. primary")
+    print("2. cascades")
+
+    try:
+        selected_mode = int(input("Select ALP-photon distribution source (1-2): "))
+        if selected_mode == 1:
+            alp_production_mode = "primary"
+        elif selected_mode == 2:
+            alp_production_mode = "cascades"
+        else:
+            raise ValueError("Invalid selection.")
+    except ValueError as e:
+        raise ValueError(f"Invalid input for ALP-photon distribution source: {e}")
+    return alp_production_mode
+
+alp_production_mode = prompt_alp_production_mode()
+
 def prompt_mixing_pattern():
     # Always defined. If not HNL, return None.
     if particle_selection['LLP_name'] != "HNL":
@@ -121,4 +143,3 @@ def prompt_decay_channels(decayChannels):
             return selected_indices
     except ValueError as e:
         raise ValueError(f"Invalid input for decay channel selection: {e}")
-
