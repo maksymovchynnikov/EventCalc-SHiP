@@ -24,7 +24,7 @@ The code has been tested on Linux only.
 Ensure you have the required packages installed. You can use the following command to install the dependencies:
 
 ```bash
-pip3 install numpy sympy numba scipy plotly
+pip3 install numpy sympy numba scipy plotly pandas matplotlib
 ```
 
 [pythia8](https://pythia.org/) is required only when the selected decay channels contain partons or unstable particles that need showering, hadronization, or decays. Stable final-state channels such as the ALP-photon modes can run without pythia8. If pythia8 is needed, install it with Python bindings by configuring it with
