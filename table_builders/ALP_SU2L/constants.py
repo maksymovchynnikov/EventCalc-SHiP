@@ -39,8 +39,9 @@ BPLUS_TO_XA_CHANNELS = [
 
 # SHiP decay-volume angular coverage, from ship_setup.py values.
 from funcs.ship_setup import theta_max_dec_vol  # 0.04495960111270482, same as EventCalc
+THETA_MAX_SHIP = float(theta_max_dec_vol)
 THETA_MARGIN = 0.005 # Suggested margin from Maksym
-THETA_CUT_FINAL = float(theta_max_dec_vol) + THETA_MARGIN
+THETA_MAX_TABLE = THETA_MAX_SHIP + THETA_MARGIN
 
 
 

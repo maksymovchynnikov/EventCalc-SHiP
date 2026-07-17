@@ -32,7 +32,6 @@ B0_TO_BPLUS_BR_FACTOR = 0.93 # From article, 1904.10447v4
 
 
 
-
 # Grid used for the angle-energy distribution.
 N_THETA_FORWARD = 100
 
@@ -47,8 +46,7 @@ DISTRIBUTION_FLOOR = 1e-90
 
 
 DEBUG_MASSES_GEV = np.array([
-    0.01, 0.02, 0.05, 0.075,
-    0.10, 0.20, 0.50, 1.00,
+    0.05, 4.5,
 ])
 
 # General run configuration.
@@ -64,6 +62,6 @@ if RUN_MODE == "final":
     OUTPUT_ROOT = EVENTCALC_DIR / "Distributions" / "ALP-SU2L"
     OUTPUT_ROOT_PLOTS = ALP_DIR / "Final_plots"
 else:
-    OUTPUT_ROOT = ALP_DIR / "Tests"
+    OUTPUT_ROOT = ALP_DIR / "debug_tests"
     OUTPUT_ROOT_PLOTS = OUTPUT_ROOT / "plots"
 

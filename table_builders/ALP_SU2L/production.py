@@ -15,7 +15,8 @@ from .constants import (
     N_BB_PER_POT,
     F_BPLUS,
     F_BZERO,
-    THETA_CUT_FINAL,
+    THETA_MAX_TABLE,
+    THETA_MAX_SHIP,
 )
 
 from .branching import (
@@ -46,6 +47,7 @@ from .config import (
 )
 
 from .distribution import (
+    polar_angle_from_momenta,
     theta_energy_from_momenta,
     make_distribution_table,
     make_emax_table,
@@ -59,6 +61,7 @@ from .distribution import (
 from .validation import (
     validate_with_eventcalc_interpolation,
     plot_debug_distributions,
+    plot_B_theta_energy_distribution,
     plot_energy_spectrum_from_density,
 )
 
@@ -209,7 +212,7 @@ def write_tsv_with_header(path, header, rows):
 def build_B_to_Xa_tables():
     if RUN_MODE == "debug":
         masses = DEBUG_MASSES_GEV
-        N_B_USED = 100000
+        N_B_USED = None #100000
         ifMakePlots = True
         ifValidateInterpolation = True
         ifShowPlots = False
@@ -231,17 +234,36 @@ def build_B_to_Xa_tables():
     B_momenta = load_B_momenta_cached(
         path=B_MOMENTA_PATH
     )
-    #print("B_momenta type:", type(B_momenta))
-    #print("B_momenta shape:", np.shape(B_momenta))
+
     if N_B_USED is not None:
         idx = rng.choice(len(B_momenta), size=N_B_USED, replace=False)
         B_momenta = B_momenta[idx]
     
+    theta_B = polar_angle_from_momenta(B_momenta)
+    energy_B = B_momenta[:, 3]
 
-    theta_edges_full = make_theta_edges(THETA_CUT_FINAL, N_THETA_FORWARD, N_THETA_TAIL)
+    fraction_B_ship = float(np.mean(theta_B < THETA_MAX_SHIP))
+    fraction_B_table = float(np.mean(theta_B < THETA_MAX_TABLE))
+    
+    fraction_B_error = float(np.sqrt(fraction_B_table * (1.0 - fraction_B_table) / len(theta_B)))
+    print(
+        f"f_B(theta_B < {THETA_MAX_TABLE:.7f} rad) = "
+        f"{fraction_B_table:.6e} ± {fraction_B_error:.2e}"
+    )
+
+    theta_edges_full = make_theta_edges(THETA_MAX_TABLE, N_THETA_FORWARD, N_THETA_TAIL)
     energy_edges = make_energy_edges(masses, B_momenta)
     channels = BPLUS_TO_XA_CHANNELS
     scalar_table = load_scalar_br_table(SCALAR_TABLE_PATH)
+
+    if ifMakePlots:
+        plot_B_theta_energy_distribution(
+            theta_B,
+            energy_B,
+            fraction_B_ship,
+            OUTPUT_ROOT_PLOTS,
+            ifShowPlots,
+        )
 
     total_yield_rows = []
 
@@ -300,7 +322,7 @@ def build_B_to_Xa_tables():
 
         theta, energy = theta_energy_from_momenta(alp_lab)
 
-        distribution_table, hist_full, density_full = make_distribution_table(
+        distribution_table, _, density_full = make_distribution_table(
             alp_mass,
             theta,
             energy,
@@ -308,18 +330,19 @@ def build_B_to_Xa_tables():
             energy_edges,
         )
 
-        fraction_out = np.sum(theta < THETA_CUT_FINAL) / size
-        fractions_out.append([alp_mass, fraction_out])
-        print(f"Fraction with theta < {THETA_CUT_FINAL:.6g}: {fraction_out:.6e}")
+        fraction_a_ship = float(np.mean(theta < THETA_MAX_SHIP))
+        fraction_a_table = float(np.mean(theta < THETA_MAX_TABLE))
+        fractions_out.append([alp_mass, fraction_a_table])
+        print(f"Fraction with theta < {THETA_MAX_TABLE:.6g}: {fraction_a_table:.6e}")
 
         direct_integral = integrate_density(density_full, theta_edges_full, energy_edges)
         print(f"Direct histogram full integral: {direct_integral:.6f}")
         validation_by_mass[float(alp_mass)] = {
             "m_a": float(alp_mass),
             "n_B_used": int(size),
-            "theta_cut_rad": float(THETA_CUT_FINAL),
+            "theta_cut_rad": float(THETA_MAX_TABLE),
             "direct_full_integral": float(direct_integral),
-            "direct_theta_fraction": float(fraction_out),
+            "direct_theta_fraction": float(fraction_a_table),
             "eventcalc_full_integral": np.nan,
             "eventcalc_full_error": np.nan,
             "eventcalc_theta_integral": np.nan,
@@ -391,11 +414,8 @@ def build_B_to_Xa_tables():
                 alp_mass,
                 theta,
                 energy,
-                theta_edges_full,
-                energy_edges,
-                density_full,
-                emax_table,
-                fraction_out,
+                fraction_a_ship,
+                fraction_B_ship,
                 OUTPUT_ROOT_PLOTS,
                 ifShowPlots,
             )
@@ -437,7 +457,7 @@ def build_B_to_Xa_tables():
                 distribution_table,
                 emax_table,
                 alp_mass,
-                theta_max_sim=THETA_CUT_FINAL,
+                theta_max_sim=THETA_MAX_TABLE,
                 n_points= 100000,
             )
             print(
@@ -468,12 +488,12 @@ def build_B_to_Xa_tables():
     if RUN_MODE == "final":
         distribution_table_to_write = truncate_table_in_theta(
             distribution_table,
-            theta_cut=THETA_CUT_FINAL,
+            theta_cut=THETA_MAX_TABLE,
         )
 
         emax_table_to_write = truncate_table_in_theta(
             emax_table,
-            theta_cut=THETA_CUT_FINAL,
+            theta_cut=THETA_MAX_TABLE,
         )
 
         distribution_table_to_write = distribution_table_to_write.copy()
@@ -488,7 +508,7 @@ def build_B_to_Xa_tables():
 
         print(
             f"\nWriting final truncated tables with "
-            f"theta < {THETA_CUT_FINAL:.6g} rad."
+            f"theta < {THETA_MAX_TABLE:.6g} rad."
         )
 
     else:
@@ -506,6 +526,22 @@ def build_B_to_Xa_tables():
         write_table(
             OUTPUT_ROOT / f"Emax-{output_tag}.txt",
             emax_table_to_write,
+        )
+
+        write_tsv_with_header(
+            OUTPUT_ROOT / f"B-angle-{output_tag}.txt",
+            header=[
+                "n_B_used",
+                "theta_B_cut_rad",
+                "fraction_B",
+                "binomial_MC_error",
+            ],
+            rows=[[
+                len(B_momenta),
+                THETA_MAX_TABLE,
+                fraction_B_table,
+                fraction_B_error,
+            ]],
         )
         
         if normalization_rows:

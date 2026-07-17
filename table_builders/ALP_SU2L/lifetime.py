@@ -425,33 +425,3 @@ def write_decay_json(
     print(f"Decay JSON written to {output_path}")
 
     return output_path
-
-
-# Lightweight validation when the module is run directly.
-def _self_check() -> None:
-    """Run basic threshold and coupling-scaling checks."""
-    g_ref = 1.0  # GeV^-1
-    m_test = 0.5    # GeV
-
-    width_g = gamma_without_hadrons(m_test, g_ref, F_A_MATCHING_GEV)
-    width_2g = gamma_without_hadrons(m_test, 2.0 * g_ref, F_A_MATCHING_GEV)
-    np.testing.assert_allclose(width_2g / width_g, 4.0, rtol=1e-12)
-
-    assert gamma_a_to_lepton_pair(0.1, "mu", g_ref) == 0.0
-    assert gamma_a_to_lepton_pair(0.3, "mu", g_ref) > 0.0
-    assert gamma_a_to_gamma_gamma(m_test, g_ref) > 0.0
-
-    widths = photon_and_lepton_widths(m_test, g_ref, F_A_MATCHING_GEV)
-    print(f"Pure SU(2)_L ALP at m_a = {m_test:g} GeV")
-    print(f"c_W/f_a = {g_ref:.3e} GeV^-1, f_a = {F_A_MATCHING_GEV:g} GeV")
-    for channel, width in widths.items():
-        print(f"  {channel:12s}: {width:.6e} GeV")
-    print(f"  non-hadronic: {sum(widths.values()):.6e} GeV")
-    print(
-        "  c*tau without hadrons: "
-        f"{proper_decay_length_m(sum(widths.values())):.6e} m"
-    )
-
-
-if __name__ == "__main__":
-    _self_check()

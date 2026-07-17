@@ -5,17 +5,29 @@ from .config import (
     EMAX_THETA_PADDING_BINS,
 )
 
+def polar_angle_from_momenta(momenta):
+    """
+    Return the lab-frame polar angle for four-momenta with columns
+    px, py, pz, E, ...
+    """
+    momenta = np.asarray(momenta, dtype=np.float64)
+
+    px = momenta[:, 0]
+    py = momenta[:, 1]
+    pz = momenta[:, 2]
+
+    pT = np.sqrt(px**2 + py**2)
+    theta = np.arctan2(pT, pz)
+
+    return theta
+
+
 def theta_energy_from_momenta(alp_lab):
     """
     Convert lab-frame ALP momenta to theta_a and E_a.
     """
-    px = alp_lab[:, 0]
-    py = alp_lab[:, 1]
-    pz = alp_lab[:, 2]
+    theta = polar_angle_from_momenta(alp_lab)
     energy = alp_lab[:, 3]
-
-    pT = np.sqrt(px**2 + py**2)
-    theta = np.arctan2(pT, pz)
 
     return theta, energy
 
