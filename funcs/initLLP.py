@@ -4,8 +4,29 @@ import re  # Added for regex operations
 import numpy as np
 import pandas as pd
 from funcs import HNLmerging
-from scipy.interpolate import RegularGridInterpolator
+from scipy.interpolate import RegularGridInterpolator, PchipInterpolator
 import sympy as sp
+
+def make_log_pchip_interpolator(masses, values):
+    masses = np.asarray(masses, dtype=float)
+    values = np.asarray(values, dtype=float)
+
+    if np.any(masses <= 0.0):
+        raise ValueError("All masses must be positive.")
+    if np.any(values <= 0.0):
+        raise ValueError("All interpolated values must be positive.")
+
+    interpolator = PchipInterpolator(
+        np.log(masses),
+        np.log(values),
+        extrapolate=False,
+    )
+
+    def evaluate(mass):
+        mass = float(mass)
+        return float(np.exp(interpolator(np.log(mass))))
+
+    return evaluate
 
 class LLP:
     """
@@ -376,8 +397,8 @@ class LLP:
         # Compile matrix elements
         self.Matrix_elements = self.compile_matrix_elements(self.Matrix_elements_raw)
 
-        self.get_ctau = lambda m: self.ctau_interpolator([m])[0]
-        self.get_total_yield = lambda m: self.yield_interpolator([m])[0]
+        self.get_ctau = make_log_pchip_interpolator(mass_ctau, ctau_values)
+        self.get_total_yield = make_log_pchip_interpolator(mass_yield, yield_values)
         self.get_Br = self.setup_br_interpolators(self.BrRatios)
         self.get_distribution = lambda m: self.Distr
         self.get_MatrixElements = lambda m: self.Matrix_elements

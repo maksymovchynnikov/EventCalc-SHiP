@@ -6,14 +6,14 @@ ALP_DIR = Path(__file__).resolve().parent
 EVENTCALC_DIR = ALP_DIR.parents[1]
 
 MASSES_GEV = np.array([
-    0.01, 0.02, 0.05, 0.075,
-    0.10, 0.15, 0.20, 0.25,
-    0.30, 0.40, 0.50, 0.75,
-    1.00, 1.25, 1.50, 1.75,
-    2.00, 2.50, 3.00, 3.50,
-    4.00, 4.50, 4.75,
-    5.00, 5.10,
-])
+    0.01, 0.015, 0.02, 0.03, 0.04, 0.05, 0.0625, 0.075, 0.0875, 0.10,
+    0.125, 0.15, 0.175, 0.20,0.225, 0.25, 0.275, 0.30, 0.35, 0.40,
+    0.50, 0.625, 0.75, 0.875, 1.00, 1.25, 1.50, 1.75, 2.00, 2.25, 
+    2.50, 2.75, 3.00, 3.25, 3.50, 3.56, 3.75, 3.84, 3.87, 4.00, 
+    4.03, 4.25, 4.38, 4.44, 4.50, 4.75, 4.78, 4.90, 5.00, 5.10,
+], dtype=float)
+assert len(MASSES_GEV) == 50
+assert np.all(np.diff(MASSES_GEV) > 0)
 
 
 COUPLING_NORMALIZATION_GEV_INV = 1.0
@@ -25,11 +25,6 @@ EMAX_THETA_PADDING_BINS = 2
 THETA_MARGIN = 0.005 # Suggested margin from Maksym
 
 B0_TO_BPLUS_BR_FACTOR = 0.93 # From article, 1904.10447v4
-# TODO: The global B0/B+ factor 0.93 is appropriate for the
-# corresponding strange modes. Check separately whether
-# B0 -> pi0 a requires an additional isospin factor 1/2
-# relative to B+ -> pi+ a.
-
 
 
 # Grid used for the angle-energy distribution.
