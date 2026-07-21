@@ -19,3 +19,6 @@ plots/
 
 # Generated validation/debug files
 /table_builders/ALP_SU2L/debug_tests/
+
+# Analysis
+table_builders/ALP_SU2L/analysis_outputs/

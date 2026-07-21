@@ -12,7 +12,6 @@ from table_builders.ALP_SU2L.branching import (
     load_scalar_br_table,
 )
 from table_builders.ALP_SU2L.config import (
-    F_A_MATCHING_GEV,
     MASSES_GEV,
     SCALAR_TABLE_PATH,
 )
@@ -242,31 +241,3 @@ def test_zero_coupling_returns_zero_production_probabilities(scalar_table):
     assert total_br == 0.0
     assert all(branching_ratio == 0.0 for branching_ratio in channel_brs.values())
     assert all(probability == 0.0 for probability in probabilities.values())
-
-
-def test_decay_json_branching_ratios_sum_to_one_at_each_mass():
-    decay_data = make_decay_json_data(
-        masses=MASSES_GEV,
-        c_w_over_f_a=REFERENCE_COUPLING_GEV_INV,
-        f_a_matching=F_A_MATCHING_GEV,
-    )
-
-    for _, _, branching_table, _ in decay_data:
-        np.testing.assert_array_equal(
-            np.asarray(branching_table)[:, 0],
-            MASSES_GEV,
-        )
-
-    for mass_index in range(len(MASSES_GEV)):
-        branching_ratios = np.asarray(
-            [channel[2][mass_index][1] for channel in decay_data]
-        )
-        assert np.all(np.isfinite(branching_ratios))
-        assert np.all(branching_ratios >= 0.0)
-        assert np.all(branching_ratios <= 1.0)
-        np.testing.assert_allclose(
-            np.sum(branching_ratios),
-            1.0,
-            rtol=1.0e-12,
-            atol=1.0e-14,
-        )

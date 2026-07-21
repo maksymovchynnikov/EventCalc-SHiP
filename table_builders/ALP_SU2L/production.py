@@ -17,6 +17,7 @@ from .constants import (
     F_BZERO,
     THETA_MAX_TABLE,
     THETA_MAX_SHIP,
+    SU2_OPERATOR_FACTOR,
 )
 
 from .branching import (
@@ -252,9 +253,14 @@ def build_B_to_Xa_tables():
     )
 
     theta_edges_full = make_theta_edges(THETA_MAX_TABLE, N_THETA_FORWARD, N_THETA_TAIL)
-    energy_edges = make_energy_edges(masses, B_momenta)
+    energy_edges = make_energy_edges(MASSES_GEV, B_momenta)
     channels = BPLUS_TO_XA_CHANNELS
     scalar_table = load_scalar_br_table(SCALAR_TABLE_PATH)
+
+    houtz_cW_over_fa = (
+        SU2_OPERATOR_FACTOR
+        * COUPLING_NORMALIZATION_GEV_INV
+    )
 
     if ifMakePlots:
         plot_B_theta_energy_distribution(
@@ -286,7 +292,7 @@ def build_B_to_Xa_tables():
             br_Ka, channel_brs_by_name, probs_by_name, br_Bplus_total = (
                 get_Bplus_to_Xa_branching_ratios(
                     alp_mass=alp_mass,
-                    cW_over_fa=COUPLING_NORMALIZATION_GEV_INV,
+                    cW_over_fa=houtz_cW_over_fa,
                     scalar_table_path=SCALAR_TABLE_PATH,
                     channels=channels,
                     scalar_table = scalar_table,
@@ -321,7 +327,6 @@ def build_B_to_Xa_tables():
         )
 
         theta, energy = theta_energy_from_momenta(alp_lab)
-
         distribution_table, _, density_full = make_distribution_table(
             alp_mass,
             theta,
@@ -448,6 +453,19 @@ def build_B_to_Xa_tables():
                 theta_max_sim=np.pi,
                 n_points= 100000,
             )
+            full_tolerance = max(
+                5.0 * mc_error,
+                0.03,
+            )
+
+            if abs(integral - 1.0) > full_tolerance:
+                raise RuntimeError(
+                    "EventCalc interpolation failed for "
+                    f"m_a={alp_mass:g} GeV: "
+                    f"integral={integral:.6g}, "
+                    f"MC error={mc_error:.3g}"
+                )
+            
             print(
                 f"\nEventCalc-interpolated full integral for m_a = {alp_mass:g} GeV: "
                 f"{integral:.6f} ± {mc_error:.2e}"
@@ -460,6 +478,23 @@ def build_B_to_Xa_tables():
                 theta_max_sim=THETA_MAX_TABLE,
                 n_points= 100000,
             )
+            direct_fraction = fractions_out[float(alp_mass)]
+
+            theta_tolerance = max(
+                5.0 * mc_error_theta,
+                0.05 * direct_fraction,
+                1.0e-4,
+            )
+
+            if abs(integral_theta - direct_fraction) > theta_tolerance:
+                raise RuntimeError(
+                    "EventCalc interpolation disagrees with the "
+                    "direct forward fraction for "
+                    f"m_a={alp_mass:g} GeV: "
+                    f"interpolated={integral_theta:.6g}, "
+                    f"direct={direct_fraction:.6g}"
+                )
+            
             print(
                 f"EventCalc-interpolated SHiP-angle integral for m_a = {alp_mass:g} GeV: "
                 f"{integral_theta:.6f} ± {mc_error_theta:.2e}; "

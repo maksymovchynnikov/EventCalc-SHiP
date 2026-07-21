@@ -1,7 +1,6 @@
 from .config import (
     MASSES_GEV,
     COUPLING_NORMALIZATION_GEV_INV,
-    F_A_MATCHING_GEV,
 )
 
 from .production import build_B_to_Xa_tables
@@ -18,10 +17,6 @@ def main():
         "Reference coupling: "
         f"c_W/f_a = "
         f"{COUPLING_NORMALIZATION_GEV_INV:.6e} GeV^-1"
-    )
-    print(
-        f"Matching scale: "
-        f"f_a = {F_A_MATCHING_GEV:.6e} GeV"
     )
 
     print("\n1. Building production and kinematic tables")

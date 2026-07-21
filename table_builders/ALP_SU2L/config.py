@@ -17,7 +17,6 @@ assert np.all(np.diff(MASSES_GEV) > 0)
 
 
 COUPLING_NORMALIZATION_GEV_INV = 1.0
-F_A_MATCHING_GEV = 1.0e3
 
 EMAX_RELATIVE_THRESHOLD = 1e-7
 EMAX_THETA_PADDING_BINS = 2
@@ -41,11 +40,13 @@ DISTRIBUTION_FLOOR = 1e-90
 
 
 DEBUG_MASSES_GEV = np.array([
-    0.05, 4.5,
+    0.275,
+    0.300,
+    0.350,
 ])
 
 # General run configuration.
-RUN_MODE = "final"  # "debug" or "final"
+RUN_MODE = "debug"  # "debug" or "final"
 seed = 1
 rng = np.random.default_rng(seed)
 

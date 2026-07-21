@@ -45,6 +45,7 @@ THETA_MAX_TABLE = THETA_MAX_SHIP + THETA_MARGIN
 
 
 
+
 # Natural-unit conversion
 # Source: PDG Review of Particle Physics, physical constants.
 HBAR_GEV_S = 6.582119569e-25
@@ -78,16 +79,17 @@ LEPTON_MASSES = {
 # hbar*c in GeV m. For Gamma in GeV, c*tau in metres is HBARC_GEV_M/Gamma.
 HBARC_GEV_M = 1.973269804e-16 # NIST
 
+ALPHA_SU2 = ALPHA_EM / SIN2_THETA_W
+SU2_OPERATOR_FACTOR = ALPHA_SU2 / (4.0 * np.pi)
+PHOTON_OPERATOR_FACTOR = ALPHA_EM / (4.0 * np.pi)
+
 
 
 
 # BRANCHING
 # Source:
 #   URL: https://pdg.lbl.gov/
-M_W = 80.3625
 G_F = 1.1663788e-5
-
-# Electroweak SU(2)_L coupling.
 G2_EW_SQUARED = 4.0 * np.sqrt(2.0) * G_F * M_W**2
 
 # Quark masses for x_q = m_q^2 / m_W^2
