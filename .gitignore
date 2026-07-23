@@ -21,8 +21,6 @@ plots/
 /table_builders/ALP_SU2L/debug_tests/
 
 # Analysis
-table_builders/ALP_SU2L/analysis_outputs/
-
 /analysis/constraints/converted/
 /analysis/energy_spectra_grid/energy_spectra_grid_summary.csv
 /analysis/energy_spectra_grid/plots/
