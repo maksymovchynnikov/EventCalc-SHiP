@@ -235,20 +235,21 @@ def normalized_event_energy_spectrum(
 
 
 def calculate_model_spectrum(
-    *,
     model_name: str,
     config: dict,
+    mass_gev: float,
+    ctau_m: float,
     energy_edges: np.ndarray,
     seed: int,
-) -> dict:
+):
     """
     Generate accepted EventCalc samples and construct the normalized
     event-energy spectrum for one model.
     """
     print()
     print(f"Processing {model_name}")
-    print(f"m_a   = {MASS_GEV} GeV")
-    print(f"c_tau = {CTAU_M} m")
+    print(f"m_a   = {mass_gev} GeV")
+    print(f"c_tau = {ctau_m} m")
 
     llp = LLP(
         mass=None,
@@ -258,9 +259,9 @@ def calculate_model_spectrum(
         alp_production_mode=config["alp_production_mode"],
     )
 
-    llp.set_mass(MASS_GEV)
+    llp.set_mass(mass_gev)
     llp.compute_mass_dependent_properties()
-    llp.set_c_tau(CTAU_M)
+    llp.set_c_tau(ctau_m)
     np.random.seed(seed)
 
     kin = Grids(
@@ -268,7 +269,7 @@ def calculate_model_spectrum(
         llp.Energy_distr,
         N_INTERPOLATION_POINTS,
         llp.mass,
-        CTAU_M,
+        ctau_m,
         theta_max_sim=theta_max_dec_vol,
     )
 
@@ -296,7 +297,7 @@ def calculate_model_spectrum(
     )
 
     coupling_squared = float(
-        llp.c_tau_int / CTAU_M
+        llp.c_tau_int / ctau_m
     )
 
     n_llp_total = (
@@ -390,6 +391,10 @@ def calculate_model_spectrum(
 
 def plot_spectra(
     spectra: dict[str, dict],
+    *,
+    mass_gev: float,
+    ctau_m: float,
+    output_dir: Path,
 ) -> Path:
     """
     Plot the normalized event-energy spectra.
@@ -398,6 +403,11 @@ def plot_spectra(
     to the well-resolved spectrum. They are shown separately with
     Monte Carlo error bars.
     """
+    output_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
     figure, axis = plt.subplots(
         figsize=(8.5, 6.0),
     )
@@ -476,8 +486,8 @@ def plot_spectra(
         r"[GeV$^{-1}$]"
     )
     axis.set_title(
-        rf"$m_a={MASS_GEV:g}$ GeV, "
-        rf"$c\tau={CTAU_M:g}$ m"
+        rf"$m_a={mass_gev:g}$ GeV, "
+        rf"$c\tau={ctau_m:g}$ m"
     )
     axis.set_ylim(bottom=0.0)
     axis.grid(
@@ -489,15 +499,15 @@ def plot_spectra(
     figure.tight_layout()
 
     mass_string = str(
-        MASS_GEV
+        mass_gev
     ).replace(".", "p")
 
     ctau_string = str(
-        CTAU_M
+        ctau_m
     ).replace(".", "p")
 
     output_path = (
-        OUTPUT_DIR
+        output_dir
         / (
             "normalized_event_energy_spectra"
             f"_ma_{mass_string}"
@@ -595,7 +605,10 @@ def weighted_quantiles(
 
 def numerical_summary(
     spectra: dict[str, dict],
-) -> Path:
+    *,
+    mass_gev: float,
+    ctau_m: float,
+) -> pd.DataFrame:
     """Write weighted spectrum statistics to a CSV file."""
     summary_rows = []
 
@@ -659,8 +672,8 @@ def numerical_summary(
                         "plot_label"
                     ]
                 ),
-                "mass_GeV": MASS_GEV,
-                "ctau_m": CTAU_M,
+                "mass_GeV": mass_gev,
+                "ctau_m": ctau_m,
                 "weighted_mean_energy_GeV": (
                     weighted_mean
                 ),
@@ -706,18 +719,7 @@ def numerical_summary(
         )
 
     summary = pd.DataFrame(summary_rows)
-
-    summary_path = (
-        OUTPUT_DIR
-        / "energy_spectra_summary.csv"
-    )
-
-    summary.to_csv(
-        summary_path,
-        index=False,
-    )
-
-    return summary_path
+    return summary
 
 
 
@@ -738,6 +740,8 @@ def main() -> None:
         spectra[model_name] = calculate_model_spectrum(
             model_name=model_name,
             config=config,
+            mass_gev=MASS_GEV,
+            ctau_m=CTAU_M,
             energy_edges=energy_edges,
             seed=BASE_SEED + 100 * model_index,
         )
@@ -748,8 +752,28 @@ def main() -> None:
         f"{len(energy_edges) - 1}"
     )
     print()
-    plot_path = plot_spectra(spectra)
-    summary_path = numerical_summary(spectra)
+    plot_path = plot_spectra(
+        spectra,
+        mass_gev=MASS_GEV,
+        ctau_m=CTAU_M,
+        output_dir=OUTPUT_DIR,
+    )
+
+    summary = numerical_summary(
+        spectra,
+        mass_gev=MASS_GEV,
+        ctau_m=CTAU_M,
+    )
+
+    summary_path = (
+        OUTPUT_DIR
+        / "energy_spectra_summary.csv"
+    )
+
+    summary.to_csv(
+        summary_path,
+        index=False,
+    )
     print()
     print("Numerical summary")
 
