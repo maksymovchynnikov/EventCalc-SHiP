@@ -40,13 +40,12 @@ DISTRIBUTION_FLOOR = 1e-90
 
 
 DEBUG_MASSES_GEV = np.array([
-    0.275,
-    0.300,
-    0.350,
+    0.1,
+    4.5
 ])
 
 # General run configuration.
-RUN_MODE = "debug"  # "debug" or "final"
+RUN_MODE = "final"  # "debug" or "final"
 seed = 1
 rng = np.random.default_rng(seed)
 
