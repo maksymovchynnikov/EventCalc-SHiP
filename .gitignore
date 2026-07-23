@@ -22,3 +22,8 @@ plots/
 
 # Analysis
 table_builders/ALP_SU2L/analysis_outputs/
+
+/analysis/constraints/converted/
+/analysis/energy_spectra_grid/energy_spectra_grid_summary.csv
+/analysis/energy_spectra_grid/plots/
+/analysis/event_density_scan/event_density_scan_coarse.csv
