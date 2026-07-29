@@ -14,10 +14,7 @@ CONVERTED_DIR = CONSTRAINTS_DIR / "converted" / "alp_su2l"
 
 X_LIMITS = (5.0e-2, 1.0)
 FORESEE_Y_LIMITS = (7.0e-7, 1.0e-3)
-Y_LIMITS = tuple(
-    value * COUPLING_CONVERSION_FACTOR
-    for value in FORESEE_Y_LIMITS
-)
+Y_LIMITS = tuple(value * COUPLING_CONVERSION_FACTOR for value in FORESEE_Y_LIMITS)
 
 
 # Entries copied from the FORESEE ALP-W notebook:
@@ -70,7 +67,7 @@ BOUND_SPECS = [
         "bounds_NA6264.txt",
         "+ NA48/2",
         0.270,
-        4.5e-4, # Changed
+        4.5e-4,  # Changed
         90,
     ),
     (
@@ -84,7 +81,7 @@ BOUND_SPECS = [
         "bounds_CDF.txt",
         "CDF",
         0.065,
-        7.5e-4, # Changed
+        7.5e-4,  # Changed
         -12,
     ),
 ]
@@ -179,38 +176,22 @@ SU2_STANDALONE_LABEL_POSITIONS_AXES = {
 
 def load_constraint(path: Path) -> np.ndarray:
     """Load and validate one converted constraint polygon."""
-    data = np.loadtxt(
-        path,
-        comments="#",
-        ndmin=2,
-    )
+    data = np.loadtxt(path, comments="#", ndmin=2)
 
     if data.shape[1] < 2:
-        raise ValueError(
-            f"{path.name} contains fewer than two columns."
-        )
+        raise ValueError(f"{path.name} contains fewer than two columns.")
 
     if not np.all(np.isfinite(data[:, :2])):
-        raise ValueError(
-            f"{path.name} contains non-finite values."
-        )
+        raise ValueError(f"{path.name} contains non-finite values.")
 
     return data
+
 
 def draw_su2_constraints(
     axis: plt.Axes,
     *,
     draw_labels: bool = True,
-    label_positions_axes: dict[
-        str,
-        tuple[
-            float,
-            float,
-            float,
-            str,
-            str,
-        ],
-    ] | None = None,
+    label_positions_axes: dict[str, tuple[float, float, float, str, str]] | None = None,
     label_fontsize: float = 10.0,
 ) -> None:
     for index, (
@@ -223,9 +204,7 @@ def draw_su2_constraints(
         constraint_path = CONVERTED_DIR / filename
 
         if not constraint_path.exists():
-            raise FileNotFoundError(
-                f"Missing constraint file: {constraint_path}"
-            )
+            raise FileNotFoundError(f"Missing constraint file: {constraint_path}")
 
         data = load_constraint(constraint_path)
 
@@ -250,10 +229,7 @@ def draw_su2_constraints(
         )
 
         if draw_labels:
-            if (
-                label_positions_axes is not None
-                and filename in label_positions_axes
-            ):
+            if label_positions_axes is not None and filename in label_positions_axes:
                 (
                     plot_x,
                     plot_y,
@@ -266,10 +242,7 @@ def draw_su2_constraints(
 
             else:
                 plot_x = label_x
-                plot_y = (
-                    label_y_foresee
-                    * COUPLING_CONVERSION_FACTOR
-                )
+                plot_y = label_y_foresee * COUPLING_CONVERSION_FACTOR
                 plot_rotation = rotation
                 horizontal_alignment = "center"
                 vertical_alignment = "center"
@@ -301,9 +274,7 @@ def main() -> None:
     draw_su2_constraints(
         axis,
         draw_labels=True,
-        label_positions_axes=(
-            SU2_STANDALONE_LABEL_POSITIONS_AXES
-        ),
+        label_positions_axes=(SU2_STANDALONE_LABEL_POSITIONS_AXES),
     )
 
     axis.set_xscale("log")
@@ -313,13 +284,9 @@ def main() -> None:
     axis.set_ylim(*Y_LIMITS)
 
     axis.set_xlabel(r"$m_a$ [GeV]")
-    axis.set_ylabel(
-        r"$c_W/f_a$ [GeV$^{-1}$]"
-    )
+    axis.set_ylabel(r"$c_W/f_a$ [GeV$^{-1}$]")
 
-    axis.set_title(
-        r"Existing constraints on ALP-$SU(2)_L$"
-    )
+    axis.set_title(r"Existing constraints on ALP-$SU(2)_L$")
 
     axis.tick_params(
         which="both",
@@ -333,11 +300,7 @@ def main() -> None:
     axis.grid(False)
 
     figure.tight_layout()
-
-    output_path = (
-        PLOT_DIR
-        / "su2_constraints_foresee_style.pdf"
-    )
+    output_path = PLOT_DIR / "su2_constraints_foresee_style.pdf"
 
     figure.savefig(output_path)
     plt.close(figure)

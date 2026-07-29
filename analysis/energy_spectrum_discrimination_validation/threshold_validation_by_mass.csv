@@ -1,0 +1,16 @@
+mass_GeV,target_accuracy,target_accuracy_percent,number_of_lifetimes,all_lifetimes_reached,minimum_events_over_lifetimes_and_seeds,median_events_over_lifetimes,conservative_required_events,limiting_lifetime_label,limiting_ctau_m,all_seed_thresholds_stable
+0.3,0.9,90.0,3,True,1.0,1.0,1.0,low,5.139022774199925,True
+0.4,0.9,90.0,3,True,1.0,1.0,1.0,low,6.247615659760722,True
+0.5,0.9,90.0,3,True,1.0,1.0,1.0,low,7.192567032619706,True
+0.75,0.9,90.0,3,True,2.0,2.0,2.0,low,9.227137897509262,True
+1.0,0.9,90.0,3,True,2.0,2.0,2.0,low,10.95626581890893,True
+0.3,0.95,95.0,3,True,1.0,1.0,1.0,low,5.139022774199925,True
+0.4,0.95,95.0,3,True,1.0,1.0,2.0,low,6.247615659760722,True
+0.5,0.95,95.0,3,True,2.0,2.0,2.0,low,7.192567032619706,True
+0.75,0.95,95.0,3,True,2.0,2.0,2.0,low,9.227137897509262,True
+1.0,0.95,95.0,3,True,3.0,3.0,3.0,low,10.95626581890893,True
+0.3,0.99,99.0,3,True,2.0,2.0,2.0,low,5.139022774199925,True
+0.4,0.99,99.0,3,True,2.0,3.0,3.0,mid,37.18189830457899,True
+0.5,0.99,99.0,3,True,2.0,3.0,3.0,low,7.192567032619706,True
+0.75,0.99,99.0,3,True,3.0,4.0,4.0,low,9.227137897509262,True
+1.0,0.99,99.0,3,True,6.0,6.0,6.0,low,10.95626581890893,True

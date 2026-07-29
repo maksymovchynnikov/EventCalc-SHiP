@@ -30,12 +30,8 @@ TABLE_LIMITS_GEV = {
 }
 
 Y_LABELS = {
-    "ALP-photon-primary": (
-        r"$g_{a\gamma\gamma}$ [GeV$^{-1}$]"
-    ),
-    "ALP-SU2L": (
-        r"$c_W/f_a$ [GeV$^{-1}$]"
-    ),
+    "ALP-photon-primary": (r"$g_{a\gamma\gamma}$ [GeV$^{-1}$]"),
+    "ALP-SU2L": (r"$c_W/f_a$ [GeV$^{-1}$]"),
 }
 
 LINE_STYLES = {
@@ -47,58 +43,45 @@ LINE_STYLES = {
 
 
 def safe_filename(text: str) -> str:
-    return (
-        text.lower()
-        .replace(" ", "_")
-        .replace("/", "_")
-        .replace("(", "")
-        .replace(")", "")
-    )
+    return text.lower().replace(" ", "_").replace("/", "_").replace("(", "").replace(")", "")
+
 
 def draw_event_contours(
     axis: plt.Axes,
     model_data: pd.DataFrame,
 ) -> None:
     for event_level in EVENT_LEVELS:
-            level_data = model_data[
-                np.isclose(
-                    model_data["event_level"],
-                    event_level,
-                )
-            ].sort_values("mass_GeV")
-
-            masses = level_data[
-                "mass_GeV"
-            ].to_numpy(dtype=float)
-
-            lower = level_data[
-                "lower_coupling_GeV_inv"
-            ].to_numpy(dtype=float)
-
-            upper = level_data[
-                "upper_coupling_GeV_inv"
-            ].to_numpy(dtype=float)
-
-            valid_lower = np.isfinite(lower)
-            valid_upper = np.isfinite(upper)
-
-            lower_line, = axis.plot(
-                masses[valid_lower],
-                lower[valid_lower],
-                linestyle=LINE_STYLES[event_level],
-                linewidth=2.0,
-                label=(
-                    rf"$N_{{\rm events}}={event_level:g}$"
-                ),
+        level_data = model_data[
+            np.isclose(
+                model_data["event_level"],
+                event_level,
             )
+        ].sort_values("mass_GeV")
 
-            axis.plot(
-                masses[valid_upper],
-                upper[valid_upper],
-                linestyle=LINE_STYLES[event_level],
-                linewidth=2.0,
-                color=lower_line.get_color(),
-            )
+        masses = level_data["mass_GeV"].to_numpy(dtype=float)
+
+        lower = level_data["lower_coupling_GeV_inv"].to_numpy(dtype=float)
+
+        upper = level_data["upper_coupling_GeV_inv"].to_numpy(dtype=float)
+
+        valid_lower = np.isfinite(lower)
+        valid_upper = np.isfinite(upper)
+
+        (lower_line,) = axis.plot(
+            masses[valid_lower],
+            lower[valid_lower],
+            linestyle=LINE_STYLES[event_level],
+            linewidth=2.0,
+            label=(rf"$N_{{\rm events}}={event_level:g}$"),
+        )
+
+        axis.plot(
+            masses[valid_upper],
+            upper[valid_upper],
+            linestyle=LINE_STYLES[event_level],
+            linewidth=2.0,
+            color=lower_line.get_color(),
+        )
 
 
 def main() -> None:
@@ -124,18 +107,11 @@ def main() -> None:
             "unresolved_numerically",
         }
 
-        problematic = model_data[
-            model_data["status"].isin(
-                problem_statuses
-            )
-        ]
+        problematic = model_data[model_data["status"].isin(problem_statuses)]
 
         if not problematic.empty:
             print()
-            print(
-                f"Warning: scan-limited or numerically "
-                f"unresolved contours for {model_name}:"
-            )
+            print(f"Warning: scan-limited or numerically unresolved contours for {model_name}:")
 
             print(
                 problematic[
@@ -153,10 +129,7 @@ def main() -> None:
             figsize=(8.5, 6.5),
         )
 
-        draw_event_contours(
-            axis,
-            model_data
-        )
+        draw_event_contours(axis, model_data)
 
         axis.set_xscale("log")
         axis.set_yscale("log")
@@ -168,7 +141,7 @@ def main() -> None:
                 r"Coupling [GeV$^{-1}$]",
             )
         )
-        
+
         axis.set_title(
             MODEL_LABELS.get(
                 model_name,
@@ -177,7 +150,7 @@ def main() -> None:
         )
 
         table_limit = TABLE_LIMITS_GEV.get(model_name)
-        
+
         if table_limit is not None:
             axis.axvline(
                 table_limit,
@@ -206,13 +179,7 @@ def main() -> None:
         axis.legend()
         figure.tight_layout()
 
-        output_path = (
-            PLOT_DIR
-            / (
-                "event_density_contours_"
-                f"{safe_filename(model_name)}.pdf"
-            )
-        )
+        output_path = PLOT_DIR / f"event_density_contours_{safe_filename(model_name)}.pdf"
 
         figure.savefig(
             output_path,
@@ -225,4 +192,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

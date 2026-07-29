@@ -1,0 +1,6 @@
+mass_GeV,ctau_lower_m,ctau_upper_m,upper_extends_beyond_scan
+0.3,3.0,265.45350016020666,False
+0.4,4.0,156.10182143080877,False
+0.5,5.0,99.97231863122911,False
+0.75,7.5,40.02564243419444,False
+1.0,10.0,18.971241604556862,False

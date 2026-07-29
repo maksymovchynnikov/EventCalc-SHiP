@@ -13,27 +13,19 @@ FORESEE_MODELS = {
 
 
 def parse_arguments():
-    parser = ArgumentParser(
-        description=(
-            "Download existing FORESEE ALP constraints."
-        )
-    )
-
+    parser = ArgumentParser(description=("Download existing FORESEE ALP constraints."))
     parser.add_argument(
         "model",
         choices=FORESEE_MODELS,
         help="Constraint model to download.",
     )
-
     return parser.parse_args()
 
 
 def main() -> None:
     arguments = parse_arguments()
 
-    foresee_model = FORESEE_MODELS[
-        arguments.model
-    ]
+    foresee_model = FORESEE_MODELS[arguments.model]
 
     api_url = (
         "https://api.github.com/repos/"
@@ -41,16 +33,8 @@ def main() -> None:
         f"Models/{foresee_model}/model/lines"
     )
 
-    output_dir = (
-        BASE_DIR
-        / "raw"
-        / arguments.model
-    )
-
-    output_dir.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
+    output_dir = BASE_DIR / "raw" / arguments.model
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     with urlopen(api_url) as response:
         files = json.load(response)
@@ -60,34 +44,20 @@ def main() -> None:
         for file_info in files
         if (
             file_info["type"] == "file"
-            and file_info["name"].startswith(
-                "bounds_"
-            )
-            and file_info["name"].endswith(
-                ".txt"
-            )
+            and file_info["name"].startswith("bounds_")
+            and file_info["name"].endswith(".txt")
         )
     ]
 
     for file_info in selected_files:
-        output_path = (
-            output_dir
-            / file_info["name"]
-        )
+        output_path = output_dir / file_info["name"]
 
-        with urlopen(
-            file_info["download_url"]
-        ) as response:
-            output_path.write_bytes(
-                response.read()
-            )
+        with urlopen(file_info["download_url"]) as response:
+            output_path.write_bytes(response.read())
 
         print(f"Downloaded {output_path}")
 
-    print(
-        f"\nDownloaded {len(selected_files)} "
-        f"{arguments.model} constraint files."
-    )
+    print(f"\nDownloaded {len(selected_files)} {arguments.model} constraint files.")
 
 
 if __name__ == "__main__":

@@ -8,12 +8,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-
-# ---------------------------------------------------------------------
-# Make imports and relative EventCalc paths work when this file is run as
-#     python analysis/scan_ctau_ranges.py
-# ---------------------------------------------------------------------
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 if str(REPO_ROOT) not in sys.path:
@@ -26,28 +20,17 @@ from funcs.kinematics import Grids
 from funcs.ship_setup import theta_max_dec_vol
 
 
-# ---------------------------------------------------------------------
 # Configuration
-# ---------------------------------------------------------------------
-
-N_POT = 6.0e20
-
 RESAMPLE_SIZE = 200_000
 N_INTERPOLATION_POINTS = 10 * RESAMPLE_SIZE
-
 MASSES_GEV = np.array([0.3, 0.4, 0.5, 0.75, 1.0])
-
 EVENT_THRESHOLD = 10.0
 MAX_CTAU_M = 1.0e3
 
-# Consecutive coarse scan points differ by this factor.
-COARSE_FACTOR = 1.7
+N_POT = 6.0e20  # Full programme of SHiP
+COARSE_FACTOR = 1.7  # Consecutive coarse scan points differ by this factor, see make_coarse_ctau_grid
+BISECTION_STEPS = 14  # Number of log-bisection iterations near N_events = 10.
 
-# Number of log-bisection iterations near N_events = 10.
-BISECTION_STEPS = 14
-
-# Fixed seeds make the scan reproducible and reduce artificial
-# fluctuations between neighbouring lifetime points.
 BASE_SEED = 12345
 
 ANALYSIS_DIR = Path(__file__).resolve().parent
@@ -56,60 +39,50 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 MODEL_CONFIGS = {
-    "ALP-photon-primary": {
+    "ALP-photon-combined": {
         "particle_selection": {
             "LLP_name": "ALP-photon",
-            "particle_path": str(
-                REPO_ROOT / "Distributions" / "ALP-photon"
-            ),
+            "particle_path": str(REPO_ROOT / "Distributions" / "ALP-photon"),
         },
-        "alp_production_mode": "primary",
+        "alp_production_modes": (
+            "primary",
+            "cascade",
+        ),
     },
     "ALP-SU2L": {
         "particle_selection": {
             "LLP_name": "ALP-SU2L",
-            "particle_path": str(
-                REPO_ROOT / "Distributions" / "ALP-SU2L"
-            ),
+            "particle_path": str(REPO_ROOT / "Distributions" / "ALP-SU2L"),
         },
-        "alp_production_mode": None,
+        "alp_production_modes": (None,),
     },
 }
 
 
-# ---------------------------------------------------------------------
-# Basic definitions
-# ---------------------------------------------------------------------
-
+# BASIC DEFINITIONS
 def lower_ctau_limit(m_a: float) -> float:
-    """
-    Lower lifetime limit in metres.
-
-    Parameters
-    ----------
-    m_a:
-        ALP mass in GeV.
-    """
     return 3.0 * (m_a / 0.3)
 
 
-def make_llp(config: dict) -> LLP:
-    """Load one EventCalc LLP model."""
-    return LLP(
-        mass=None,
-        particle_selection=config["particle_selection"],
-        mixing_pattern=None,
-        uncertainty=None,
-        alp_production_mode=config["alp_production_mode"],
-    )
+def make_llp_components(config: dict) -> dict[str, LLP]:
+    """Load every independent production source for one model."""
+    components = {}
+    for production_mode in config["alp_production_modes"]:
+        source_label = "inclusive" if production_mode is None else str(production_mode)
+
+        components[source_label] = LLP(
+            mass=None,
+            particle_selection=(config["particle_selection"]),
+            mixing_pattern=None,
+            uncertainty=None,
+            alp_production_mode=(production_mode),
+        )
+
+    return components
 
 
-def make_coarse_ctau_grid(
-    ctau_min: float,
-    ctau_max: float,
-    factor: float,
-) -> np.ndarray:
-    """Construct a geometrically spaced grid using a fixed ratio."""
+def make_coarse_ctau_grid(ctau_min: float, ctau_max: float, factor: float) -> np.ndarray:
+    """Construct a geometrically spaced grid using a fixed ratio (factor)."""
     if ctau_min <= 0.0:
         raise ValueError("ctau_min must be positive.")
 
@@ -117,22 +90,16 @@ def make_coarse_ctau_grid(
         raise ValueError("ctau_max must be larger than ctau_min.")
 
     values = [float(ctau_min)]
-
     while values[-1] < ctau_max:
         next_value = min(values[-1] * factor, ctau_max)
-
         if next_value <= values[-1]:
             break
-
         values.append(next_value)
 
     return np.asarray(values)
 
 
-# ---------------------------------------------------------------------
-# Kinematic sampling
-# ---------------------------------------------------------------------
-
+# KINEMATICS
 def prepare_kinematic_sample(
     llp: LLP,
     m_a: float,
@@ -157,8 +124,7 @@ def prepare_kinematic_sample(
 
     if not np.isfinite(br_visible) or br_visible <= 0.0:
         raise RuntimeError(
-            f"Invalid visible branching ratio for "
-            f"{llp.LLP_name}, m={m_a} GeV: {br_visible}"
+            f"Invalid visible branching ratio for {llp.LLP_name}, m={m_a} GeV: {br_visible}"
         )
 
     np.random.seed(seed)
@@ -174,21 +140,11 @@ def prepare_kinematic_sample(
 
     kin.interpolate(False)
 
-    # EventCalc uses
-    #
-    # e_min = max[m_a, min(2.133*m_a/c_tau, E_max/2)].
-    #
-    # For c_tau >= 3 m * m_a/(0.3 GeV), the first term should
-    # dominate for all requested masses.
-    if not np.allclose(
-        kin.e_min_sampling,
-        m_a,
-        rtol=1.0e-12,
-        atol=1.0e-14,
-    ):
+    # EventCalc uses e_min = max[m_a, min(2.133*m_a/c_tau, E_max/2)].
+    # For c_tau >= 3 m * m_a/(0.3 GeV), the first term (m_a) should dominate for all requested masses. If not,
+    if not np.allclose(kin.e_min_sampling, m_a, rtol=1.0e-12, atol=1.0e-14):
         minimum = float(np.min(kin.e_min_sampling))
         maximum = float(np.max(kin.e_min_sampling))
-
         raise RuntimeError(
             "The theta-energy sample cannot safely be reused across "
             "lifetimes because e_min_sampling is not equal to m_a.\n"
@@ -202,9 +158,10 @@ def prepare_kinematic_sample(
     return kin, br_visible
 
 
-def evaluate_ctau(
+def evaluate_source_ctau(
     *,
     model_name: str,
+    source_label: str,
     llp: LLP,
     kin: Grids,
     m_a: float,
@@ -214,34 +171,23 @@ def evaluate_ctau(
     true_sample_seed: int,
 ) -> dict:
     """
-    Calculate the EventCalc event rate for one lifetime.
-
+    Calculate the EventCalc event rate for one production source.
     The same random numbers are used at every lifetime for a fixed
-    model and mass. This reduces Monte Carlo noise in the lifetime scan.
+    source and mass.
     """
     ctau = float(ctau)
-
     if ctau <= 0.0:
         raise ValueError("ctau must be positive.")
-
     llp.set_c_tau(ctau)
 
     coupling_squared = float(llp.c_tau_int / ctau)
 
-    n_llp_total = (
-        N_POT
-        * float(llp.Yield)
-        * coupling_squared
-    )
+    n_llp_total = N_POT * float(llp.Yield) * coupling_squared
 
-    # Reuse theta and energy, but recalculate decay positions and
-    # decay probabilities for this lifetime.
     kin.c_tau = ctau
 
-    # Common random numbers for all lifetimes at fixed mass/model.
     np.random.seed(true_sample_seed)
     kin.true_samples(False)
-
     mother_particle_results = kin.get_kinematics()
     final_events = len(mother_particle_results)
 
@@ -252,21 +198,13 @@ def evaluate_ctau(
         p_decay_averaged = 0.0
         n_events = 0.0
     else:
-        # Column 6 is P_decay, as in simulate.py.
-        p_decay_averaged = float(
-            mother_particle_results[:, 6].mean()
-        )
+        p_decay_averaged = float(mother_particle_results[:, 6].mean())
 
-        n_events = (
-            n_llp_total
-            * epsilon_polar
-            * epsilon_azimuthal
-            * p_decay_averaged
-            * br_visible
-        )
+        n_events = n_llp_total * epsilon_polar * epsilon_azimuthal * p_decay_averaged * br_visible
 
     return {
         "model": model_name,
+        "source": source_label,
         "mass_GeV": m_a,
         "ctau_m": ctau,
         "ctau_min_m": ctau_min,
@@ -278,23 +216,14 @@ def evaluate_ctau(
         "P_decay_averaged": p_decay_averaged,
         "visible_Br": br_visible,
         "N_events": n_events,
-        "passes_event_cut": n_events >= EVENT_THRESHOLD,
         "sampled_inside_volume": final_events,
     }
 
 
-# ---------------------------------------------------------------------
-# Crossing refinement
-# ---------------------------------------------------------------------
-
-def refine_threshold_crossing(
-    evaluate,
-    ctau_left: float,
-    ctau_right: float,
-) -> float:
+# FINDING N_events = threshold
+def refine_threshold_crossing(evaluate, ctau_left: float, ctau_right: float) -> float:
     """
     Refine a bracket containing a change across N_events = threshold.
-
     The midpoint is geometric because c*tau is scanned logarithmically.
     """
     row_left = evaluate(ctau_left)
@@ -304,9 +233,7 @@ def refine_threshold_crossing(
     state_right = bool(row_right["passes_event_cut"])
 
     if state_left == state_right:
-        raise ValueError(
-            "The supplied interval does not bracket a threshold crossing."
-        )
+        raise ValueError("The supplied interval does not bracket a threshold crossing.")
 
     left = float(ctau_left)
     right = float(ctau_right)
@@ -332,9 +259,7 @@ def intervals_from_crossings(
 ) -> list[tuple[float, float | None]]:
     """
     Convert threshold crossings into intervals satisfying N_events >= 10.
-
-    An upper value of None means that the interval extends beyond
-    MAX_CTAU_M.
+    An upper value of None means that the interval extends beyond MAX_CTAU_M.
     """
     intervals = []
 
@@ -356,43 +281,106 @@ def intervals_from_crossings(
     return intervals
 
 
-
 def scan_model_mass(
     *,
     model_name: str,
-    llp: LLP,
+    llp_components: dict[str, LLP],
     m_a: float,
     seed: int,
-) -> tuple[list[dict], list[tuple[float, float | None]]]:
+) -> tuple[
+    list[dict],
+    list[tuple[float, float | None]],
+]:
+    """
+    Scan one physical model and mass.
+    For ALP-photon, primary and cascade samples are prepared
+    independently and their event rates are added at every lifetime.
+    """
     ctau_min = lower_ctau_limit(m_a)
 
-    kin, br_visible = prepare_kinematic_sample(
-        llp=llp,
-        m_a=m_a,
-        ctau_min=ctau_min,
-        seed=seed,
-    )
+    prepared_components = {}
+    for source_index, (source_label, llp) in enumerate(llp_components.items()):
+        source_seed = seed + 1_000 * source_index
+
+        kin, br_visible = prepare_kinematic_sample(
+            llp=llp,
+            m_a=m_a,
+            ctau_min=ctau_min,
+            seed=source_seed,
+        )
+
+        prepared_components[source_label] = {
+            "llp": llp,
+            "kin": kin,
+            "br_visible": br_visible,
+            "true_sample_seed": source_seed + 1,
+        }
 
     cache: dict[float, dict] = {}
 
     def evaluate(ctau: float) -> dict:
-        # The float itself is safe as a cache key here because identical
-        # values are passed internally during each bisection.
         key = float(ctau)
+        if key in cache:
+            return cache[key]
 
-        if key not in cache:
-            cache[key] = evaluate_ctau(
+        source_rows = {}
+        for source_label, prepared in prepared_components.items():
+            source_rows[source_label] = evaluate_source_ctau(
                 model_name=model_name,
-                llp=llp,
-                kin=kin,
+                source_label=source_label,
+                llp=prepared["llp"],
+                kin=prepared["kin"],
                 m_a=m_a,
                 ctau=key,
                 ctau_min=ctau_min,
-                br_visible=br_visible,
-                true_sample_seed=seed + 1,
+                br_visible=prepared["br_visible"],
+                true_sample_seed=(prepared["true_sample_seed"]),
             )
 
-        return cache[key]
+        n_events_by_source = {
+            source_label: float(source_row["N_events"])
+            for (source_label, source_row) in (source_rows.items())
+        }
+
+        n_events = float(sum(n_events_by_source.values()))
+
+        coupling_values = np.array(
+            [source_row["coupling_squared"] for source_row in (source_rows.values())],
+            dtype=float,
+        )
+
+        if not np.allclose(
+            coupling_values,
+            coupling_values[0],
+            rtol=1.0e-12,
+            atol=0.0,
+        ):
+            raise RuntimeError(
+                f"{model_name}, m_a={m_a:g} GeV: " "source coupling normalizations disagree."
+            )
+
+        row = {
+            "model": model_name,
+            "mass_GeV": m_a,
+            "ctau_m": key,
+            "ctau_min_m": ctau_min,
+            "coupling_squared": float(coupling_values[0]),
+            "N_events": n_events,
+            "passes_event_cut": n_events >= EVENT_THRESHOLD,
+            "N_events_primary": n_events_by_source.get("primary", np.nan),
+            "N_events_cascade": n_events_by_source.get("cascade", np.nan),
+            "N_events_inclusive": n_events_by_source.get("inclusive", np.nan),
+            "cascade_event_fraction": (
+                n_events_by_source.get("cascade", 0.0) / n_events if n_events > 0.0 else np.nan
+            ),
+            "sampled_inside_volume": int(
+                sum(source_row["sampled_inside_volume"] for source_row in (source_rows.values()))
+            ),
+        }
+
+        cache[key] = row
+
+        return row
 
     coarse_ctaus = make_coarse_ctau_grid(
         ctau_min=ctau_min,
@@ -401,23 +389,20 @@ def scan_model_mass(
     )
 
     coarse_rows = [evaluate(ctau) for ctau in coarse_ctaus]
-    
     coarse_rates = np.array([row["N_events"] for row in coarse_rows])
+
     relative_increase = np.diff(coarse_rates) / np.maximum(coarse_rates[:-1], 1.0e-300)
+
     if np.any(relative_increase > 1.0e-3):
         indices = np.where(relative_increase > 1.0e-3)[0]
         print(
-            f"WARNING: non-monotonic event rate for "
+            "WARNING: non-monotonic event rate for "
             f"{model_name}, m_a={m_a:g} GeV at "
             f"indices {indices.tolist()}."
         )
 
     crossings = []
-
-    for left_row, right_row in zip(
-        coarse_rows[:-1],
-        coarse_rows[1:],
-    ):
+    for left_row, right_row in zip(coarse_rows[:-1], coarse_rows[1:]):
         left_passes = bool(left_row["passes_event_cut"])
         right_passes = bool(right_row["passes_event_cut"])
 
@@ -428,8 +413,6 @@ def scan_model_mass(
                 ctau_right=right_row["ctau_m"],
             )
             crossings.append(crossing)
-
-            # Add the central crossing estimate to the stored output.
             evaluate(crossing)
 
     starts_above = bool(coarse_rows[0]["passes_event_cut"])
@@ -437,28 +420,22 @@ def scan_model_mass(
     intervals = intervals_from_crossings(
         ctau_min=ctau_min,
         crossings=crossings,
-        starts_above_threshold=starts_above,
+        starts_above_threshold=(starts_above),
     )
 
     if len(crossings) > 1:
         print(
-            f"WARNING: {model_name}, m={m_a} GeV has "
+            f"WARNING: {model_name}, "
+            f"m={m_a} GeV has "
             f"{len(crossings)} threshold crossings. "
             "Inspect the curve for Monte Carlo fluctuations or "
             "non-monotonic behaviour."
         )
 
-    rows = sorted(
-        cache.values(),
-        key=lambda row: row["ctau_m"],
-    )
+    rows = sorted(cache.values(), key=lambda row: row["ctau_m"])
 
-    return rows, intervals
+    return (rows, intervals)
 
-
-# ---------------------------------------------------------------------
-# Interval intersection
-# ---------------------------------------------------------------------
 
 def intersect_intervals(
     intervals_a: list[tuple[float, float | None]],
@@ -471,64 +448,42 @@ def intersect_intervals(
         for lower_b, upper_b in intervals_b:
             lower = max(lower_a, lower_b)
 
-            numerical_upper_a = (
-                np.inf if upper_a is None else upper_a
-            )
-            numerical_upper_b = (
-                np.inf if upper_b is None else upper_b
-            )
-
+            numerical_upper_a = np.inf if upper_a is None else upper_a
+            numerical_upper_b = np.inf if upper_b is None else upper_b
             upper = min(numerical_upper_a, numerical_upper_b)
 
             if lower < upper:
-                intersections.append(
-                    (
-                        float(lower),
-                        None if np.isinf(upper) else float(upper),
-                    )
-                )
+                intersections.append((float(lower), None if np.isinf(upper) else float(upper)))
 
     return intersections
 
 
-# ---------------------------------------------------------------------
-# Output
-# ---------------------------------------------------------------------
-
-def format_interval(
-    interval: tuple[float, float | None],
-) -> str:
+# OUTPUT
+def format_interval(interval: tuple[float, float | None]) -> str:
     lower, upper = interval
-
     if upper is None:
         return f"[{lower:.6g}, > {MAX_CTAU_M:.6g}] m"
-
     return f"[{lower:.6g}, {upper:.6g}] m"
 
 
 def plot_all_scans(dataframe: pd.DataFrame) -> None:
     """
     Plot all masses and both models in the same figure.
-
     Colour identifies the ALP mass.
     Line style identifies the model.
     """
     figure, axis = plt.subplots(figsize=(9.0, 6.0))
 
     mass_values = sorted(dataframe["mass_GeV"].unique())
-    colours = plt.cm.viridis(
-        np.linspace(0.05, 0.95, len(mass_values))
-    )
+    colours = plt.cm.viridis(np.linspace(0.05, 0.95, len(mass_values)))
 
     model_styles = {
-        "ALP-photon-primary": "-",
+        "ALP-photon-combined": "-",
         "ALP-SU2L": "--",
     }
 
     for colour, m_a in zip(colours, mass_values):
-        mass_data = dataframe[
-            np.isclose(dataframe["mass_GeV"], m_a)
-        ]
+        mass_data = dataframe[np.isclose(dataframe["mass_GeV"], m_a)]
 
         for model_name, model_data in mass_data.groupby("model"):
             model_data = model_data.sort_values("ctau_m")
@@ -541,10 +496,7 @@ def plot_all_scans(dataframe: pd.DataFrame) -> None:
                 markersize=2.5,
                 linewidth=1.3,
                 color=colour,
-                label=(
-                    rf"$m_a={m_a:g}\,\mathrm{{GeV}}$, "
-                    f"{model_name}"
-                ),
+                label=rf"$m_a={m_a:g}\,\mathrm{{GeV}}$, {model_name}",
             )
 
     axis.axhline(
@@ -557,57 +509,38 @@ def plot_all_scans(dataframe: pd.DataFrame) -> None:
 
     axis.set_xlabel(r"$c\tau$ [m]")
     axis.set_ylabel(r"$N_{\rm events}$")
-    axis.set_title(
-        r"Event rate versus lifetime for ALP-photon and "
-        r"ALP-$SU(2)_L$"
-    )
+    axis.set_title(r"Event rate versus lifetime for ALP-photon and " r"ALP-$SU(2)_L$")
 
     axis.grid(True, which="both", alpha=0.25)
     axis.legend(
         fontsize=8,
         ncol=2,
     )
-
     figure.tight_layout()
-
     output_path = OUTPUT_DIR / "ctau_scan_all_masses.png"
     figure.savefig(output_path, dpi=200)
     plt.close(figure)
 
 
-# ---------------------------------------------------------------------
-# Main
-# ---------------------------------------------------------------------
-
+# MAIN
 def main() -> None:
     llp_models = {
-        model_name: make_llp(config)
-        for model_name, config in MODEL_CONFIGS.items()
+        model_name: make_llp_components(config) for (model_name, config) in MODEL_CONFIGS.items()
     }
 
     all_rows = []
     model_intervals = {}
 
-    for model_index, (model_name, llp) in enumerate(
-        llp_models.items()
-    ):
+    for model_index, (model_name, llp_components) in enumerate(llp_models.items()):
         print(f"\nScanning {model_name}")
 
         for mass_index, m_a in enumerate(MASSES_GEV):
-            seed = (
-                BASE_SEED
-                + 10_000 * model_index
-                + 100 * mass_index
-            )
-
-            print(
-                f"  m_a = {m_a:g} GeV, "
-                f"c_tau_min = {lower_ctau_limit(m_a):g} m"
-            )
+            seed = BASE_SEED + 10_000 * model_index + 100 * mass_index
+            print(f"  m_a = {m_a:g} GeV, c_tau_min = {lower_ctau_limit(m_a):g} m")
 
             rows, intervals = scan_model_mass(
                 model_name=model_name,
-                llp=llp,
+                llp_components=llp_components,
                 m_a=float(m_a),
                 seed=seed,
             )
@@ -617,15 +550,9 @@ def main() -> None:
 
             if intervals:
                 for interval in intervals:
-                    print(
-                        "    N_events >= 10 for "
-                        f"{format_interval(interval)}"
-                    )
+                    print(f"    N_events >= 10 for {format_interval(interval)}")
             else:
-                print(
-                    "    No lifetime interval with "
-                    "N_events >= 10 was found."
-                )
+                print("    No lifetime interval with " "N_events >= 10 was found.")
 
     results = pd.DataFrame(all_rows)
     results.sort_values(
@@ -639,17 +566,12 @@ def main() -> None:
     summary_rows = []
 
     print("\nCommon ranges for both models")
-
-    photon_name = "ALP-photon-primary"
+    photon_name = "ALP-photon-combined"
     su2l_name = "ALP-SU2L"
 
     for m_a in MASSES_GEV:
-        photon_intervals = model_intervals[
-            (photon_name, float(m_a))
-        ]
-        su2l_intervals = model_intervals[
-            (su2l_name, float(m_a))
-        ]
+        photon_intervals = model_intervals[(photon_name, float(m_a))]
+        su2l_intervals = model_intervals[(su2l_name, float(m_a))]
 
         common_intervals = intersect_intervals(
             photon_intervals,
@@ -662,17 +584,13 @@ def main() -> None:
             print("    No common interval.")
         else:
             for lower, upper in common_intervals:
-                print(
-                    f"    {format_interval((lower, upper))}"
-                )
+                print(f"    {format_interval((lower, upper))}")
 
                 summary_rows.append(
                     {
                         "mass_GeV": m_a,
                         "ctau_lower_m": lower,
-                        "ctau_upper_m": (
-                            np.nan if upper is None else upper
-                        ),
+                        "ctau_upper_m": (np.nan if upper is None else upper),
                         "upper_extends_beyond_scan": upper is None,
                     }
                 )
@@ -684,7 +602,6 @@ def main() -> None:
     plot_all_scans(results)
 
     plot_path = OUTPUT_DIR / "ctau_scan_all_masses.png"
-
     print("\nSaved:")
     print(f"  {results_path}")
     print(f"  {summary_path}")

@@ -5,16 +5,9 @@ import numpy as np
 
 CONSTRAINTS_DIR = Path(__file__).resolve().parent
 
-RAW_DIR = (
-    CONSTRAINTS_DIR
-    / "raw"
-    / "alp_photon"
-)
+RAW_DIR = CONSTRAINTS_DIR / "raw" / "alp_photon"
 
-PLOT_DIR = (
-    CONSTRAINTS_DIR
-    / "plots"
-)
+PLOT_DIR = CONSTRAINTS_DIR / "plots"
 
 
 # These limits are only presentation choices for the
@@ -189,6 +182,7 @@ PHOTON_STANDALONE_LABEL_POSITIONS_AXES = {
     ),
 }
 
+
 def load_constraint(
     path: Path,
 ) -> np.ndarray:
@@ -200,29 +194,19 @@ def load_constraint(
     )
 
     if data.shape[1] < 2:
-        raise ValueError(
-            f"{path.name} contains fewer than two columns."
-        )
+        raise ValueError(f"{path.name} contains fewer than two columns.")
 
-    if not np.all(
-        np.isfinite(data[:, :2])
-    ):
-        raise ValueError(
-            f"{path.name} contains non-finite values."
-        )
+    if not np.all(np.isfinite(data[:, :2])):
+        raise ValueError(f"{path.name} contains non-finite values.")
 
     masses = data[:, 0]
     couplings = data[:, 1]
 
     if np.any(masses <= 0.0):
-        raise ValueError(
-            f"{path.name} contains non-positive masses."
-        )
+        raise ValueError(f"{path.name} contains non-positive masses.")
 
     if np.any(couplings <= 0.0):
-        raise ValueError(
-            f"{path.name} contains non-positive couplings."
-        )
+        raise ValueError(f"{path.name} contains non-positive couplings.")
 
     return data
 
@@ -231,16 +215,7 @@ def draw_photon_constraints(
     axis: plt.Axes,
     *,
     draw_labels: bool = True,
-    label_positions_axes: dict[
-        str,
-        tuple[
-            float,
-            float,
-            float,
-            str,
-            str,
-        ],
-    ] | None = None,
+    label_positions_axes: dict[str, tuple[float, float, float, str, str]] | None = None,
     label_fontsize: float = 10.0,
 ) -> None:
     """Draw ALP-photon exclusions on an existing axis."""
@@ -261,14 +236,9 @@ def draw_photon_constraints(
         constraint_path = RAW_DIR / filename
 
         if not constraint_path.exists():
-            raise FileNotFoundError(
-                "Missing ALP-photon constraint file:\n"
-                f"  {constraint_path}"
-            )
+            raise FileNotFoundError(f"Missing ALP-photon constraint file:\n  {constraint_path}")
 
-        data = load_constraint(
-            constraint_path
-        )
+        data = load_constraint(constraint_path)
 
         masses = data[:, 0]
         couplings = data[:, 1]
@@ -291,10 +261,7 @@ def draw_photon_constraints(
         )
 
         if draw_labels:
-            if (
-                label_positions_axes is not None
-                and filename in label_positions_axes
-            ):
+            if label_positions_axes is not None and filename in label_positions_axes:
                 (
                     plot_x,
                     plot_y,
@@ -328,6 +295,7 @@ def draw_photon_constraints(
                 zorder=100,
             )
 
+
 def main() -> None:
     PLOT_DIR.mkdir(
         parents=True,
@@ -341,57 +309,29 @@ def main() -> None:
     draw_photon_constraints(
         axis,
         draw_labels=True,
-        label_positions_axes=(
-            PHOTON_STANDALONE_LABEL_POSITIONS_AXES
-        ),
+        label_positions_axes=(PHOTON_STANDALONE_LABEL_POSITIONS_AXES),
     )
 
     axis.set_xscale("log")
     axis.set_yscale("log")
-
     axis.set_xlim(*X_LIMITS)
     axis.set_ylim(*Y_LIMITS)
-
-    axis.set_xlabel(
-        r"$m_a$ [GeV]"
-    )
-
-    axis.set_ylabel(
-        r"$g_{a\gamma\gamma}$ "
-        r"[GeV$^{-1}$]"
-    )
-
-    axis.set_title(
-        "Existing constraints on ALP-photon"
-    )
-
+    axis.set_xlabel(r"$m_a$ [GeV]")
+    axis.set_ylabel(r"$g_{a\gamma\gamma}$ " r"[GeV$^{-1}$]")
+    axis.set_title("Existing constraints on ALP-photon")
     axis.tick_params(
         which="both",
         direction="in",
         top=True,
         right=True,
     )
-
     axis.grid(False)
-
     figure.tight_layout()
 
-    output_path = (
-        PLOT_DIR
-        / "photon_constraints_foresee_style.pdf"
-    )
-
-    figure.savefig(
-        output_path
-    )
-
-    plt.close(
-        figure
-    )
-
-    print(
-        f"Saved {output_path}"
-    )
+    output_path = PLOT_DIR / "photon_constraints_foresee_style.pdf"
+    figure.savefig(output_path)
+    plt.close(figure)
+    print(f"Saved {output_path}")
 
 
 if __name__ == "__main__":

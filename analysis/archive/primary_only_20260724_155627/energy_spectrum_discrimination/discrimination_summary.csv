@@ -1,0 +1,3 @@
+mass_GeV,ctau_m,number_of_adaptive_bins,minimum_bin_N_eff,photon_expected_events,su2_expected_events,photon_template_total_N_eff,su2_template_total_N_eff,model_total_variation_distance,KL_photon_to_su2_per_event,KL_su2_to_photon_per_event,minimum_events_for_90pct_worst_case_accuracy,minimum_events_for_95pct_worst_case_accuracy,minimum_events_for_99pct_worst_case_accuracy
+0.3,117.493164585503,18,100.0,50.260204617974814,308.5883313031024,382796.69059916295,474879.1245491533,0.9020962434054601,4.146246304321527,2.981576290056889,1,2,3
+0.4,111.876783674932,18,100.0,19.25256899988135,192.51379251956664,433987.2365669344,374666.5304758615,0.8709409667708522,3.6429077398635763,2.641053040475314,2,2,3

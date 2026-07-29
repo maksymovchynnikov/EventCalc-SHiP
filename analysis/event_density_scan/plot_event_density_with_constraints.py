@@ -27,34 +27,22 @@ EVENT_LEVELS = (
 )
 
 MODEL_LABELS = {
-    "ALP-photon-primary": "ALP-photon, primary",
+    "ALP-photon-combined": ("ALP-photon, primary + cascades"),
     "ALP-SU2L": r"ALP-$SU(2)_L$",
 }
 
 Y_LABELS = {
-    "ALP-photon-primary": (
-        r"$g_{a\gamma\gamma}$ [GeV$^{-1}$]"
-    ),
-    "ALP-SU2L": (
-        r"$c_W/f_a$ [GeV$^{-1}$]"
-    ),
+    "ALP-photon-combined": (r"$g_{a\gamma\gamma}$ [GeV$^{-1}$]"),
+    "ALP-SU2L": (r"$c_W/f_a$ [GeV$^{-1}$]"),
 }
 
 TABLE_LIMITS_GEV = {
-    "ALP-photon-primary": 4.0,
+    "ALP-photon-combined": 4.0,
     "ALP-SU2L": 5.1,
 }
 
-LINE_STYLES = {
-    3.0: ":",
-    10.0: "--",
-    30.0: "-.",
-    100.0: "-",
-}
-
-
 COMBINED_LIMITS = {
-    "ALP-photon-primary": {
+    "ALP-photon-combined": {
         "x": (1.5e-2, 5),
         "y": (1.0e-8, 1.2e-2),
     },
@@ -64,10 +52,16 @@ COMBINED_LIMITS = {
     },
 }
 
-
 BBOX_TO_ANCHOR = {
-    "ALP-photon-primary": (0.95, 0.7),
+    "ALP-photon-combined": (0.95, 0.7),
     "ALP-SU2L": (0.9, 0.83),
+}
+
+LINE_STYLES = {
+    3.0: ":",
+    10.0: "--",
+    30.0: "-.",
+    100.0: "-",
 }
 
 PHOTON_COMBINED_LABEL_POSITIONS_AXES = {
@@ -110,6 +104,13 @@ PHOTON_COMBINED_LABEL_POSITIONS_AXES = {
         0.453,
         0.747,
         0,
+        "center",
+        "center",
+    ),
+    "bounds_E137.txt": (
+        0.34,
+        0.375,
+        -5,
         "center",
         "center",
     ),
@@ -207,13 +208,11 @@ def draw_constraints_for_model(
     axis: plt.Axes,
     model_name: str,
 ) -> None:
-    if model_name == "ALP-photon-primary":
+    if model_name == "ALP-photon-combined":
         draw_photon_constraints(
             axis,
             draw_labels=True,
-            label_positions_axes=(
-                PHOTON_COMBINED_LABEL_POSITIONS_AXES
-            ),
+            label_positions_axes=(PHOTON_COMBINED_LABEL_POSITIONS_AXES),
             label_fontsize=9.5,
         )
 
@@ -221,16 +220,12 @@ def draw_constraints_for_model(
         draw_su2_constraints(
             axis,
             draw_labels=True,
-            label_positions_axes=(
-                SU2_COMBINED_LABEL_POSITIONS_AXES
-            ),
+            label_positions_axes=(SU2_COMBINED_LABEL_POSITIONS_AXES),
             label_fontsize=9.5,
         )
 
     else:
-        raise ValueError(
-            f"Unsupported model: {model_name}"
-        )
+        raise ValueError(f"Unsupported model: {model_name}")
 
 
 def draw_ship_event_contours(
@@ -247,16 +242,11 @@ def draw_ship_event_contours(
         "unresolved_numerically",
     }
 
-    problematic = model_data[
-        model_data["status"].isin(problem_statuses)
-    ]
+    problematic = model_data[model_data["status"].isin(problem_statuses)]
 
     if not problematic.empty:
         print()
-        print(
-            "Warning: scan-limited or numerically "
-            f"unresolved contours for {model_name}:"
-        )
+        print(f"Warning: scan-limited or numerically unresolved contours for {model_name}:")
         print(
             problematic[
                 [
@@ -280,24 +270,16 @@ def draw_ship_event_contours(
         if level_data.empty:
             continue
 
-        masses = level_data[
-            "mass_GeV"
-        ].to_numpy(dtype=float)
+        masses = level_data["mass_GeV"].to_numpy(dtype=float)
 
-        lower = level_data[
-            "lower_coupling_GeV_inv"
-        ].to_numpy(dtype=float)
+        lower = level_data["lower_coupling_GeV_inv"].to_numpy(dtype=float)
 
-        upper = level_data[
-            "upper_coupling_GeV_inv"
-        ].to_numpy(dtype=float)
+        upper = level_data["upper_coupling_GeV_inv"].to_numpy(dtype=float)
 
         valid_lower = np.isfinite(lower)
         valid_upper = np.isfinite(upper)
 
-        label = (
-            rf"$N_{{\rm events}} = {int(event_level)}$"
-        )
+        label = rf"$N_{{\rm events}} = {int(event_level)}$"
 
         axis.plot(
             masses[valid_lower],
@@ -336,24 +318,13 @@ def configure_axis(
     axis.set_xscale("log")
     axis.set_yscale("log")
 
-    axis.set_xlim(
-        *COMBINED_LIMITS[model_name]["x"]
-    )
-    axis.set_ylim(
-        *COMBINED_LIMITS[model_name]["y"]
-    )
+    axis.set_xlim(*COMBINED_LIMITS[model_name]["x"])
+    axis.set_ylim(*COMBINED_LIMITS[model_name]["y"])
 
-    axis.set_xlabel(
-        r"$m_a$ [GeV]"
-    )
-    axis.set_ylabel(
-        Y_LABELS[model_name]
-    )
+    axis.set_xlabel(r"$m_a$ [GeV]")
+    axis.set_ylabel(Y_LABELS[model_name])
 
-    axis.set_title(
-        "Existing constraints and SHiP event contours:\n"
-        f"{MODEL_LABELS[model_name]}"
-    )
+    axis.set_title(f"Existing constraints and SHiP event contours:\n{MODEL_LABELS[model_name]}")
 
     axis.tick_params(
         which="both",
@@ -375,6 +346,7 @@ def configure_axis(
 
     legend.get_frame().set_linewidth(0.8)
 
+
 def add_su2_top_left_excluded_patch(
     axis: plt.Axes,
 ) -> None:
@@ -394,18 +366,15 @@ def add_su2_top_left_excluded_patch(
 
     axis.add_patch(patch)
 
+
 def make_plot_for_model(
     model_name: str,
     boundary_data: pd.DataFrame,
 ) -> Path:
-    model_data = boundary_data[
-        boundary_data["model"] == model_name
-    ].copy()
+    model_data = boundary_data[boundary_data["model"] == model_name].copy()
 
     if model_data.empty:
-        raise ValueError(
-            f"No contour data found for {model_name}"
-        )
+        raise ValueError(f"No contour data found for {model_name}")
 
     figure, axis = plt.subplots(
         figsize=(8.5, 6.5),
@@ -432,13 +401,7 @@ def make_plot_for_model(
 
     figure.tight_layout()
 
-    output_path = (
-        PLOT_DIR
-        / (
-            "event_density_with_constraints_"
-            f"{safe_filename(model_name)}.pdf"
-        )
-    )
+    output_path = PLOT_DIR / f"event_density_with_constraints_{safe_filename(model_name)}.pdf"
 
     figure.savefig(output_path)
     plt.close(figure)
@@ -459,7 +422,7 @@ def main() -> None:
     boundary_data = pd.read_csv(BOUNDARY_PATH)
 
     for model_name in (
-        "ALP-photon-primary",
+        "ALP-photon-combined",
         "ALP-SU2L",
     ):
         make_plot_for_model(
