@@ -9,7 +9,7 @@ from .channels_file import (
     get_allowed_channels,
 )
 
-from .config import (rng)
+from .config import rng
 
 
 def simulate_B_to_Xa_rest_frame_fast(

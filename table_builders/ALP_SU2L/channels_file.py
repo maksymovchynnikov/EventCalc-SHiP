@@ -5,7 +5,7 @@ from .constants import (
     BPLUS_TO_XA_CHANNELS,
 )
 
-from .config import (B0_TO_BPLUS_BR_FACTOR)
+from .config import B0_TO_BPLUS_BR_FACTOR
 
 # Internal particle bookkeeping for EventCalc-style two-body decay products.
 # This ALP code is a dummy/internal code, not an official PDG code.

@@ -13,11 +13,7 @@ from .lifetime import (
 def main():
     print("Building ALP SU(2)_L EventCalc tables")
     print(f"Number of masses: {len(MASSES_GEV)}")
-    print(
-        "Reference coupling: "
-        f"c_W/f_a = "
-        f"{COUPLING_NORMALIZATION_GEV_INV:.6e} GeV^-1"
-    )
+    print(f"Reference coupling: c_W/f_a = {COUPLING_NORMALIZATION_GEV_INV:.6e} GeV^-1")
 
     print("\n1. Building production and kinematic tables")
     production_folder = build_B_to_Xa_tables()

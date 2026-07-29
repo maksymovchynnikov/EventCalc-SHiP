@@ -39,6 +39,7 @@ def _validate_mass(mass: float, name: str) -> float:
         raise ValueError(f"{name} must be a finite positive number in GeV.")
     return value
 
+
 def _validate_width(width: float, name: str = "width") -> float:
     """Return a finite non-negative decay width in GeV."""
     value = float(width)
@@ -60,15 +61,10 @@ def gamma_a_to_gamma_gamma(
     if not np.isfinite(c_w_over_f_a):
         raise ValueError("c_w_over_f_a must be finite and given in GeV^-1.")
 
-    effective_photon_coupling = (
-        PHOTON_OPERATOR_FACTOR * c_w_over_f_a
-    )
+    effective_photon_coupling = PHOTON_OPERATOR_FACTOR * c_w_over_f_a
 
-    return float(
-        effective_photon_coupling**2
-        * m_a**3
-        / (4.0 * np.pi)
-    )
+    return float(effective_photon_coupling**2 * m_a**3 / (4.0 * np.pi))
+
 
 # Lifetime conversion
 def proper_decay_length_m(total_width: float) -> float:
@@ -77,6 +73,7 @@ def proper_decay_length_m(total_width: float) -> float:
     if total_width == 0.0:
         return np.inf
     return HBARC_GEV_M / total_width
+
 
 def make_lifetime_table(
     masses=MASSES_GEV,
@@ -94,6 +91,7 @@ def make_lifetime_table(
         rows.append([m_a, ctau])
 
     return np.asarray(rows)
+
 
 def write_lifetime_table(
     output_path=None,
@@ -145,10 +143,7 @@ def write_decay_json(
     """Write the EventCalc-compatible ALP decay JSON."""
 
     if output_path is None:
-        output_path = (
-            Path(OUTPUT_ROOT)
-            / "ALP-SU2L-decay.json"
-        )
+        output_path = Path(OUTPUT_ROOT) / "ALP-SU2L-decay.json"
     else:
         output_path = Path(output_path)
 

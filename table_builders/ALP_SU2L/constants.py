@@ -36,14 +36,12 @@ BPLUS_TO_XA_CHANNELS = [
 ]
 
 
-
 # SHiP decay-volume angular coverage, from ship_setup.py values.
 from funcs.ship_setup import theta_max_dec_vol  # 0.04495960111270482, same as EventCalc
+
 THETA_MAX_SHIP = float(theta_max_dec_vol)
-THETA_MARGIN = 0.005 # Suggested margin from Maksym
+THETA_MARGIN = 0.005  # Suggested margin from Maksym
 THETA_MAX_TABLE = THETA_MAX_SHIP + THETA_MARGIN
-
-
 
 
 # Natural-unit conversion
@@ -64,11 +62,10 @@ F_BPLUS = 0.417
 F_BZERO = 0.418
 
 
-
 # Lifetime 
-ALPHA_EM = 1.0 / 137.035999177 # NIST/CODATA
-SIN2_THETA_W = 0.23122 # For THETA_W(M_Z)
-M_W = 80.3625 # PDG
+ALPHA_EM = 1.0 / 137.035999177  # NIST/CODATA
+SIN2_THETA_W = 0.23122  # For THETA_W(M_Z)
+M_W = 80.3625  # PDG
 
 LEPTON_MASSES = {
     "e": 0.00051099895000,
@@ -77,13 +74,11 @@ LEPTON_MASSES = {
 }
 
 # hbar*c in GeV m. For Gamma in GeV, c*tau in metres is HBARC_GEV_M/Gamma.
-HBARC_GEV_M = 1.973269804e-16 # NIST
+HBARC_GEV_M = 1.973269804e-16  # NIST
 
 ALPHA_SU2 = ALPHA_EM / SIN2_THETA_W
 SU2_OPERATOR_FACTOR = ALPHA_SU2 / (4.0 * np.pi)
 PHOTON_OPERATOR_FACTOR = ALPHA_EM / (4.0 * np.pi)
-
-
 
 
 # BRANCHING
@@ -99,7 +94,6 @@ G2_EW_SQUARED = 4.0 * np.sqrt(2.0) * G_F * M_W**2
 M_U = 0.00216
 M_C = 1.65
 M_T = 172.57
-
 
 
 # CKM matrix

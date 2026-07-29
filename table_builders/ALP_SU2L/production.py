@@ -21,7 +21,7 @@ from .constants import (
 )
 
 from .branching import (
-    get_Bplus_to_Xa_branching_ratios, 
+    get_Bplus_to_Xa_branching_ratios,
     load_scalar_br_table,
 )
 
@@ -76,12 +76,14 @@ def generate_test_B_momenta(size, energy_B):
     """
     pz_B = np.sqrt(energy_B**2 - M_B_PLUS**2)
 
-    return np.column_stack((
-        np.zeros(size),
-        np.zeros(size),
-        np.full(size, pz_B),
-        np.full(size, energy_B),
-    ))
+    return np.column_stack(
+        (
+            np.zeros(size),
+            np.zeros(size),
+            np.full(size, pz_B),
+            np.full(size, energy_B),
+        )
+    )
 
 
 def load_B_momenta(path, m_B=M_B_PLUS, check=True):
@@ -99,6 +101,7 @@ def load_B_momenta(path, m_B=M_B_PLUS, check=True):
     Returned convention:
         px, py, pz, E_on_shell
     """
+
     def mathematica_float(x):
         if isinstance(x, bytes):
             x = x.decode("utf-8")
@@ -138,6 +141,7 @@ def load_B_momenta(path, m_B=M_B_PLUS, check=True):
 
     return np.column_stack((px, py, pz, E_on_shell))
 
+
 def load_B_momenta_cached(path, cache_path=None, m_B=M_B_PLUS, check=True):
     """
     Load B momenta from a cached .npy file if available.
@@ -151,8 +155,8 @@ def load_B_momenta_cached(path, cache_path=None, m_B=M_B_PLUS, check=True):
     if os.path.exists(cache_path):
         B_momenta = np.load(cache_path)
         if check:
-            p2 = np.sum(B_momenta[:, :3]**2, axis=1)
-            m2 = B_momenta[:, 3]**2 - p2
+            p2 = np.sum(B_momenta[:, :3] ** 2, axis=1)
+            m2 = B_momenta[:, 3] ** 2 - p2
             print(f"Loaded cached B momenta from {cache_path}")
             print(f"Cached m^2: mean = {np.mean(m2):.6g}, std = {np.std(m2):.6g}")
             print(f"Expected m_B^2 = {m_B**2:.6g}")
@@ -163,6 +167,7 @@ def load_B_momenta_cached(path, cache_path=None, m_B=M_B_PLUS, check=True):
     print(f"Saved cached B momenta to {cache_path}")
 
     return B_momenta
+
 
 def production_probability_Bplus_reference(
     N_bb_per_POT,
@@ -183,6 +188,7 @@ def production_probability_Bplus_reference(
     )
 
     return 2 * N_bb_per_POT * f_eff * BR_Bplus_to_Xa_total
+
 
 def write_table(path, array):
     path = Path(path)
@@ -213,7 +219,7 @@ def write_tsv_with_header(path, header, rows):
 def build_B_to_Xa_tables():
     if RUN_MODE == "debug":
         masses = DEBUG_MASSES_GEV
-        N_B_USED = None #100000
+        N_B_USED = None  #100000
         ifMakePlots = True
         ifValidateInterpolation = True
         ifShowPlots = False
@@ -232,20 +238,18 @@ def build_B_to_Xa_tables():
         output_tag = "ALP-SU2L"
 
     #B_momenta = generate_test_B_momenta(size=100000, energy_B=50.0)
-    B_momenta = load_B_momenta_cached(
-        path=B_MOMENTA_PATH
-    )
+    B_momenta = load_B_momenta_cached(path=B_MOMENTA_PATH)
 
     if N_B_USED is not None:
         idx = rng.choice(len(B_momenta), size=N_B_USED, replace=False)
         B_momenta = B_momenta[idx]
-    
+
     theta_B = polar_angle_from_momenta(B_momenta)
     energy_B = B_momenta[:, 3]
 
     fraction_B_ship = float(np.mean(theta_B < THETA_MAX_SHIP))
     fraction_B_table = float(np.mean(theta_B < THETA_MAX_TABLE))
-    
+
     fraction_B_error = float(np.sqrt(fraction_B_table * (1.0 - fraction_B_table) / len(theta_B)))
     print(
         f"f_B(theta_B < {THETA_MAX_TABLE:.7f} rad) = "
@@ -257,10 +261,7 @@ def build_B_to_Xa_tables():
     channels = BPLUS_TO_XA_CHANNELS
     scalar_table = load_scalar_br_table(SCALAR_TABLE_PATH)
 
-    houtz_cW_over_fa = (
-        SU2_OPERATOR_FACTOR
-        * COUPLING_NORMALIZATION_GEV_INV
-    )
+    houtz_cW_over_fa = SU2_OPERATOR_FACTOR * COUPLING_NORMALIZATION_GEV_INV
 
     if ifMakePlots:
         plot_B_theta_energy_distribution(
@@ -278,7 +279,6 @@ def build_B_to_Xa_tables():
     all_emax_validation_rows = []
     fractions_out = []
 
-
     normalization_rows = []
     channel_rows = []
     validation_by_mass = {}
@@ -295,7 +295,7 @@ def build_B_to_Xa_tables():
                     cW_over_fa=houtz_cW_over_fa,
                     scalar_table_path=SCALAR_TABLE_PATH,
                     channels=channels,
-                    scalar_table = scalar_table,
+                    scalar_table=scalar_table,
                 )
             )
             br_pia = channel_brs_by_name.get("pi+", 0.0)
@@ -309,7 +309,7 @@ def build_B_to_Xa_tables():
                         f"prob = {probs_by_name[name]:.4f}, "
                         f"BR = {channel_brs_by_name[name]:.4e}"
                     )
-            
+
             alp_rest = simulate_B_to_Xa_rest_frame_fast(
                 size=len(B_momenta),
                 alp_mass=alp_mass,
@@ -362,37 +362,40 @@ def build_B_to_Xa_tables():
             include_B0=True,
         )
 
-        yield_coefficient = (
-            p_prod
-            / COUPLING_NORMALIZATION_GEV_INV**2
+        yield_coefficient = p_prod / COUPLING_NORMALIZATION_GEV_INV**2
+
+        total_yield_rows.append(
+            [
+                alp_mass,
+                yield_coefficient,
+            ]
         )
 
-        total_yield_rows.append([
-            alp_mass,
-            yield_coefficient,
-        ])
-
-        normalization_rows.append([
-            alp_mass,
-            br_Ka,
-            br_pia,
-            br_Bplus_total,
-            p_prod,
-        ])
+        normalization_rows.append(
+            [
+                alp_mass,
+                br_Ka,
+                br_pia,
+                br_Bplus_total,
+                p_prod,
+            ]
+        )
 
         for channel in get_allowed_channels(alp_mass, channels):
             name = channel["name"]
             br_channel = channel_brs_by_name[name]
             prob_channel = probs_by_name[name]
 
-            channel_rows.append([
-                float(alp_mass),
-                name,
-                float(channel["mass"]),
-                float(br_channel),
-                float(prob_channel),
-                float(br_channel / br_Bplus_total) if br_Bplus_total > 0 else np.nan,
-            ])
+            channel_rows.append(
+                [
+                    float(alp_mass),
+                    name,
+                    float(channel["mass"]),
+                    float(br_channel),
+                    float(prob_channel),
+                    float(br_channel / br_Bplus_total) if br_Bplus_total > 0 else np.nan,
+                ]
+            )
 
         print(
             f"Br(B+ -> K+ a) at cW/fa = "
@@ -451,7 +454,7 @@ def build_B_to_Xa_tables():
                 emax_table,
                 alp_mass,
                 theta_max_sim=np.pi,
-                n_points= 100000,
+                n_points=100000,
             )
             full_tolerance = max(
                 5.0 * mc_error,
@@ -465,7 +468,7 @@ def build_B_to_Xa_tables():
                     f"integral={integral:.6g}, "
                     f"MC error={mc_error:.3g}"
                 )
-            
+
             print(
                 f"\nEventCalc-interpolated full integral for m_a = {alp_mass:g} GeV: "
                 f"{integral:.6f} ± {mc_error:.2e}"
@@ -476,7 +479,7 @@ def build_B_to_Xa_tables():
                 emax_table,
                 alp_mass,
                 theta_max_sim=THETA_MAX_TABLE,
-                n_points= 100000,
+                n_points=100000,
             )
             direct_fraction = fractions_out[float(alp_mass)]
 
@@ -494,7 +497,7 @@ def build_B_to_Xa_tables():
                     f"interpolated={integral_theta:.6g}, "
                     f"direct={direct_fraction:.6g}"
                 )
-            
+
             print(
                 f"EventCalc-interpolated SHiP-angle integral for m_a = {alp_mass:g} GeV: "
                 f"{integral_theta:.6f} ± {mc_error_theta:.2e}; "
@@ -504,16 +507,18 @@ def build_B_to_Xa_tables():
             if float(alp_mass) in validation_by_mass:
                 validation_by_mass[float(alp_mass)]["eventcalc_full_integral"] = float(integral)
                 validation_by_mass[float(alp_mass)]["eventcalc_full_error"] = float(mc_error)
-                validation_by_mass[float(alp_mass)]["eventcalc_theta_integral"] = float(integral_theta)
+                validation_by_mass[float(alp_mass)]["eventcalc_theta_integral"] = float(
+                    integral_theta
+                )
                 validation_by_mass[float(alp_mass)]["eventcalc_theta_error"] = float(mc_error_theta)
-    
+
             if ifValidateConstantEmax:
                 integral_validation, mc_error_validation = validate_with_eventcalc_interpolation(
                     distribution_table,
                     emax_table_validation,
                     alp_mass,
                     theta_max_sim=np.pi,
-                    n_points = 100000,
+                    n_points=100000,
                 )
                 print(
                     f"EventCalc interpolation with constant Emax for m_a = {alp_mass:g} GeV: "
@@ -541,16 +546,12 @@ def build_B_to_Xa_tables():
             f"with {DISTRIBUTION_FLOOR:.0e}."
         )
 
-        print(
-            f"\nWriting final truncated tables with "
-            f"theta < {THETA_MAX_TABLE:.6g} rad."
-        )
+        print(f"\nWriting final truncated tables with theta < {THETA_MAX_TABLE:.6g} rad.")
 
     else:
         distribution_table_to_write = distribution_table
         emax_table_to_write = emax_table
         print("\nWriting debug tables over the full theta range.")
-
 
     if RUN_MODE == "debug":
         write_table(
@@ -571,14 +572,16 @@ def build_B_to_Xa_tables():
                 "fraction_B",
                 "binomial_MC_error",
             ],
-            rows=[[
-                len(B_momenta),
-                THETA_MAX_TABLE,
-                fraction_B_table,
-                fraction_B_error,
-            ]],
+            rows=[
+                [
+                    len(B_momenta),
+                    THETA_MAX_TABLE,
+                    fraction_B_table,
+                    fraction_B_error,
+                ]
+            ],
         )
-        
+
         if normalization_rows:
             write_table(
                 OUTPUT_ROOT / f"Pprod-{output_tag}.txt",
@@ -603,17 +606,19 @@ def build_B_to_Xa_tables():
             validation_rows = []
 
             for _, values in sorted(validation_by_mass.items()):
-                validation_rows.append([
-                    values["m_a"],
-                    values["n_B_used"],
-                    values["theta_cut_rad"],
-                    values["direct_full_integral"],
-                    values["direct_theta_fraction"],
-                    values["eventcalc_full_integral"],
-                    values["eventcalc_full_error"],
-                    values["eventcalc_theta_integral"],
-                    values["eventcalc_theta_error"],
-                ])
+                validation_rows.append(
+                    [
+                        values["m_a"],
+                        values["n_B_used"],
+                        values["theta_cut_rad"],
+                        values["direct_full_integral"],
+                        values["direct_theta_fraction"],
+                        values["eventcalc_full_integral"],
+                        values["eventcalc_full_error"],
+                        values["eventcalc_theta_integral"],
+                        values["eventcalc_theta_error"],
+                    ]
+                )
 
             write_tsv_with_header(
                 os.path.join(OUTPUT_ROOT, f"Validation-{output_tag}.txt"),

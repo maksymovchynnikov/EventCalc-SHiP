@@ -17,6 +17,7 @@ from .constants import (
     ETABAR,
 )
 
+
 def make_ckm_matrix():
     """
     Construct CKM matrix from Wolfenstein-like input.
@@ -28,8 +29,8 @@ def make_ckm_matrix():
     lam = LAMBDA_CKM
     A = A_CKM
 
-    rho = RHOBAR / (1.0 - lam**2 / 2.0) # ONLY leading correction here
-    eta = ETABAR / (1.0 - lam**2 / 2.0) # ONLY leading correction here
+    rho = RHOBAR / (1.0 - lam**2 / 2.0)  # ONLY leading correction here
+    eta = ETABAR / (1.0 - lam**2 / 2.0)  # ONLY leading correction here
 
     s12 = lam
     s23 = A * lam**2
@@ -44,11 +45,9 @@ def make_ckm_matrix():
         "ud": c12 * c13,
         "us": s12 * c13,
         "ub": s13 * np.exp(-1j * delta),
-
         "cd": -s12 * c23 - c12 * s23 * s13 * np.exp(1j * delta),
         "cs": c12 * c23 - s12 * s23 * s13 * np.exp(1j * delta),
         "cb": s23 * c13,
-
         "td": s12 * s23 - c12 * c23 * s13 * np.exp(1j * delta),
         "ts": -c12 * s23 - s12 * c23 * s13 * np.exp(1j * delta),
         "tb": c23 * c13,
@@ -68,9 +67,9 @@ def g_function(x):
     x = np.asarray(x, dtype=float)
 
     return np.where(
-        np.isclose(x, 1.0), # limit = 0.5 to avoid 0/0 at x=1
+        np.isclose(x, 1.0),  # limit = 0.5 to avoid 0/0 at x=1
         0.5,
-        x * (1.0 + x * (np.log(x) - 1.0)) / (1.0 - x)**2
+        x * (1.0 + x * (np.log(x) - 1.0)) / (1.0 - x) ** 2,
     )
 
 
@@ -81,8 +80,8 @@ def lambda_two_body_sqrt(m_parent, m1, m2):
     if m2 >= m_parent - m1:
         return 0.0
 
-    term_plus = 1.0 - ((m1 + m2) / m_parent)**2
-    term_minus = 1.0 - ((m1 - m2) / m_parent)**2
+    term_plus = 1.0 - ((m1 + m2) / m_parent) ** 2
+    term_minus = 1.0 - ((m1 - m2) / m_parent) ** 2
 
     return np.sqrt(max(0.0, term_plus * term_minus))
 
@@ -117,12 +116,13 @@ def f0_B_to_pi(q2):
         Phys. Rev. D 71, 014015 (2005),
         hep-ph/0406232.
     """
-    F0_BPI = 0.258 #+- 0.031
+    F0_BPI = 0.258  #+- 0.031
     MFIT_BPI = 6.16
 
     q2 = float(q2)
 
     return F0_BPI / (1.0 - q2 / MFIT_BPI**2)
+
 
 def ckm_loop_sum_b_to_q(final_quark):
     if final_quark not in {"s", "d"}:
@@ -145,6 +145,7 @@ def ckm_loop_sum_b_to_q(final_quark):
 
     return total
 
+
 def br_Bplus_to_Pplus_a(
     alp_mass,
     cW_over_fa,
@@ -159,12 +160,7 @@ def br_Bplus_to_Pplus_a(
 
     loop_sum = ckm_loop_sum_b_to_q(final_quark)
 
-    effective_prefactor = (
-        3.0 * G2_EW_SQUARED
-        / (16.0 * np.pi**2)
-        * loop_sum
-        * cW_over_fa
-    )
+    effective_prefactor = 3.0 * G2_EW_SQUARED / (16.0 * np.pi**2) * loop_sum * cW_over_fa
 
     lambda_sqrt = lambda_two_body_sqrt(
         M_B_PLUS,
@@ -175,10 +171,10 @@ def br_Bplus_to_Pplus_a(
     width = (
         M_B_PLUS**3
         / (64.0 * np.pi)
-        * abs(effective_prefactor)**2
-        * form_factor(ma**2)**2
+        * abs(effective_prefactor) ** 2
+        * form_factor(ma**2) ** 2
         * lambda_sqrt
-        * (1.0 - meson_mass**2 / M_B_PLUS**2)**2
+        * (1.0 - meson_mass**2 / M_B_PLUS**2) ** 2
     )
 
     return TAU_B_PLUS_GEV_INV * width
@@ -291,14 +287,8 @@ def get_Bplus_to_Xa_branching_ratios(
     total_br = float(sum(channel_brs.values()))
 
     if total_br > 0.0:
-        probabilities = {
-            name: br_i / total_br
-            for name, br_i in channel_brs.items()
-        }
+        probabilities = {name: br_i / total_br for name, br_i in channel_brs.items()}
     else:
-        probabilities = {
-            name: 0.0
-            for name in channel_brs
-        }
+        probabilities = {name: 0.0 for name in channel_brs}
 
     return br_Ka, channel_brs, probabilities, total_br

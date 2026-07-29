@@ -2,14 +2,15 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 
-from .constants import (THETA_MAX_TABLE, THETA_MAX_SHIP)
+from .constants import THETA_MAX_TABLE, THETA_MAX_SHIP
+
 
 def validate_with_eventcalc_interpolation(
     distribution_table,
     emax_table,
     alp_mass,
     theta_max_sim,
-    n_points=100000, # so if n_points= NONE then this is n_points=100000?
+    n_points=100000,  # so if n_points= NONE then this is n_points=100000?
 ):
     """
     Validate the table using EventCalc's interpolation machinery.
@@ -37,6 +38,7 @@ def validate_with_eventcalc_interpolation(
     mc_error = np.std(weights) / np.sqrt(n_points) * theta_range
 
     return integral, mc_error
+
 
 def plot_debug_distributions(
     alp_mass,
@@ -88,7 +90,6 @@ def plot_debug_distributions(
     else:
         plt.close(fig)
 
-
     # PLOT: theta_a_energy_log 
     theta_edges_plot = np.geomspace(1.0e-6, np.pi, 241)
     energy_edges_plot = np.geomspace(max(alp_mass, np.min(energy)), 1.001 * np.max(energy), 181)
@@ -99,13 +100,8 @@ def plot_debug_distributions(
         bins=(theta_edges_plot, energy_edges_plot),
     )
 
-    density_for_plot = (
-        hist_plot
-        / (
-            len(theta)
-            * np.diff(theta_edges_plot)[:, None]
-            * np.diff(energy_edges_plot)[None, :]
-        )
+    density_for_plot = hist_plot / (
+        len(theta) * np.diff(theta_edges_plot)[:, None] * np.diff(energy_edges_plot)[None, :]
     )
 
     density_plot = np.full_like(density_for_plot, np.nan, dtype=float)
@@ -125,8 +121,18 @@ def plot_debug_distributions(
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_ylim(max(0.95 * alp_mass, energy_edges_plot[0]), energy_edges_plot[-1])
-    ax.axvline(THETA_MAX_SHIP, linestyle="--", linewidth=1.2, label=rf"SHiP limit: ${THETA_MAX_SHIP:.5f}$ rad")
-    ax.axvline(THETA_MAX_TABLE, linestyle=":", linewidth=1.2, label=rf"SHiP limit + margin: ${THETA_MAX_TABLE:.5f}$ rad")
+    ax.axvline(
+        THETA_MAX_SHIP,
+        linestyle="--",
+        linewidth=1.2,
+        label=rf"SHiP limit: ${THETA_MAX_SHIP:.5f}$ rad",
+    )
+    ax.axvline(
+        THETA_MAX_TABLE,
+        linestyle=":",
+        linewidth=1.2,
+        label=rf"SHiP limit + margin: ${THETA_MAX_TABLE:.5f}$ rad",
+    )
     ax.set_xlabel(r"$\theta_a$ [rad]")
     ax.set_ylabel(r"$E_a$ [GeV]")
     ax.legend(loc="lower left")
@@ -165,13 +171,8 @@ def plot_B_theta_energy_distribution(
         bins=(theta_edges_plot, energy_edges_B),
     )
 
-    density_B = (
-        hist_B
-        / (
-            len(theta_B)
-            * np.diff(theta_edges_plot)[:, None]
-            * np.diff(energy_edges_B)[None, :]
-        )
+    density_B = hist_B / (
+        len(theta_B) * np.diff(theta_edges_plot)[:, None] * np.diff(energy_edges_B)[None, :]
     )
 
     density_plot = np.full_like(density_B, np.nan, dtype=float)
@@ -191,8 +192,18 @@ def plot_B_theta_energy_distribution(
     )
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.axvline(THETA_MAX_SHIP, linestyle="--", linewidth=1.2, label=rf"SHiP limit: ${THETA_MAX_SHIP:.5f}$ rad")
-    ax.axvline(THETA_MAX_TABLE, linestyle=":", linewidth=1.2, label=rf"SHiP limit + margin: ${THETA_MAX_TABLE:.5f}$ rad")
+    ax.axvline(
+        THETA_MAX_SHIP,
+        linestyle="--",
+        linewidth=1.2,
+        label=rf"SHiP limit: ${THETA_MAX_SHIP:.5f}$ rad",
+    )
+    ax.axvline(
+        THETA_MAX_TABLE,
+        linestyle=":",
+        linewidth=1.2,
+        label=rf"SHiP limit + margin: ${THETA_MAX_TABLE:.5f}$ rad",
+    )
     ax.set_xlabel(r"$\theta_B$ [rad]")
     ax.set_ylabel(r"$E_B$ [GeV]")
 
@@ -214,7 +225,10 @@ def plot_B_theta_energy_distribution(
     )
 
     fig.tight_layout()
-    fig.savefig(os.path.join(plot_folder, "theta_B_energy_log.png"), dpi=300,)
+    fig.savefig(
+        os.path.join(plot_folder, "theta_B_energy_log.png"),
+        dpi=300,
+    )
     if ifShowPlots:
         plt.show()
     else:
@@ -255,7 +269,6 @@ def plot_energy_spectrum_from_density(
     integral_ship = np.sum(dfdE_ship * dE)
     integral_table = np.sum(dfdE_table * dE)
 
-    
     fig = plt.figure(figsize=(8, 6))
     ax = fig.add_subplot(111)
 

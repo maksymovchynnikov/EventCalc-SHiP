@@ -5,6 +5,7 @@ from .config import (
     EMAX_THETA_PADDING_BINS,
 )
 
+
 def polar_angle_from_momenta(momenta):
     """
     Return the lab-frame polar angle for four-momenta with columns
@@ -31,6 +32,7 @@ def theta_energy_from_momenta(alp_lab):
 
     return theta, energy
 
+
 def make_distribution_table_from_histogram(
     alp_mass,
     hist,
@@ -50,14 +52,10 @@ def make_distribution_table_from_histogram(
         dtype=np.float64,
     )
 
-    number_generated = int(
-        number_generated
-    )
+    number_generated = int(number_generated)
 
     if number_generated <= 0:
-        raise ValueError(
-            "number_generated must be positive."
-        )
+        raise ValueError("number_generated must be positive.")
 
     expected_shape = (
         len(theta_edges) - 1,
@@ -65,58 +63,39 @@ def make_distribution_table_from_histogram(
     )
 
     if hist.shape != expected_shape:
-        raise ValueError(
-            "Histogram shape does not match the supplied bin edges."
+        raise ValueError("Histogram shape does not match the supplied bin edges.")
+
+    dtheta = np.diff(theta_edges)
+
+    dE = np.diff(energy_edges)
+
+    density = hist / (number_generated * dtheta[:, None] * dE[None, :])
+
+    theta_centers = 0.5 * (theta_edges[:-1] + theta_edges[1:])
+
+    energy_centers = 0.5 * (energy_edges[:-1] + energy_edges[1:])
+
+    number_theta_bins = len(theta_centers)
+
+    number_energy_bins = len(energy_centers)
+
+    table = np.column_stack(
+        (
+            np.full(
+                number_theta_bins * number_energy_bins,
+                float(alp_mass),
+            ),
+            np.repeat(
+                theta_centers,
+                number_energy_bins,
+            ),
+            np.tile(
+                energy_centers,
+                number_theta_bins,
+            ),
+            density.ravel(),
         )
-
-    dtheta = np.diff(
-        theta_edges
     )
-
-    dE = np.diff(
-        energy_edges
-    )
-
-    density = hist / (
-        number_generated
-        * dtheta[:, None]
-        * dE[None, :]
-    )
-
-    theta_centers = 0.5 * (
-        theta_edges[:-1]
-        + theta_edges[1:]
-    )
-
-    energy_centers = 0.5 * (
-        energy_edges[:-1]
-        + energy_edges[1:]
-    )
-
-    number_theta_bins = len(
-        theta_centers
-    )
-
-    number_energy_bins = len(
-        energy_centers
-    )
-
-    table = np.column_stack((
-        np.full(
-            number_theta_bins
-            * number_energy_bins,
-            float(alp_mass),
-        ),
-        np.repeat(
-            theta_centers,
-            number_energy_bins,
-        ),
-        np.tile(
-            energy_centers,
-            number_theta_bins,
-        ),
-        density.ravel(),
-    ))
 
     return table, hist, density
 
@@ -202,11 +181,13 @@ def make_constant_emax_table(alp_mass, theta_edges, energy_edges):
     """
     theta_centers = 0.5 * (theta_edges[:-1] + theta_edges[1:])
 
-    return np.column_stack((
-        np.full(len(theta_centers), alp_mass),
-        theta_centers,
-        np.full(len(theta_centers), energy_edges[-1]),
-    ))
+    return np.column_stack(
+        (
+            np.full(len(theta_centers), alp_mass),
+            theta_centers,
+            np.full(len(theta_centers), energy_edges[-1]),
+        )
+    )
 
 
 def make_theta_edges(theta_max_out, n_theta_forward, n_theta_tail):
@@ -269,14 +250,10 @@ def make_energy_edges(masses, B_momenta):
         )
     )
 
-    all_edges = all_edges[
-        (all_edges >= energy_min)
-        & (all_edges <= energy_max)
-    ]
+    all_edges = all_edges[(all_edges >= energy_min) & (all_edges <= energy_max)]
 
-    return np.unique(
-        np.sort(all_edges)
-    )
+    return np.unique(np.sort(all_edges))
+
 
 def truncate_table_in_theta(table, theta_cut, theta_column=1):
     """
@@ -285,9 +262,8 @@ def truncate_table_in_theta(table, theta_cut, theta_column=1):
     """
     return table[table[:, theta_column] < theta_cut]
 
+
 def integrate_density(density_full, theta_edges_full, energy_edges):
     return np.sum(
-            density_full
-            * np.diff(theta_edges_full)[:, None]
-            * np.diff(energy_edges)[None, :]
-        )
+        density_full * np.diff(theta_edges_full)[:, None] * np.diff(energy_edges)[None, :]
+    )
