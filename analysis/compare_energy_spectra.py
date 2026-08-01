@@ -18,6 +18,11 @@ os.chdir(REPO_ROOT)
 from funcs.initLLP import LLP
 from funcs.kinematics import Grids
 from funcs.ship_setup import theta_max_dec_vol
+from analysis.ECAL import (
+    DEFAULT_ECAL,
+    diphoton_ecal_acceptance,
+    weighted_ecal_acceptance,
+)
 
 
 # CONFIGURATION
@@ -30,6 +35,9 @@ N_EFF_WARNING_THRESHOLD = 20.0
 # Test of these quantities:
 MASS_GEV = 0.3
 CTAU_M = 100
+
+APPLY_ECAL_ACCEPTANCE = True
+ECAL_SEED_OFFSET = 2
 
 BASE_SEED = 54321
 ANALYSIS_DIR = Path(__file__).resolve().parent
@@ -263,27 +271,61 @@ def _calculate_source_spectrum(
     if results.ndim != 2 or results.shape[1] <= 6:
         raise ValueError("EventCalc returned an invalid mother-particle array.")
 
-    energies = results[:, 3]
-    decay_probabilities = results[:, 6]
+    valid = (
+        np.isfinite(results[:, 3])
+        & np.isfinite(results[:, 6])
+        & (results[:, 6] >= 0.0)
+    )
+    valid_results = results[valid]
 
-    valid = np.isfinite(energies) & np.isfinite(decay_probabilities) & (decay_probabilities >= 0.0)
-    energies = energies[valid]
-    decay_probabilities = decay_probabilities[valid]
+    if len(valid_results) == 0:
+        raise RuntimeError(
+            f"{model_name}, {source_label}: "
+            "no valid mother-particle samples."
+        )
 
-    if len(energies) == 0:
-        raise RuntimeError(f"{model_name}, {source_label}: " "no valid accepted samples.")
+    energies_before_ecal = valid_results[:, 3]
+    decay_probabilities_before_ecal = valid_results[:, 6]
 
     br_visible = float(np.sum(llp.BrRatios_distr))
 
     coupling_squared = float(llp.c_tau_int / ctau_m)
-
     n_llp_total = N_POT * float(llp.Yield) * coupling_squared
     epsilon_polar = float(kin.epsilon_polar)
-    epsilon_azimuthal = len(decay_probabilities) / RESAMPLE_SIZE
-    mean_decay_probability = float(np.mean(decay_probabilities))
 
-    event_weight_scale = n_llp_total * epsilon_polar * br_visible / RESAMPLE_SIZE
-    absolute_event_weights = event_weight_scale * decay_probabilities
+    # Mother-level geometrical acceptance already imposed by Grids.true_samples().
+    epsilon_azimuthal = len(valid_results) / RESAMPLE_SIZE
+    mean_decay_probability = float(np.mean(decay_probabilities_before_ecal))
+
+    event_weight_scale = (
+        n_llp_total
+        * epsilon_polar
+        * br_visible
+        / RESAMPLE_SIZE
+    )
+    event_weights_before_ecal = event_weight_scale * decay_probabilities_before_ecal
+    n_events_before_ecal = float(np.sum(event_weights_before_ecal))
+
+    if APPLY_ECAL_ACCEPTANCE:
+        ecal_mask = diphoton_ecal_acceptance(
+            valid_results,
+            geometry=DEFAULT_ECAL,
+            seed=seed + ECAL_SEED_OFFSET,
+        )
+    else:
+        ecal_mask = np.ones(len(valid_results), dtype=bool)
+
+    if not np.any(ecal_mask):
+        raise RuntimeError(
+            f"{model_name}, {source_label}: "
+            "no events pass the diphoton ECAL requirement."
+        )
+
+    epsilon_ecal_unweighted = np.mean(ecal_mask)
+    epsilon_ecal_weighted = weighted_ecal_acceptance(ecal_mask, event_weights_before_ecal)
+
+    energies = energies_before_ecal[ecal_mask]
+    absolute_event_weights = (event_weights_before_ecal[ecal_mask])
 
     spectrum = normalized_weighted_energy_spectrum(
         energies=energies,
@@ -292,10 +334,7 @@ def _calculate_source_spectrum(
     )
 
     n_events_from_weights = float(np.sum(absolute_event_weights))
-
-    n_events_factorized = (
-        n_llp_total * epsilon_polar * epsilon_azimuthal * mean_decay_probability * br_visible
-    )
+    n_events_factorized = n_events_before_ecal * epsilon_ecal_weighted
 
     if not np.isclose(
         n_events_from_weights,
@@ -316,6 +355,10 @@ def _calculate_source_spectrum(
             "epsilon_azimuthal": epsilon_azimuthal,
             "mean_decay_probability": mean_decay_probability,
             "br_visible": br_visible,
+            "apply_ecal_acceptance": APPLY_ECAL_ACCEPTANCE,
+            "epsilon_ecal_unweighted": epsilon_ecal_unweighted,
+            "epsilon_ecal_weighted": epsilon_ecal_weighted,
+            "n_events_before_ecal": n_events_before_ecal,
             "n_events": n_events_from_weights,
             "source_n_events": {source_label: n_events_from_weights},
         }
@@ -324,7 +367,24 @@ def _calculate_source_spectrum(
     print(f"Accepted samples: {spectrum['number_of_samples']}")
     print(f"Histogram range coverage: {spectrum['range_coverage']:.8f}")
     print(f"Normalization integral: {spectrum['normalization']:.12f}")
-    print(f"Estimated event rate: {n_events_from_weights:.6g}")
+    print(f"Mother-level samples: {len(valid_results)}")
+    print(f"ECAL-accepted samples: {np.count_nonzero(ecal_mask)}")
+    print(
+        "Unweighted ECAL acceptance: "
+        f"{epsilon_ecal_unweighted:.6f}"
+    )
+    print(
+        "Weighted ECAL acceptance: "
+        f"{epsilon_ecal_weighted:.6f}"
+    )
+    print(
+        "Event rate before ECAL: "
+        f"{n_events_before_ecal:.6g}"
+    )
+    print(
+        "Event rate after ECAL: "
+        f"{n_events_from_weights:.6g}"
+    )
 
     nonempty_low_statistics_bins = (spectrum["density"] > 0.0) & (
         spectrum["effective_samples_per_bin"] < N_EFF_WARNING_THRESHOLD
@@ -375,6 +435,28 @@ def _combine_source_spectra(
     }
 
     n_events = float(sum(source_n_events.values()))
+    source_n_events_before_ecal = {
+        source_label: float(source["n_events_before_ecal"])
+        for source_label, source in source_spectra.items()
+    }
+
+    n_events_before_ecal = float(sum(source_n_events_before_ecal.values()))
+
+    if n_events_before_ecal <= 0.0:
+        raise RuntimeError(
+            f"{model_name}: total event rate before ECAL is not positive."
+        )
+
+    epsilon_ecal_weighted = n_events / n_events_before_ecal
+    apply_ecal_values = {bool(source["apply_ecal_acceptance"]) for source in source_spectra.values()}
+
+    if len(apply_ecal_values) != 1:
+        raise RuntimeError(
+            f"{model_name}: sources disagree about whether "
+            "ECAL acceptance was applied."
+        )
+
+    apply_ecal_acceptance = apply_ecal_values.pop()
 
     if not np.isclose(
         combined["total_weight"],
@@ -428,7 +510,18 @@ def _combine_source_spectra(
             "epsilon_azimuthal": np.nan,
             "mean_decay_probability": np.nan,
             "br_visible": float(br_values[0]),
+            "apply_ecal_acceptance": apply_ecal_acceptance,
+
+            # An unweighted acceptance is not physically well-defined
+            # after combining independently sampled production sources.
+            "epsilon_ecal_unweighted": np.nan,
+
+            # The physical combined acceptance is the ratio of total
+            # event rates after and before the ECAL requirement.
+            "epsilon_ecal_weighted": epsilon_ecal_weighted,
+            "n_events_before_ecal": n_events_before_ecal,
             "n_events": n_events,
+            "source_n_events_before_ecal": source_n_events_before_ecal,
             "source_n_events": source_n_events,
             "source_spectra": source_spectra,
         }
@@ -439,6 +532,15 @@ def _combine_source_spectra(
 
     for source_label, source_events in source_n_events.items():
         print(f"  {source_label}: N_events = {source_events:.6g}")
+
+    print(
+        f"  total before ECAL: "
+        f"N_events = {n_events_before_ecal:.6g}"
+    )
+    print(
+        f"  combined weighted ECAL acceptance: "
+        f"{epsilon_ecal_weighted:.6f}"
+    )
 
     print(f"  total: N_events = {n_events:.6g}")
 
@@ -458,7 +560,6 @@ def calculate_model_spectrum(
 
     ALP-photon is evaluated as the sum of independent primary and
     cascade sources. ALP-SU2L currently has one inclusive source.
-    No daughter-level ECAL acceptance is applied in this stage.
     """
     production_modes = tuple(config["alp_production_modes"])
 
@@ -691,6 +792,16 @@ def numerical_summary(
                 "mean_P_decay": spectrum["mean_decay_probability"],
                 "visible_Br": spectrum["br_visible"],
                 "N_events": spectrum["n_events"],
+                "epsilon_ECAL_unweighted": spectrum[
+                    "epsilon_ecal_unweighted"
+                ],
+                "epsilon_ECAL_weighted": spectrum[
+                    "epsilon_ecal_weighted"
+                ],
+                "N_events_before_ECAL": spectrum[
+                    "n_events_before_ecal"
+                ],
+                "N_events_after_ECAL": spectrum["n_events"],
                 "N_events_primary": (spectrum.get("source_n_events", {}).get("primary", np.nan)),
                 "N_events_cascade": (spectrum.get("source_n_events", {}).get("cascade", np.nan)),
                 "cascade_event_fraction": (

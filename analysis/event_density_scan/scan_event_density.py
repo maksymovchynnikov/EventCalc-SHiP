@@ -3,20 +3,11 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-
-# ---------------------------------------------------------------------
-# Repository paths
-# ---------------------------------------------------------------------
-
-# parents[0] = analysis/
-# parents[1] = EventCalc-SHiP/
 REPO_ROOT = Path(__file__).resolve().parents[2]
-
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
@@ -26,18 +17,20 @@ os.chdir(REPO_ROOT)
 from funcs.initLLP import LLP
 from funcs.kinematics import Grids
 from funcs.ship_setup import theta_max_dec_vol
+from analysis.ECAL import (
+    DEFAULT_ECAL,
+    diphoton_ecal_acceptance,
+)
 
-
-# ---------------------------------------------------------------------
-# Configuration
-# ---------------------------------------------------------------------
 
 N_POT = 6.0e20
-
-# smaller than the final production scan.
 RESAMPLE_SIZE = 100_000
 N_INTERPOLATION_POINTS = 10 * RESAMPLE_SIZE
 
+NEGATIVE_WEIGHT_FRACTION_TOLERANCE = 1.0e-3
+
+ENDPOINT_REFINEMENT_POINTS = 3
+ENDPOINT_RELATIVE_WIDTH_TOLERANCE = 5.0e-3
 
 EVENT_LEVELS = (
     2.3,
@@ -47,41 +40,24 @@ EVENT_LEVELS = (
     100.0,
 )
 
-# Use an extremely long lifetime when constructing the reusable
-# theta-energy sample.
-#
-# This forces EventCalc to sample the full energy interval starting
-# at E_a = m_a. The physical lifetime is inserted later for every
-# coupling point.
-SAMPLING_CTAU_M = 1.0e99
-
-# Fixed seeds make the scan reproducible.
+SAMPLING_CTAU_M = 1.0e99 # To start sample at E_a = m_a.
 BASE_SEED = 24680
+APPLY_ECAL_ACCEPTANCE = True
+ECAL_SEED_OFFSET = 2
 
 ANALYSIS_DIR = Path(__file__).resolve().parent
-
-OUTPUT_DIR = ANALYSIS_DIR
-
+OUTPUT_DIR = ANALYSIS_DIR / "ecal"
 PLOT_DIR = OUTPUT_DIR / "plots"
-
-OUTPUT_DIR.mkdir(
-    parents=True,
-    exist_ok=True,
-)
-
-PLOT_DIR.mkdir(
-    parents=True,
-    exist_ok=True,
-)
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+PLOT_DIR.mkdir(parents=True, exist_ok=True)
 
 PHOTON_MINIMUM_TABLE_MASS = 2.000000e-02
 PHOTON_MAXIMUM_TABLE_MASS = 4.0
-
 SU2_MINIMUM_TABLE_MASS = 0.01
 SU2_MAXIMUM_TABLE_MASS = 5.1
 
 photon_base_masses = np.geomspace(
-    PHOTON_MINIMUM_TABLE_MASS,
+PHOTON_MINIMUM_TABLE_MASS,
     PHOTON_MAXIMUM_TABLE_MASS,
     50,
 )
@@ -91,47 +67,21 @@ su2l_base_masses = np.geomspace(
     SU2_MAXIMUM_TABLE_MASS,
     50,
 )
-
-
 AUTO_REFINE_ENDPOINTS = True
-
-# Add this many new masses inside every insufficiently
-# resolved endpoint interval.
-ENDPOINT_REFINEMENT_POINTS = 3
-
-# Stop adding real EventCalc masses when the relative
-# width of the endpoint bracket is below 0.5%.
-ENDPOINT_RELATIVE_WIDTH_TOLERANCE = 5.0e-3
-
 
 PHOTON_PRIMARY_MODEL = "ALP-photon-primary"
 PHOTON_CASCADE_MODEL = "ALP-photon-cascades"
 PHOTON_COMBINED_MODEL = "ALP-photon-combined"
 SU2_MODEL = "ALP-SU2L"
 
-PHOTON_SOURCE_MODELS = (
-    PHOTON_PRIMARY_MODEL,
-    PHOTON_CASCADE_MODEL,
-)
-
-PHYSICAL_MODEL_NAMES = (
-    PHOTON_COMBINED_MODEL,
-    SU2_MODEL,
-)
+PHOTON_SOURCE_MODELS = (PHOTON_PRIMARY_MODEL, PHOTON_CASCADE_MODEL)
+PHYSICAL_MODEL_NAMES = (PHOTON_COMBINED_MODEL, SU2_MODEL)
 
 PHYSICAL_MODEL_LABELS = {
     PHOTON_COMBINED_MODEL: ("ALP-photon, primary + cascades"),
     SU2_MODEL: r"ALP-$SU(2)_L$",
 }
 
-
-# These are the independently tabulated EventCalc sources.
-#
-# The primary ALP-photon tables already contain the prompt
-# pi0/eta, photon-fusion, and primary Primakov contributions.
-# The cascade tables contain Primakov production from secondary
-# shower photons. Their event rates must be calculated separately
-# and then added point by point.
 SOURCE_MODEL_CONFIGS = {
     PHOTON_PRIMARY_MODEL: {
         "plot_label": "ALP-photon, primary",
@@ -146,7 +96,6 @@ SOURCE_MODEL_CONFIGS = {
             1.0e-2,
             111,
         ),
-        # Preserve the seed convention of the old primary scan.
         "seed_offset": 0,
     },
     PHOTON_CASCADE_MODEL: {
@@ -156,7 +105,6 @@ SOURCE_MODEL_CONFIGS = {
             "LLP_name": "ALP-photon",
             "particle_path": str(REPO_ROOT / "Distributions" / "ALP-photon"),
         },
-        # initLLP.py accepts both "cascade" and "cascades".
         "alp_production_mode": "cascades",
         "couplings": np.geomspace(
             1.0e-10,
@@ -175,94 +123,50 @@ SOURCE_MODEL_CONFIGS = {
         "alp_production_mode": None,
         "couplings": np.geomspace(
             1.0e-8,
-            3.0,
-            111,
+            100.0,
+            141,
         ),
-        # Preserve the seed convention of the old SU(2)_L scan.
         "seed_offset": 1000,
     },
 }
 
 
-def stable_float_key(
-    value: float,
-) -> str:
+def stable_float_key(value: float) -> str:
     """Stable key for values written to and read from CSV."""
     return f"{float(value):.12e}"
 
 
-def deduplicate_scan_data(
-    scan_data: pd.DataFrame,
-) -> pd.DataFrame:
+def deduplicate_scan_data(scan_data: pd.DataFrame) -> pd.DataFrame:
     """Remove repeated mass-coupling points."""
     scan_data = scan_data.copy()
-
     scan_data["_mass_key"] = scan_data["mass_GeV"].map(stable_float_key)
-
     scan_data["_coupling_key"] = scan_data["coupling_GeV_inv"].map(stable_float_key)
-
-    scan_data = scan_data.drop_duplicates(
-        subset=[
-            "model",
-            "_mass_key",
-            "_coupling_key",
-        ],
-        keep="last",
-    )
-
-    return scan_data.drop(
-        columns=[
-            "_mass_key",
-            "_coupling_key",
-        ]
-    )
+    scan_data = scan_data.drop_duplicates(subset=[ "model", "_mass_key", "_coupling_key"], keep="last")
+    return scan_data.drop(columns=["_mass_key", "_coupling_key"])
 
 
-def synchronize_source_mass_grids(
-    source_scan_data: pd.DataFrame,
-) -> None:
+def synchronize_source_mass_grids(source_scan_data: pd.DataFrame) -> None:
     """
     Ensure that both photon sources are evaluated at the same masses.
-
-    This also imports any endpoint-refinement masses already present
-    in a legacy primary-only checkpoint, so the existing expensive
-    primary calculation can be reused instead of repeated.
     """
     if source_scan_data.empty:
         return
 
-    for model_name, model_data in source_scan_data.groupby(
-        "model",
-        sort=False,
-    ):
+    for model_name, model_data in source_scan_data.groupby("model", sort=False):
         if model_name not in SOURCE_MODEL_CONFIGS:
             continue
 
-        existing_masses = model_data["mass_GeV"].to_numpy(
-            dtype=float,
-        )
+        existing_masses = model_data["mass_GeV"].to_numpy(dtype=float)
 
         SOURCE_MODEL_CONFIGS[model_name]["masses"] = np.unique(
-            np.concatenate(
-                [
-                    SOURCE_MODEL_CONFIGS[model_name]["masses"],
-                    existing_masses,
-                ]
-            )
+            np.concatenate([SOURCE_MODEL_CONFIGS[model_name]["masses"], existing_masses])
         )
 
     photon_masses = []
-
     for model_name in PHOTON_SOURCE_MODELS:
         photon_masses.extend(SOURCE_MODEL_CONFIGS[model_name]["masses"])
 
-    common_photon_masses = np.unique(
-        np.asarray(
-            photon_masses,
-            dtype=float,
-        )
-    )
-
+    common_photon_masses = np.unique(np.asarray(photon_masses, dtype=float))
     for model_name in PHOTON_SOURCE_MODELS:
         SOURCE_MODEL_CONFIGS[model_name]["masses"] = common_photon_masses.copy()
 
@@ -273,21 +177,11 @@ def build_physical_scan_data(
     require_complete_photon_pairing: bool,
 ) -> pd.DataFrame:
     """
-    Build the physical scan used for contours.
-
-    The photophilic-ALP event rate is
-
-        N_combined = N_primary + N_cascades.
-
-    No fixed cascade/primary multiplier is introduced: each source
-    is evaluated with its own yield and angle-energy distribution.
+    Build the physical scan used for contours. Each source is evaluated with its own yield and angle-energy distribution.
     """
     source_scan_data = deduplicate_scan_data(source_scan_data)
-
     su2_data = source_scan_data.loc[source_scan_data["model"] == SU2_MODEL].copy()
-
     primary = source_scan_data.loc[source_scan_data["model"] == PHOTON_PRIMARY_MODEL].copy()
-
     cascades = source_scan_data.loc[source_scan_data["model"] == PHOTON_CASCADE_MODEL].copy()
 
     if primary.empty or cascades.empty:
@@ -298,31 +192,15 @@ def build_physical_scan_data(
 
         return su2_data.reset_index(drop=True)
 
-    for frame in (
-        primary,
-        cascades,
-    ):
+    for frame in (primary, cascades):
         frame["_mass_key"] = frame["mass_GeV"].map(stable_float_key)
-
         frame["_coupling_key"] = frame["coupling_GeV_inv"].map(stable_float_key)
 
-    primary_keys = set(
-        zip(
-            primary["_mass_key"],
-            primary["_coupling_key"],
-        )
-    )
-
-    cascade_keys = set(
-        zip(
-            cascades["_mass_key"],
-            cascades["_coupling_key"],
-        )
-    )
+    primary_keys = set(zip(primary["_mass_key"], primary["_coupling_key"]))
+    cascade_keys = set(zip(cascades["_mass_key"], cascades["_coupling_key"]))
 
     if require_complete_photon_pairing and primary_keys != cascade_keys:
         primary_only = primary_keys - cascade_keys
-
         cascade_only = cascade_keys - primary_keys
 
         raise RuntimeError(
@@ -336,15 +214,9 @@ def build_physical_scan_data(
 
     merged = primary.merge(
         cascades,
-        on=[
-            "_mass_key",
-            "_coupling_key",
-        ],
+        on=["_mass_key", "_coupling_key"],
         how="inner",
-        suffixes=(
-            "_primary",
-            "_cascades",
-        ),
+        suffixes=("_primary", "_cascades"),
         validate="one_to_one",
     )
 
@@ -364,13 +236,9 @@ def build_physical_scan_data(
     )
 
     for column in common_checks:
-        left = merged[f"{column}_primary"].to_numpy(
-            dtype=float,
-        )
+        left = merged[f"{column}_primary"].to_numpy(dtype=float)
 
-        right = merged[f"{column}_cascades"].to_numpy(
-            dtype=float,
-        )
+        right = merged[f"{column}_cascades"].to_numpy(dtype=float)
 
         if not np.allclose(
             left,
@@ -388,15 +256,20 @@ def build_physical_scan_data(
                 f"{maximum_difference:.6e}"
             )
 
-    n_events_primary = merged["N_events_primary"].to_numpy(
-        dtype=float,
-    )
-
-    n_events_cascades = merged["N_events_cascades"].to_numpy(
-        dtype=float,
-    )
-
+    n_events_primary = merged["N_events_primary"].to_numpy(dtype=float)
+    n_events_cascades = merged["N_events_cascades"].to_numpy(dtype=float)
     n_events_combined = n_events_primary + n_events_cascades
+    n_events_before_ecal_primary = merged["N_events_before_ECAL_primary"].to_numpy(dtype=float)
+    n_events_before_ecal_cascades = merged["N_events_before_ECAL_cascades"].to_numpy(dtype=float)
+
+    n_events_before_ecal_combined = n_events_before_ecal_primary + n_events_before_ecal_cascades
+
+    epsilon_ecal_weighted_combined = np.divide(
+        n_events_combined,
+        n_events_before_ecal_combined,
+        out=np.zeros_like(n_events_combined),
+        where=(n_events_before_ecal_combined > 0.0),
+    )
 
     cascade_fraction = np.divide(
         n_events_cascades,
@@ -408,10 +281,7 @@ def build_physical_scan_data(
     cascade_to_primary_ratio = np.divide(
         n_events_cascades,
         n_events_primary,
-        out=np.full_like(
-            n_events_cascades,
-            np.nan,
-        ),
+        out=np.full_like(n_events_cascades, np.nan),
         where=(n_events_primary > 0.0),
     )
 
@@ -438,6 +308,19 @@ def build_physical_scan_data(
             "sampled_inside_volume": (
                 merged["sampled_inside_volume_primary"] + merged["sampled_inside_volume_cascades"]
             ),
+            "apply_ECAL_acceptance": APPLY_ECAL_ACCEPTANCE,
+            "N_events_before_ECAL": n_events_before_ecal_combined,
+            "epsilon_ECAL_unweighted": np.nan,
+            "epsilon_ECAL_weighted": epsilon_ecal_weighted_combined,
+            "sampled_after_ECAL": (
+                merged["sampled_after_ECAL_primary"]
+                + merged["sampled_after_ECAL_cascades"]
+            ),
+            "N_events_primary_before_ECAL": n_events_before_ecal_primary,
+            "N_events_cascades_before_ECAL": n_events_before_ecal_cascades,
+            "epsilon_ECAL_weighted_primary": merged["epsilon_ECAL_weighted_primary"],
+            "epsilon_ECAL_weighted_cascades": merged["epsilon_ECAL_weighted_cascades"],
+
             "N_events": n_events_combined,
             "N_events_primary": (n_events_primary),
             "N_events_cascades": (n_events_cascades),
@@ -454,31 +337,15 @@ def build_physical_scan_data(
         }
     )
 
-    physical = pd.concat(
-        [
-            combined,
-            su2_data,
-        ],
-        ignore_index=True,
-        sort=False,
-    )
-
+    physical = pd.concat([combined, su2_data], ignore_index=True, sort=False)
     physical = physical.sort_values(
-        [
-            "model",
-            "mass_GeV",
-            "coupling_GeV_inv",
-        ]
+        ["model", "mass_GeV", "coupling_GeV_inv"]
     ).reset_index(drop=True)
 
     return deduplicate_scan_data(physical)
 
 
-def add_refinement_masses_to_sources(
-    *,
-    physical_model_name: str,
-    extra_masses: np.ndarray,
-) -> None:
+def add_refinement_masses_to_sources(*, physical_model_name: str, extra_masses: np.ndarray) -> None:
     """Map physical contour-refinement masses to source scans."""
     if physical_model_name == PHOTON_COMBINED_MODEL:
         source_models = PHOTON_SOURCE_MODELS
@@ -493,18 +360,8 @@ def add_refinement_masses_to_sources(
 
     for source_model_name in source_models:
         SOURCE_MODEL_CONFIGS[source_model_name]["masses"] = np.unique(
-            np.concatenate(
-                [
-                    SOURCE_MODEL_CONFIGS[source_model_name]["masses"],
-                    extra_masses,
-                ]
-            )
+            np.concatenate([SOURCE_MODEL_CONFIGS[source_model_name]["masses"], extra_masses])
         )
-
-
-# ---------------------------------------------------------------------
-# LLP initialization
-# ---------------------------------------------------------------------
 
 
 def make_llp(config: dict) -> LLP:
@@ -518,31 +375,9 @@ def make_llp(config: dict) -> LLP:
     )
 
 
-# ---------------------------------------------------------------------
-# Reusable theta-energy sample
-# ---------------------------------------------------------------------
-
-NEGATIVE_WEIGHT_FRACTION_TOLERANCE = 1.0e-3
-
-
-def validate_and_sanitize_interpolation(
-    *,
-    kin: Grids,
-    model_name: str,
-    mass_gev: float,
-) -> None:
-    """
-    Validate the interpolated angle-energy distribution.
-
-    Physical distribution densities and sampling weights must be
-    non-negative. Tiny negative values may arise numerically near
-    interpolation boundaries and are clipped only when their total
-    contribution is negligible.
-    """
+def validate_and_sanitize_interpolation(*, kin: Grids, model_name: str, mass_gev: float) -> None:
     mass_grid_min = float(np.min(kin.grid_x))
-
     mass_grid_max = float(np.max(kin.grid_x))
-
     mass_tolerance = 1.0e-12 * max(
         1.0,
         abs(mass_grid_min),
@@ -560,30 +395,10 @@ def validate_and_sanitize_interpolation(
             f"{mass_grid_max:.6e}] GeV"
         )
 
-    interpolated_values = np.asarray(
-        kin.interpolated_values,
-        dtype=float,
-    )
+    interpolated_values = np.asarray(kin.interpolated_values, dtype=float)
+    sampled_energy = np.asarray(kin.energy, dtype=float)
 
-    sampled_energy = np.asarray(
-        kin.energy,
-        dtype=float,
-    )
-
-    # Grids.interpolate() samples down to E = m_a for an effectively
-    # infinite lifetime. For light ALPs this can lie below the minimum
-    # energy represented by the tabulated distribution. Trilinear
-    # interpolation outside the table then becomes an extrapolation and
-    # can produce sizeable unphysical negative densities, especially for
-    # the soft cascade spectrum.
-    #
-    # EventCalc has no information outside the tabulated energy support.
-    # Treat the tabulated density as zero there instead of extrapolating
-    # it. Keeping these proposal points with zero weight gives the correct
-    # Monte-Carlo integral over the supported table domain and avoids
-    # changing the shared Grids implementation.
     energy_grid_min = float(np.min(kin.grid_z))
-
     energy_grid_max = float(np.max(kin.grid_z))
 
     energy_grid_scale = max(
@@ -595,20 +410,15 @@ def validate_and_sanitize_interpolation(
     energy_support_tolerance = 1.0e-12 * energy_grid_scale
 
     below_energy_grid = sampled_energy < energy_grid_min - energy_support_tolerance
-
     above_energy_grid = sampled_energy > energy_grid_max + energy_support_tolerance
-
     outside_energy_grid = below_energy_grid | above_energy_grid
 
     number_outside_energy_grid = int(np.sum(outside_energy_grid))
 
     if number_outside_energy_grid > 0:
         interpolated_values = interpolated_values.copy()
-
         interpolated_values[outside_energy_grid] = 0.0
-
         kin.interpolated_values = interpolated_values
-
         print(
             "  proposal points outside tabulated "
             "energy support = "
@@ -616,50 +426,36 @@ def validate_and_sanitize_interpolation(
             f"{len(sampled_energy)} "
             f"({number_outside_energy_grid / len(sampled_energy):.6e})"
         )
-
         print(
             "  below table minimum = "
             f"{int(np.sum(below_energy_grid))}, "
             "above table maximum = "
             f"{int(np.sum(above_energy_grid))}"
         )
-
         print("  Setting their distribution density to zero " "instead of extrapolating the table.")
     else:
         print("  proposal points outside tabulated " "energy support = 0")
 
-    max_energy = np.asarray(
-        kin.max_energy,
-        dtype=float,
-    )
-
-    min_energy = np.asarray(
-        kin.e_min_sampling,
-        dtype=float,
-    )
-
+    max_energy = np.asarray(kin.max_energy, dtype=float)
+    min_energy = np.asarray(kin.e_min_sampling, dtype=float)
     energy_widths = max_energy - min_energy
 
     print("Interpolation ranges:")
-
     print(
         "  distribution mass grid = "
         f"[{float(np.min(kin.grid_x)):.6e}, "
         f"{float(np.max(kin.grid_x)):.6e}] GeV"
     )
-
     print(
         "  distribution energy grid = "
         f"[{float(np.min(kin.grid_z)):.6e}, "
         f"{float(np.max(kin.grid_z)):.6e}] GeV"
     )
-
     print(
         "  sampled energy range = "
         f"[{float(np.min(kin.energy)):.6e}, "
         f"{float(np.max(kin.energy)):.6e}] GeV"
     )
-
     print(
         "  interpolated density range = "
         f"[{float(np.min(interpolated_values)):.6e}, "
@@ -685,9 +481,7 @@ def validate_and_sanitize_interpolation(
     )
 
     width_tolerance = 1.0e-12 * energy_scale
-
     minimum_width = float(np.min(energy_widths))
-
     if minimum_width < -width_tolerance:
         raise RuntimeError(
             "Substantially negative energy interval found:\n"
@@ -697,36 +491,19 @@ def validate_and_sanitize_interpolation(
             f"{minimum_width:.6e} GeV"
         )
 
-    # Remove only round-off-level negative energy widths.
-    kin.max_energy = np.maximum(
-        max_energy,
-        min_energy,
-    )
-
+    kin.max_energy = np.maximum(max_energy, min_energy)
     energy_widths = kin.max_energy - kin.e_min_sampling
-
     negative_mask = interpolated_values < 0.0
-
     number_negative = int(np.sum(negative_mask))
 
     if number_negative == 0:
         print("  negative interpolation values = 0")
         return
 
-    positive_values = np.clip(
-        interpolated_values,
-        0.0,
-        None,
-    )
-
-    negative_magnitudes = np.clip(
-        -interpolated_values,
-        0.0,
-        None,
-    )
+    positive_values = np.clip(interpolated_values, 0.0, None)
+    negative_magnitudes = np.clip(-interpolated_values, 0.0, None)
 
     positive_weight = float(np.sum(positive_values * energy_widths))
-
     negative_weight_magnitude = float(np.sum(negative_magnitudes * energy_widths))
 
     if positive_weight <= 0.0:
@@ -737,7 +514,6 @@ def validate_and_sanitize_interpolation(
         )
 
     negative_weight_fraction = negative_weight_magnitude / positive_weight
-
     negative_point_fraction = number_negative / len(interpolated_values)
 
     print(
@@ -746,7 +522,6 @@ def validate_and_sanitize_interpolation(
         f"{len(interpolated_values)} "
         f"({negative_point_fraction:.6e})"
     )
-
     print(f"  negative weight fraction = {negative_weight_fraction:.6e}")
 
     if negative_weight_fraction > NEGATIVE_WEIGHT_FRACTION_TOLERANCE:
@@ -766,27 +541,14 @@ def validate_and_sanitize_interpolation(
     kin.interpolated_values = positive_values
 
 
-def prepare_kinematic_sample(
-    *,
-    llp: LLP,
-    mass_gev: float,
-    seed: int,
-) -> tuple[Grids, float]:
+def prepare_kinematic_sample(*, llp: LLP, mass_gev: float, seed: int) -> tuple[Grids, float]:
     """
-    Generate one reusable theta-energy sample.
-
-    The production distribution does not depend on the coupling.
-    Therefore, theta and energy are sampled only once for each
-    model and mass.
-
-    Decay positions and decay probabilities are recalculated for
-    every coupling point.
+    Generate one reusable theta-energy sample. The production distribution does not depend on the coupling.
+    Therefore, theta and energy are sampled only once for each model and mass.
+    Decay positions and decay probabilities are recalculated for every coupling point.
     """
     llp.set_mass(mass_gev)
     llp.compute_mass_dependent_properties()
-
-    # Use the very long dummy lifetime only while constructing the
-    # full theta-energy proposal sample.
     llp.set_c_tau(SAMPLING_CTAU_M)
 
     visible_br = float(np.sum(llp.BrRatios_distr))
@@ -812,8 +574,6 @@ def prepare_kinematic_sample(
 
     kin.interpolate(False)
 
-    # The reusable sample must cover the full physical energy range.
-    # At every theta point, the lower energy limit should be m_a.
     if not np.allclose(
         kin.e_min_sampling,
         mass_gev,
@@ -821,7 +581,6 @@ def prepare_kinematic_sample(
         atol=1.0e-14,
     ):
         minimum = float(np.min(kin.e_min_sampling))
-
         maximum = float(np.max(kin.e_min_sampling))
 
         raise RuntimeError(
@@ -833,23 +592,10 @@ def prepare_kinematic_sample(
             f"[{minimum}, {maximum}] GeV"
         )
 
-    validate_and_sanitize_interpolation(
-        kin=kin,
-        model_name=llp.LLP_name,
-        mass_gev=mass_gev,
-    )
-
-    kin.resample(
-        RESAMPLE_SIZE,
-        False,
-    )
+    validate_and_sanitize_interpolation(kin=kin, model_name=llp.LLP_name, mass_gev=mass_gev)
+    kin.resample(RESAMPLE_SIZE, False)
 
     return kin, visible_br
-
-
-# ---------------------------------------------------------------------
-# One mass-coupling point
-# ---------------------------------------------------------------------
 
 
 def evaluate_coupling(
@@ -861,6 +607,7 @@ def evaluate_coupling(
     coupling_gev_inv: float,
     visible_br: float,
     true_sample_seed: int,
+    ecal_seed: int,
 ) -> dict:
     """
     Calculate the EventCalc event rate for one mass-coupling point.
@@ -871,16 +618,7 @@ def evaluate_coupling(
         raise ValueError("The coupling must be positive.")
 
     coupling_squared = coupling_gev_inv**2
-
-    # c_tau_int is EventCalc's c*tau at unit coupling:
-    #
-    #     g_ref = 1 GeV^-1.
-    #
-    # Therefore:
-    #
-    #     c*tau(g) = c_tau_int / g^2.
     unit_coupling_ctau_m = float(llp.c_tau_int)
-
     ctau_m = unit_coupling_ctau_m / coupling_squared
 
     if not np.isfinite(ctau_m) or ctau_m <= 0.0:
@@ -894,91 +632,134 @@ def evaluate_coupling(
 
     llp.set_c_tau(ctau_m)
 
-    # The yield table is normalized to unit coupling squared.
-    n_llp_total = N_POT * float(llp.Yield) * coupling_squared
+    n_llp_total = (
+        N_POT
+        * float(llp.Yield)
+        * coupling_squared
+    )
 
-    # Keep the same sampled theta and energy values, but insert the
-    # physical lifetime corresponding to this coupling.
     kin.c_tau = ctau_m
 
-    # Reusing the same random numbers at every coupling reduces
-    # artificial point-to-point Monte Carlo fluctuations.
     np.random.seed(true_sample_seed)
-
     kin.true_samples(False)
 
-    mother_particle_results = kin.get_kinematics()
+    mother_particle_results = np.asarray(kin.get_kinematics(), dtype=float)
 
     number_inside_volume = len(mother_particle_results)
-
     epsilon_polar = float(kin.epsilon_polar)
-
     epsilon_azimuthal = number_inside_volume / RESAMPLE_SIZE
 
     if number_inside_volume == 0:
         mean_decay_probability = 0.0
-        summed_decay_probability = 0.0
+        summed_decay_probability_before_ecal = 0.0
+        summed_decay_probability_after_ecal = 0.0
+
+        number_after_ecal = 0
+        epsilon_ecal_unweighted = 0.0
+        epsilon_ecal_weighted = 0.0
+
+        n_events_before_ecal = 0.0
         n_events = 0.0
 
     else:
-        # EventCalc column 6 contains P_decay.
-        decay_probabilities = np.asarray(
-            mother_particle_results[:, 6],
-            dtype=float,
-        )
+        if (mother_particle_results.ndim != 2 or mother_particle_results.shape[1] < 10):
+            raise RuntimeError(
+                "EventCalc returned an invalid mother-particle array."
+            )
+
+        decay_probabilities = np.asarray(mother_particle_results[:, 6], dtype=float)
 
         if np.any(~np.isfinite(decay_probabilities)):
-            raise RuntimeError("Non-finite decay probabilities found.")
+            raise RuntimeError(
+                "Non-finite decay probabilities found."
+            )
 
         if np.any(decay_probabilities < 0.0):
-            raise RuntimeError("Negative decay probabilities found.")
+            raise RuntimeError(
+                "Negative decay probabilities found."
+            )
 
         mean_decay_probability = float(np.mean(decay_probabilities))
+        summed_decay_probability_before_ecal = float(np.sum(decay_probabilities))
 
-        summed_decay_probability = float(np.sum(decay_probabilities))
-
-        # Equivalent to:
-        #
-        # N_LLP_total
-        # * epsilon_polar
-        # * epsilon_azimuthal
-        # * <P_decay>
-        # * Br_visible.
-        n_events = (
-            n_llp_total * epsilon_polar * summed_decay_probability / RESAMPLE_SIZE * visible_br
+        event_rate_scale = (
+            n_llp_total
+            * epsilon_polar
+            * visible_br
+            / RESAMPLE_SIZE
         )
+
+        n_events_before_ecal = event_rate_scale * summed_decay_probability_before_ecal
+
+        if (APPLY_ECAL_ACCEPTANCE and summed_decay_probability_before_ecal > 0.0):
+            ecal_mask = diphoton_ecal_acceptance(
+                mother_particle_results,
+                geometry=DEFAULT_ECAL,
+                seed=ecal_seed,
+            )
+        elif APPLY_ECAL_ACCEPTANCE:
+            ecal_mask = np.zeros(number_inside_volume, dtype=bool)
+        else:
+            ecal_mask = np.ones(number_inside_volume, dtype=bool)
+
+        number_after_ecal = int(np.count_nonzero(ecal_mask))
+        epsilon_ecal_unweighted = float(number_after_ecal / number_inside_volume)
+        summed_decay_probability_after_ecal = float(np.sum(decay_probabilities[ecal_mask]))
+
+        if summed_decay_probability_before_ecal > 0.0:
+            epsilon_ecal_weighted = float(
+                summed_decay_probability_after_ecal
+                / summed_decay_probability_before_ecal
+            )
+        else:
+            epsilon_ecal_weighted = 0.0
+
+        n_events = event_rate_scale * summed_decay_probability_after_ecal
+        expected_after_ecal = n_events_before_ecal * epsilon_ecal_weighted
+
+        if not np.isclose(
+            n_events,
+            expected_after_ecal,
+            rtol=1.0e-12,
+            atol=0.0,
+        ):
+            raise RuntimeError(
+                "ECAL event-rate calculations disagree."
+            )
 
     return {
         "model": model_name,
         "mass_GeV": mass_gev,
-        "coupling_GeV_inv": (coupling_gev_inv),
-        "coupling_squared_GeV_inv2": (coupling_squared),
+        "coupling_GeV_inv": coupling_gev_inv,
+        "coupling_squared_GeV_inv2": coupling_squared,
         "ctau_m": ctau_m,
-        "unit_coupling_ctau_m": (unit_coupling_ctau_m),
-        "yield_per_PoT_per_coupling_squared": (float(llp.Yield)),
+        "unit_coupling_ctau_m": unit_coupling_ctau_m,
+        "yield_per_PoT_per_coupling_squared": float(llp.Yield),
         "N_LLP_total": n_llp_total,
         "epsilon_polar": epsilon_polar,
-        "epsilon_azimuthal": (epsilon_azimuthal),
-        "mean_P_decay": (mean_decay_probability),
-        "sum_P_decay": (summed_decay_probability),
+        "epsilon_azimuthal": epsilon_azimuthal,
+
+        # Mother-level quantities before ECAL.
+        "mean_P_decay": mean_decay_probability,
+        "sum_P_decay": summed_decay_probability_before_ecal,
+        "sum_P_decay_before_ECAL": summed_decay_probability_before_ecal,
+
+        # Daughter-level ECAL quantities.
+        "sum_P_decay_after_ECAL": summed_decay_probability_after_ecal,
+        "apply_ECAL_acceptance": APPLY_ECAL_ACCEPTANCE,
+        "epsilon_ECAL_unweighted": epsilon_ecal_unweighted,
+        "epsilon_ECAL_weighted": epsilon_ecal_weighted,
         "visible_Br": visible_br,
-        "sampled_inside_volume": (number_inside_volume),
+        "sampled_inside_volume": number_inside_volume,
+        "sampled_after_ECAL": number_after_ecal,
+        "N_events_before_ECAL": n_events_before_ecal,
+
+        # The default event rate used for all contours is now after ECAL.
         "N_events": n_events,
     }
 
 
-# ---------------------------------------------------------------------
-# Scan one model and mass
-# ---------------------------------------------------------------------
-
-
-def scan_model_mass(
-    *,
-    model_name: str,
-    config: dict,
-    mass_gev: float,
-    seed: int,
-) -> list[dict]:
+def scan_model_mass(*, model_name: str, config: dict, mass_gev: float, seed: int) -> list[dict]:
     """Scan all requested couplings for one model and mass."""
     print()
     print("=" * 70)
@@ -987,23 +768,14 @@ def scan_model_mass(
     print("=" * 70)
 
     llp = make_llp(config)
-
-    kin, visible_br = prepare_kinematic_sample(
-        llp=llp,
-        mass_gev=mass_gev,
-        seed=seed,
-    )
+    kin, visible_br = prepare_kinematic_sample(llp=llp, mass_gev=mass_gev, seed=seed,)
 
     print(f"Unit-coupling lifetime: {float(llp.c_tau_int):.6e} m")
-
     print(f"Yield per PoT per coupling squared: {float(llp.Yield):.6e}")
-
     print(f"Visible branching ratio: {visible_br:.6e}")
 
     rows = []
-
     couplings = config["couplings"]
-
     for coupling_index, coupling in enumerate(couplings):
         row = evaluate_coupling(
             model_name=model_name,
@@ -1013,6 +785,7 @@ def scan_model_mass(
             coupling_gev_inv=coupling,
             visible_br=visible_br,
             true_sample_seed=seed + 1,
+            ecal_seed=seed + ECAL_SEED_OFFSET,
         )
 
         rows.append(row)
@@ -1022,74 +795,45 @@ def scan_model_mass(
             f"{len(couplings):2d}] "
             f"g = {coupling:.4e} GeV^-1, "
             f"c_tau = {row['ctau_m']:.4e} m, "
-            f"N_events = {row['N_events']:.6g}"
+            f"N_before = {row['N_events_before_ECAL']:.6g}, "
+            f"epsilon_ECAL = {row['epsilon_ECAL_weighted']:.4f}, "
+            f"N_after = {row['N_events']:.6g}"
         )
 
-    rates = np.array(
-        [row["N_events"] for row in rows],
-        dtype=float,
-    )
-
+    rates = np.array([row["N_events"] for row in rows], dtype=float)
     peak_index = int(np.argmax(rates))
 
     print()
     print("Largest event rate in this scan:")
-
     print(f"  g = {rows[peak_index]['coupling_GeV_inv']:.6e} GeV^-1")
-
     print(f"  c_tau = {rows[peak_index]['ctau_m']:.6e} m")
-
     print(f"  N_events = {rows[peak_index]['N_events']:.6g}")
 
     return rows
 
 
-# ---------------------------------------------------------------------
-# Diagnostic plots
-# ---------------------------------------------------------------------
-
-
+# DIAGNOSTIC PLOTS
 def safe_filename(text: str) -> str:
     """Convert a model name into a safe filename component."""
     return text.lower().replace(" ", "_").replace("/", "_").replace("(", "").replace(")", "")
 
 
-def plot_diagnostic_curves(
-    scan_data: pd.DataFrame,
-) -> list[Path]:
+def plot_diagnostic_curves(scan_data: pd.DataFrame) -> list[Path]:
     """
     Plot N_events as a function of coupling for each diagnostic mass.
     """
     output_paths = []
 
-    for model_name, model_data in scan_data.groupby(
-        "model",
-        sort=False,
-    ):
-        figure, axis = plt.subplots(
-            figsize=(8.5, 6.0),
-        )
+    for model_name, model_data in scan_data.groupby("model", sort=False):
+        figure, axis = plt.subplots(figsize=(8.5, 6.0))
 
-        for mass_gev, mass_data in model_data.groupby(
-            "mass_GeV",
-            sort=True,
-        ):
+        for mass_gev, mass_data in model_data.groupby("mass_GeV", sort=True):
             mass_data = mass_data.sort_values("coupling_GeV_inv")
-
-            couplings = mass_data["coupling_GeV_inv"].to_numpy(
-                dtype=float,
-            )
-
-            rates = mass_data["N_events"].to_numpy(
-                dtype=float,
-            )
+            couplings = mass_data["coupling_GeV_inv"].to_numpy(dtype=float)
+            rates = mass_data["N_events"].to_numpy(dtype=float)
 
             MIN_PLOTTED_RATE = 1.0e-1
-            plot_rates = np.where(
-                rates >= MIN_PLOTTED_RATE,
-                rates,
-                np.nan,
-            )
+            plot_rates = np.where(rates >= MIN_PLOTTED_RATE, rates, np.nan)
 
             axis.plot(
                 couplings,
@@ -1118,36 +862,15 @@ def plot_diagnostic_curves(
 
         axis.set_xscale("log")
         axis.set_yscale("log")
-        axis.set_ylim(
-            1.0e-1,
-            1.0e10,
-        )
-
+        axis.set_ylim(1.0e-1, 1.0e10)
         axis.set_xlabel(r"Coupling [GeV$^{-1}$]")
-
         axis.set_ylabel(r"$N_{\rm events}$")
-
         axis.set_title(PHYSICAL_MODEL_LABELS[model_name])
-
-        axis.grid(
-            True,
-            which="both",
-            alpha=0.3,
-        )
-
-    #axis.legend(
-        #    fontsize=9,
-    #)
+        axis.grid(True, which="both", alpha=0.3,)
 
         figure.tight_layout()
-
         output_path = PLOT_DIR / f"event_rate_vs_coupling_{safe_filename(model_name)}.pdf"
-
-        figure.savefig(
-            output_path,
-            bbox_inches="tight",
-        )
-
+        figure.savefig(output_path, bbox_inches="tight")
         plt.close(figure)
 
         output_paths.append(output_path)
@@ -1155,41 +878,23 @@ def plot_diagnostic_curves(
     return output_paths
 
 
-def find_level_crossings(
-    mass_data: pd.DataFrame,
-    event_level: float,
-) -> list[float]:
+def find_level_crossings(mass_data: pd.DataFrame, event_level: float) -> list[float]:
     """
     Find couplings where N_events crosses one event level.
-
     Interpolation is linear in log10(g) and log10(N_events).
     """
     mass_data = mass_data.sort_values("coupling_GeV_inv")
+    couplings = mass_data["coupling_GeV_inv"].to_numpy(dtype=float)
+    event_rates = mass_data["N_events"].to_numpy(dtype=float)
 
-    couplings = mass_data["coupling_GeV_inv"].to_numpy(
-        dtype=float,
-    )
-
-    event_rates = mass_data["N_events"].to_numpy(
-        dtype=float,
-    )
-
-    # Avoid log10(0). This floor is only used when identifying
-    # intervals containing a crossing.
-    event_rates_safe = np.maximum(
-        event_rates,
-        1.0e-300,
-    )
+    event_rates_safe = np.maximum(event_rates, 1.0e-300)
 
     log_couplings = np.log10(couplings)
-
     log_rate_difference = np.log10(event_rates_safe) - np.log10(event_level)
 
     crossings = []
-
     for index in range(len(log_couplings) - 1):
         difference_left = log_rate_difference[index]
-
         difference_right = log_rate_difference[index + 1]
 
         if difference_left == 0.0:
@@ -1197,55 +902,33 @@ def find_level_crossings(
 
         if difference_left * difference_right < 0.0:
             fraction = -difference_left / (difference_right - difference_left)
-
             log_crossing = log_couplings[index] + fraction * (
                 log_couplings[index + 1] - log_couplings[index]
             )
-
             crossings.append(10.0**log_crossing)
 
     return crossings
 
 
-def build_boundary_table(
-    scan_data: pd.DataFrame,
-) -> pd.DataFrame:
+def build_boundary_table(scan_data: pd.DataFrame) -> pd.DataFrame:
     """Build lower and upper coupling boundaries."""
     rows = []
+    grouped_data = scan_data.groupby(["model", "mass_GeV"], sort=False)
 
-    grouped_data = scan_data.groupby(
-        [
-            "model",
-            "mass_GeV",
-        ],
-        sort=False,
-    )
-
-    for (
-        model_name,
-        mass_gev,
-    ), mass_data in grouped_data:
+    for (model_name, mass_gev), mass_data in grouped_data:
         mass_data = mass_data.sort_values("coupling_GeV_inv")
-
         couplings = mass_data["coupling_GeV_inv"].to_numpy(dtype=float)
-
         rates = mass_data["N_events"].to_numpy(dtype=float)
 
         peak_index = int(np.argmax(rates))
-
         maximum_rate = float(rates[peak_index])
-
         peak_coupling = float(couplings[peak_index])
 
         first_rate = float(rates[0])
         last_rate = float(rates[-1])
 
         for event_level in EVENT_LEVELS:
-            crossings = find_level_crossings(
-                mass_data,
-                event_level,
-            )
-
+            crossings = find_level_crossings(mass_data, event_level)
             number_of_crossings = len(crossings)
 
             if maximum_rate < event_level:
@@ -1259,7 +942,6 @@ def build_boundary_table(
 
             elif number_of_crossings == 1:
                 first_above = first_rate >= event_level
-
                 last_above = last_rate >= event_level
 
                 if not first_above and last_above:
@@ -1309,66 +991,43 @@ def find_endpoint_refinement_masses(
     Find additional masses needed to refine contour endpoints.
 
     For each model and event level, identify:
-
         last mass with two resolved crossings
         first larger mass outside the mass reach
 
-    If the relative width of this bracket is still too large,
-    place equally spaced masses inside it.
+    If the relative width of this bracket is still too large place equally spaced masses inside it.
     """
     refinement_masses = {model_name: [] for model_name in PHYSICAL_MODEL_NAMES}
 
     existing_masses = {
         model_name: model_data["mass_GeV"].to_numpy(dtype=float)
-        for model_name, model_data in scan_data.groupby(
-            "model",
-            sort=False,
-        )
+        for model_name, model_data in scan_data.groupby("model", sort=False)
     }
 
-    grouped_data = boundary_data.groupby(
-        [
-            "model",
-            "event_level",
-        ],
-        sort=False,
-    )
+    grouped_data = boundary_data.groupby(["model", "event_level"], sort=False)
 
-    for (
-        model_name,
-        event_level,
-    ), level_data in grouped_data:
+    for (model_name, event_level), level_data in grouped_data:
         level_data = level_data.sort_values("mass_GeV")
-
         resolved_data = level_data[level_data["status"] == "resolved"]
 
         if resolved_data.empty:
             continue
 
-        # Last mass for which the contour still has
-        # both a lower and an upper crossing.
+        # Last mass for which the contour still has both a lower and an upper crossing.
         left_row = resolved_data.loc[resolved_data["mass_GeV"].idxmax()]
-
         mass_left = float(left_row["mass_GeV"])
 
         outside_data = level_data[
             (level_data["status"] == "outside_mass_reach") & (level_data["mass_GeV"] > mass_left)
         ]
 
-        # Example: SU(2)_L, N_events = 3.
-        # The contour remains sensitive up to the
-        # maximum supported table mass, so no endpoint
-        # bracket exists.
         if outside_data.empty:
             print(f"No endpoint bracket for {model_name}, N_events = {event_level:g}.")
             continue
 
         right_row = outside_data.loc[outside_data["mass_GeV"].idxmin()]
-
         mass_right = float(right_row["mass_GeV"])
 
         bracket_midpoint = 0.5 * (mass_left + mass_right)
-
         relative_width = (mass_right - mass_left) / bracket_midpoint
 
         print(
@@ -1384,16 +1043,9 @@ def find_endpoint_refinement_masses(
             print("  Bracket is sufficiently narrow; " "no new EventCalc masses added.")
             continue
 
-        candidates = np.linspace(
-            mass_left,
-            mass_right,
-            points_per_bracket + 2,
-        )[1:-1]
+        candidates = np.linspace(mass_left, mass_right, points_per_bracket + 2)[1:-1]
 
-        model_existing_masses = existing_masses.get(
-            model_name,
-            np.array([], dtype=float),
-        )
+        model_existing_masses = existing_masses.get(model_name, np.array([], dtype=float))
 
         for candidate in candidates:
             already_scanned = np.any(
@@ -1409,68 +1061,34 @@ def find_endpoint_refinement_masses(
                 refinement_masses[model_name].append(float(candidate))
 
     return {
-        model_name: np.unique(
-            np.asarray(
-                masses,
-                dtype=float,
-            )
-        )
-        for model_name, masses in refinement_masses.items()
+        model_name: np.unique(np.asarray(masses, dtype=float))
+            for model_name, masses in refinement_masses.items()
     }
 
 
-def add_interpolated_closing_points(
-    boundary_data: pd.DataFrame,
-) -> pd.DataFrame:
+def add_interpolated_closing_points(boundary_data: pd.DataFrame) -> pd.DataFrame:
     """
     Append one interpolated closing point to every bracketed contour.
-
-    The closing mass is found by interpolating log(N_peak)
-    between:
-
-        last resolved mass,
-        first mass outside the sensitivity reach.
-
-    The peak coupling is interpolated logarithmically.
     """
     output_data = boundary_data.copy()
-
     output_data["is_interpolated"] = False
-
     closing_rows = []
+    grouped_data = boundary_data.groupby(["model", "event_level"], sort=False)
 
-    grouped_data = boundary_data.groupby(
-        [
-            "model",
-            "event_level",
-        ],
-        sort=False,
-    )
-
-    for (
-        model_name,
-        event_level,
-    ), level_data in grouped_data:
+    for (model_name, event_level), level_data in grouped_data:
         level_data = level_data.sort_values("mass_GeV")
-
         resolved_data = level_data[level_data["status"] == "resolved"]
 
         if resolved_data.empty:
             continue
 
         resolved_row = resolved_data.loc[resolved_data["mass_GeV"].idxmax()]
-
         mass_left = float(resolved_row["mass_GeV"])
 
         outside_data = level_data[
             (level_data["status"] == "outside_mass_reach") & (level_data["mass_GeV"] > mass_left)
         ]
 
-        # There is no demonstrated closing point within
-        # the available table range.
-        #
-        # This is currently the case for:
-        # ALP-SU2L, N_events = 3.
         if outside_data.empty:
             print(
                 "No interpolated closing point for "
@@ -1482,15 +1100,10 @@ def add_interpolated_closing_points(
             continue
 
         outside_row = outside_data.loc[outside_data["mass_GeV"].idxmin()]
-
         mass_right = float(outside_row["mass_GeV"])
-
         rate_left = float(resolved_row["maximum_N_events"])
-
         rate_right = float(outside_row["maximum_N_events"])
-
         coupling_left = float(resolved_row["peak_coupling_GeV_inv"])
-
         coupling_right = float(outside_row["peak_coupling_GeV_inv"])
 
         if not (rate_left >= event_level and rate_right < event_level):
@@ -1504,25 +1117,14 @@ def add_interpolated_closing_points(
                 f"N_peak = {rate_right}"
             )
 
-        # Solve:
-        #
-        # log(N_peak(m_closing))
-        #     = log(event_level)
-        #
-        # using linear interpolation in mass.
         interpolation_fraction = (np.log(event_level) - np.log(rate_left)) / (
             np.log(rate_right) - np.log(rate_left)
         )
 
         closing_mass = mass_left + interpolation_fraction * (mass_right - mass_left)
-
-        # Coupling is naturally treated logarithmically
-        # because the coupling axis spans many orders
-        # of magnitude.
         closing_log_coupling = np.log(coupling_left) + interpolation_fraction * (
             np.log(coupling_right) - np.log(coupling_left)
         )
-
         closing_coupling = float(np.exp(closing_log_coupling))
 
         closing_rows.append(
@@ -1551,51 +1153,23 @@ def add_interpolated_closing_points(
         )
 
     if closing_rows:
-        output_data = pd.concat(
-            [
-                output_data,
-                pd.DataFrame(closing_rows),
-            ],
-            ignore_index=True,
-        )
+        output_data = pd.concat([output_data, pd.DataFrame(closing_rows)], ignore_index=True)
 
-    output_data = output_data.sort_values(
-        [
-            "model",
-            "event_level",
-            "mass_GeV",
-        ]
-    ).reset_index(drop=True)
+    output_data = output_data.sort_values(["model", "event_level", "mass_GeV"]).reset_index(drop=True)
 
     return output_data
 
 
-# ---------------------------------------------------------------------
-# Main scan
-# ---------------------------------------------------------------------
-
-
 def main() -> None:
     source_csv_path = OUTPUT_DIR / "event_density_scan_sources.csv"
-
     physical_csv_path = OUTPUT_DIR / "event_density_scan_coarse.csv"
 
-    # Reuse the old primary-only checkpoint automatically.
-    #
-    # Before cascade support, event_density_scan_coarse.csv contained
-    # ALP-photon-primary and ALP-SU2L rows. On the first run of this
-    # version, those rows become the source-level checkpoint, and only
-    # the missing cascade source is evaluated.
     if source_csv_path.exists():
         existing_source_data = pd.read_csv(source_csv_path)
 
     elif physical_csv_path.exists():
         legacy_data = pd.read_csv(physical_csv_path)
-
-        existing_source_data = legacy_data.loc[
-            legacy_data["model"].isin(SOURCE_MODEL_CONFIGS)
-        ].copy()
-
+        existing_source_data = legacy_data.loc[legacy_data["model"].isin(SOURCE_MODEL_CONFIGS)].copy()
         if not existing_source_data.empty:
             print("Migrating legacy primary-only checkpoint to:")
             print(f"  {source_csv_path}")
@@ -1605,14 +1179,9 @@ def main() -> None:
 
     if not existing_source_data.empty:
         existing_source_data = deduplicate_scan_data(existing_source_data)
-
         synchronize_source_mass_grids(existing_source_data)
-
         completed_points = {
-            (
-                model_name,
-                stable_float_key(mass_gev),
-            )
+            (model_name, stable_float_key(mass_gev))
             for model_name, mass_gev in zip(
                 existing_source_data["model"],
                 existing_source_data["mass_GeV"],
@@ -1645,10 +1214,7 @@ def main() -> None:
             relative_width_tolerance=(ENDPOINT_RELATIVE_WIDTH_TOLERANCE),
         )
 
-        for (
-            physical_model_name,
-            extra_masses,
-        ) in automatic_refinement_masses.items():
+        for (physical_model_name, extra_masses) in automatic_refinement_masses.items():
             if len(extra_masses) == 0:
                 continue
 
@@ -1671,28 +1237,19 @@ def main() -> None:
         synchronize_source_mass_grids(current_source_data)
     else:
         photon_masses = np.unique(
-            np.concatenate(
-                [
+            np.concatenate([
                     SOURCE_MODEL_CONFIGS[PHOTON_PRIMARY_MODEL]["masses"],
                     SOURCE_MODEL_CONFIGS[PHOTON_CASCADE_MODEL]["masses"],
-                ]
-            )
+                ])
         )
 
         for source_model_name in PHOTON_SOURCE_MODELS:
             SOURCE_MODEL_CONFIGS[source_model_name]["masses"] = photon_masses.copy()
 
-    for (
-        source_model_name,
-        config,
-    ) in SOURCE_MODEL_CONFIGS.items():
+    for (source_model_name, config) in SOURCE_MODEL_CONFIGS.items():
         for mass_index, mass_gev in enumerate(config["masses"]):
             seed = BASE_SEED + int(config["seed_offset"]) + 100 * mass_index
-
-            point_key = (
-                source_model_name,
-                stable_float_key(mass_gev),
-            )
+            point_key = (source_model_name, stable_float_key(mass_gev))
 
             if point_key in completed_points:
                 print(
@@ -1710,9 +1267,7 @@ def main() -> None:
             )
 
             all_source_rows.extend(rows)
-
             current_source_data = pd.DataFrame(all_source_rows)
-
             current_source_data = current_source_data.sort_values(
                 [
                     "model",
@@ -1722,21 +1277,12 @@ def main() -> None:
             ).reset_index(drop=True)
 
             current_source_data = deduplicate_scan_data(current_source_data)
-
-            current_source_data.to_csv(
-                source_csv_path,
-                index=False,
-            )
-
+            current_source_data.to_csv(source_csv_path, index=False)
             current_physical_data = build_physical_scan_data(
                 current_source_data,
                 require_complete_photon_pairing=False,
             )
-
-            current_physical_data.to_csv(
-                physical_csv_path,
-                index=False,
-            )
+            current_physical_data.to_csv(physical_csv_path, index=False)
 
             print("Source checkpoint saved to:")
             print(f"  {source_csv_path}")
@@ -1745,7 +1291,6 @@ def main() -> None:
             print(f"  {physical_csv_path}")
 
     source_scan_data = pd.DataFrame(all_source_rows)
-
     source_scan_data = source_scan_data.sort_values(
         [
             "model",
@@ -1755,62 +1300,35 @@ def main() -> None:
     ).reset_index(drop=True)
 
     source_scan_data = deduplicate_scan_data(source_scan_data)
-
-    source_scan_data.to_csv(
-        source_csv_path,
-        index=False,
-    )
-
+    source_scan_data.to_csv(source_csv_path, index=False)
     scan_data = build_physical_scan_data(
         source_scan_data,
         require_complete_photon_pairing=True,
     )
 
-    scan_data.to_csv(
-        physical_csv_path,
-        index=False,
-    )
-
+    scan_data.to_csv(physical_csv_path, index=False)
     plot_paths = plot_diagnostic_curves(scan_data)
 
     raw_boundary_data = build_boundary_table(scan_data)
-
     raw_boundary_path = OUTPUT_DIR / "event_contour_boundaries_raw.csv"
-
-    raw_boundary_data.to_csv(
-        raw_boundary_path,
-        index=False,
-    )
+    raw_boundary_data.to_csv(raw_boundary_path, index=False)
 
     boundary_data = add_interpolated_closing_points(raw_boundary_data)
-
     boundary_path = OUTPUT_DIR / "event_contour_boundaries.csv"
-
-    boundary_data.to_csv(
-        boundary_path,
-        index=False,
-    )
+    boundary_data.to_csv(boundary_path, index=False)
 
     print(f"Source scan saved to: {source_csv_path}")
-
     print(f"Physical combined scan saved to: {physical_csv_path}")
-
     print(f"Raw boundary table saved to: {raw_boundary_path}")
-
     print(f"Final boundary table saved to: {boundary_path}")
 
     photon_data = scan_data.loc[scan_data["model"] == PHOTON_COMBINED_MODEL]
 
     if not photon_data.empty:
-        fractions = photon_data["cascade_event_fraction"].to_numpy(
-            dtype=float,
-        )
-
+        fractions = photon_data["cascade_event_fraction"].to_numpy(dtype=float)
         print()
-        print("Cascade fraction among parent-level " "ALP-photon decay events:")
-
+        print("Cascade fraction among ECAL-accepted ALP-photon decay events:")
         print(f"  minimum = {float(np.nanmin(fractions)):.6g}")
-
         print(f"  maximum = {float(np.nanmax(fractions)):.6g}")
 
     print()

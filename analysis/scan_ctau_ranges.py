@@ -18,6 +18,12 @@ os.chdir(REPO_ROOT)
 from funcs.initLLP import LLP
 from funcs.kinematics import Grids
 from funcs.ship_setup import theta_max_dec_vol
+from analysis.ECAL import (
+    DEFAULT_ECAL,
+    diphoton_ecal_acceptance,
+)
+APPLY_ECAL_ACCEPTANCE = True
+ECAL_SEED_OFFSET = 2
 
 
 # Configuration
@@ -169,6 +175,7 @@ def evaluate_source_ctau(
     ctau_min: float,
     br_visible: float,
     true_sample_seed: int,
+    ecal_seed: int,
 ) -> dict:
     """
     Calculate the EventCalc event rate for one production source.
@@ -188,21 +195,126 @@ def evaluate_source_ctau(
 
     np.random.seed(true_sample_seed)
     kin.true_samples(False)
-    mother_particle_results = kin.get_kinematics()
-    final_events = len(mother_particle_results)
+    mother_particle_results = np.asarray(
+        kin.get_kinematics(),
+        dtype=float,
+    )
+
+    number_inside_volume = len(mother_particle_results)
 
     epsilon_polar = float(kin.epsilon_polar)
-    epsilon_azimuthal = final_events / RESAMPLE_SIZE
+    epsilon_azimuthal = number_inside_volume / RESAMPLE_SIZE
 
-    if final_events == 0:
-        p_decay_averaged = 0.0
+    if number_inside_volume == 0:
+        mean_decay_probability = 0.0
+        summed_decay_probability_before_ecal = 0.0
+        summed_decay_probability_after_ecal = 0.0
+
+        number_after_ecal = 0
+        epsilon_ecal_unweighted = 0.0
+        epsilon_ecal_weighted = 0.0
+
+        n_events_before_ecal = 0.0
         n_events = 0.0
+
     else:
-        p_decay_averaged = float(mother_particle_results[:, 6].mean())
+        if (
+            mother_particle_results.ndim != 2
+            or mother_particle_results.shape[1] < 10
+        ):
+            raise RuntimeError(
+                "EventCalc returned an invalid mother-particle array."
+            )
 
-        n_events = n_llp_total * epsilon_polar * epsilon_azimuthal * p_decay_averaged * br_visible
+        decay_probabilities = np.asarray(
+            mother_particle_results[:, 6],
+            dtype=float,
+        )
 
-    return {
+        if np.any(~np.isfinite(decay_probabilities)):
+            raise RuntimeError(
+                "Non-finite decay probabilities found."
+            )
+
+        if np.any(decay_probabilities < 0.0):
+            raise RuntimeError(
+                "Negative decay probabilities found."
+            )
+
+        mean_decay_probability = float(
+            np.mean(decay_probabilities)
+        )
+
+        summed_decay_probability_before_ecal = float(
+            np.sum(decay_probabilities)
+        )
+
+        event_rate_scale = (
+            n_llp_total
+            * epsilon_polar
+            * br_visible
+            / RESAMPLE_SIZE
+        )
+
+        n_events_before_ecal = (
+            event_rate_scale
+            * summed_decay_probability_before_ecal
+        )
+
+        if APPLY_ECAL_ACCEPTANCE:
+            ecal_mask = diphoton_ecal_acceptance(
+                mother_particle_results,
+                geometry=DEFAULT_ECAL,
+                seed=ecal_seed,
+            )
+        else:
+            ecal_mask = np.ones(
+                number_inside_volume,
+                dtype=bool,
+            )
+
+        number_after_ecal = int(
+            np.count_nonzero(ecal_mask)
+        )
+
+        epsilon_ecal_unweighted = float(
+            number_after_ecal
+            / number_inside_volume
+        )
+
+        summed_decay_probability_after_ecal = float(
+            np.sum(decay_probabilities[ecal_mask])
+        )
+
+        if summed_decay_probability_before_ecal > 0.0:
+            epsilon_ecal_weighted = float(
+                summed_decay_probability_after_ecal
+                / summed_decay_probability_before_ecal
+            )
+        else:
+            epsilon_ecal_weighted = 0.0
+
+        n_events = (
+            event_rate_scale
+            * summed_decay_probability_after_ecal
+        )
+
+        expected_after_ecal = (
+            n_events_before_ecal
+            * epsilon_ecal_weighted
+        )
+
+        if not np.isclose(
+            n_events,
+            expected_after_ecal,
+            rtol=1.0e-12,
+            atol=0.0,
+        ):
+            raise RuntimeError(
+                "ECAL event-rate calculations disagree."
+            )
+
+        return {
         "model": model_name,
         "source": source_label,
         "mass_GeV": m_a,
@@ -213,10 +325,25 @@ def evaluate_source_ctau(
         "N_LLP_total": n_llp_total,
         "epsilon_polar": epsilon_polar,
         "epsilon_azimuthal": epsilon_azimuthal,
-        "P_decay_averaged": p_decay_averaged,
+        "P_decay_averaged": mean_decay_probability,
         "visible_Br": br_visible,
+        "sampled_inside_volume": number_inside_volume,
+        "sampled_after_ECAL": number_after_ecal,
+        "sum_P_decay_before_ECAL": (
+            summed_decay_probability_before_ecal
+        ),
+        "sum_P_decay_after_ECAL": (
+            summed_decay_probability_after_ecal
+        ),
+        "apply_ECAL_acceptance": APPLY_ECAL_ACCEPTANCE,
+        "epsilon_ECAL_unweighted": (
+            epsilon_ecal_unweighted
+        ),
+        "epsilon_ECAL_weighted": (
+            epsilon_ecal_weighted
+        ),
+        "N_events_before_ECAL": n_events_before_ecal,
         "N_events": n_events,
-        "sampled_inside_volume": final_events,
     }
 
 
@@ -314,6 +441,7 @@ def scan_model_mass(
             "kin": kin,
             "br_visible": br_visible,
             "true_sample_seed": source_seed + 1,
+            "ecal_seed": source_seed + ECAL_SEED_OFFSET,
         }
 
     cache: dict[float, dict] = {}
@@ -335,6 +463,7 @@ def scan_model_mass(
                 ctau_min=ctau_min,
                 br_visible=prepared["br_visible"],
                 true_sample_seed=(prepared["true_sample_seed"]),
+                ecal_seed=prepared["ecal_seed"],
             )
 
         n_events_by_source = {

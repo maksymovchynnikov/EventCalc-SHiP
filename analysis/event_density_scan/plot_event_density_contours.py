@@ -6,13 +6,21 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from analysis.plot_style import (
+    style_axis,
+    use_report_style,
+)
+
 
 ANALYSIS_DIR = Path(__file__).resolve().parent
-BOUNDARY_PATH = ANALYSIS_DIR / "event_contour_boundaries.csv"
-PLOT_DIR = ANALYSIS_DIR / "plots"
+ECAL_DIR = ANALYSIS_DIR / "ecal"
+
+BOUNDARY_PATH = ECAL_DIR / "event_contour_boundaries.csv"
+PLOT_DIR = ECAL_DIR / "plots"
 PLOT_DIR.mkdir(parents=True, exist_ok=True)
 
 EVENT_LEVELS = (
+    2.3,
     3.0,
     10.0,
     30.0,
@@ -20,21 +28,26 @@ EVENT_LEVELS = (
 )
 
 MODEL_LABELS = {
-    "ALP-photon-primary": "ALP-photon, primary",
+    "ALP-photon-combined": "ALP-photon, primary + cascade",
     "ALP-SU2L": r"ALP-$SU(2)_L$",
 }
 
 TABLE_LIMITS_GEV = {
-    "ALP-photon-primary": 4.0,
+    "ALP-photon-combined": 4.0,
     "ALP-SU2L": 5.1,
 }
 
 Y_LABELS = {
-    "ALP-photon-primary": (r"$g_{a\gamma\gamma}$ [GeV$^{-1}$]"),
-    "ALP-SU2L": (r"$c_W/f_a$ [GeV$^{-1}$]"),
+    "ALP-photon-combined": (
+        r"$g_{a\gamma\gamma}$ [GeV$^{-1}$]"
+    ),
+    "ALP-SU2L": (
+        r"$c_W/f_a$ [GeV$^{-1}$]"
+    ),
 }
 
 LINE_STYLES = {
+    2.3: (0, (1, 1)),
     3.0: ":",
     10.0: "--",
     30.0: "-.",
@@ -46,22 +59,15 @@ def safe_filename(text: str) -> str:
     return text.lower().replace(" ", "_").replace("/", "_").replace("(", "").replace(")", "")
 
 
-def draw_event_contours(
-    axis: plt.Axes,
-    model_data: pd.DataFrame,
-) -> None:
+def draw_event_contours(axis: plt.Axes, model_data: pd.DataFrame) -> None:
     for event_level in EVENT_LEVELS:
         level_data = model_data[
-            np.isclose(
-                model_data["event_level"],
-                event_level,
-            )
+            np.isclose(model_data["event_level"], event_level)
         ].sort_values("mass_GeV")
 
         masses = level_data["mass_GeV"].to_numpy(dtype=float)
 
         lower = level_data["lower_coupling_GeV_inv"].to_numpy(dtype=float)
-
         upper = level_data["upper_coupling_GeV_inv"].to_numpy(dtype=float)
 
         valid_lower = np.isfinite(lower)
@@ -72,6 +78,7 @@ def draw_event_contours(
             lower[valid_lower],
             linestyle=LINE_STYLES[event_level],
             linewidth=2.0,
+            color="C0",
             label=(rf"$N_{{\rm events}}={event_level:g}$"),
         )
 
@@ -94,10 +101,8 @@ def main() -> None:
 
     boundary_data = pd.read_csv(BOUNDARY_PATH)
 
-    for model_name, model_data in boundary_data.groupby(
-        "model",
-        sort=False,
-    ):
+    use_report_style()
+    for model_name, model_data in boundary_data.groupby("model", sort=False):
         problem_statuses = {
             "upper_boundary_above_scan",
             "lower_boundary_below_scan",
@@ -142,41 +147,28 @@ def main() -> None:
             )
         )
 
-        axis.set_title(
-            MODEL_LABELS.get(
-                model_name,
-                model_name,
-            )
-        )
-
         table_limit = TABLE_LIMITS_GEV.get(model_name)
 
         if table_limit is not None:
             axis.axvline(
                 table_limit,
-                linewidth=1.0,
+                linewidth=1.5,
                 linestyle=":",
-                color="dimgray",
-                alpha=0.7,
+                color="black",
+                label="EventCalc table limit",
             )
 
-            axis.text(
-                table_limit / 1.04,
-                0.58,
-                "table limit",
-                transform=axis.get_xaxis_transform(),
-                rotation=90,
-                va="center",
-                ha="right",
-                color="dimgray",
-            )
-
-        axis.grid(
-            True,
-            which="both",
-            alpha=0.3,
+        axis.grid(False)
+        legend = axis.legend(
+            loc="best",
+            frameon=True,
+            fancybox=False,
+            framealpha=1.0,
+            facecolor="whitesmoke",
+            edgecolor="gray",
         )
-        axis.legend()
+        legend.get_frame().set_linewidth(0.8)
+        style_axis(axis)
         figure.tight_layout()
 
         output_path = PLOT_DIR / f"event_density_contours_{safe_filename(model_name)}.pdf"

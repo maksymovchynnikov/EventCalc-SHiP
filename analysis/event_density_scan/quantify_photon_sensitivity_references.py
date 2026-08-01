@@ -12,6 +12,11 @@ from .plot_event_density_with_constraints import (
     PLOT_DIR,
 )
 
+from analysis.plot_style import (
+    style_axis,
+    use_report_style,
+)
+
 
 ANALYSIS_DIR = Path(__file__).resolve().parent
 REPOSITORY_ROOT = ANALYSIS_DIR.parents[1]
@@ -26,22 +31,30 @@ ENDPOINT_FRACTION = 0.98
 
 
 REFERENCE_PATTERNS = {
-    "geom_only": ("Sensitivity_ALP-photon_at_SHiP-ECN3-" "geom-only_Nev=2.3_Npot=6.e20*.json"),
-    "baseline": ("Sensitivity_ALP-photon_at_SHiP-ECN3-" "baseline_Nev=2.3_Npot=6.e20*.json"),
+    "epsilon_dec_1": (
+        "Sensitivity_ALP-photon_at_SHiP-ECN3-"
+        "epsilon-dec-1_Nev=2.3_Npot=6.e20.json"
+    ),
+    "geom_only": (
+        "Sensitivity_ALP-photon_at_SHiP-ECN3-"
+        "geom-only_Nev=2.3_Npot=6.e20.json"
+    ),
 }
 
 REFERENCE_STYLES = {
-    "geom_only": {
-        "label": "Reference: geom only",
-        "color": "C3",
-        "linestyle": "--",
-        "linewidth": 2.2,
-    },
-    "baseline": {
-        "label": "Reference: baseline",
-        "color": "C2",
+    "epsilon_dec_1": {
+        "label": (
+            r"Reference: $\epsilon_{\rm dec}=1$"
+        ),
+        "color": "C1",
         "linestyle": "-.",
-        "linewidth": 2.2,
+        "linewidth": 2.0,
+    },
+    "geom_only": {
+        "label": "Reference: Geom only",
+        "color": "C2",
+        "linestyle": "--",
+        "linewidth": 2.0,
     },
 }
 
@@ -449,17 +462,13 @@ def make_summary(pointwise: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def plot_log_distance(
-    pointwise: pd.DataFrame,
-    branch_name: str,
-    output_stem: Path,
-) -> None:
+def plot_log_distance(pointwise: pd.DataFrame, branch_name: str, output_stem: Path) -> None:
     """Plot the signed vertical log-distance from EventCalc."""
     figure, axis = plt.subplots(figsize=(8.2, 5.4))
 
     selected_branch = pointwise.loc[pointwise["branch"] == branch_name]
 
-    for reference_name in ("geom_only", "baseline"):
+    for reference_name in ("epsilon_dec_1", "geom_only"):
         selected = selected_branch.loc[selected_branch["reference"] == reference_name]
         style = REFERENCE_STYLES[reference_name]
 
@@ -491,12 +500,6 @@ def plot_log_distance(
     axis.set_ylim(-y_limit, y_limit)
     axis.set_xlabel(r"$m_a$ [GeV]")
     axis.set_ylabel(r"$\Delta\log_{10}g=" r"\log_{10}(g_{\rm ref}/g_{\rm EventCalc})$ [dex]")
-    axis.set_title(
-        "ALP-photon reference distance from EventCalc\n"
-        f"{branch_name.capitalize()} sensitivity branch, "
-        rf"$N_{{\rm events}}={EVENT_LEVEL:g}$"
-    )
-
     interpretation = (
         r"Inside EventCalc: $\Delta\log_{10}g\geq 0$"
         if branch_name == "lower"
@@ -524,14 +527,18 @@ def plot_log_distance(
         top=True,
         right=True,
     )
-    axis.legend(
+    axis.grid(False)
+    legend = axis.legend(
         frameon=True,
+        fancybox=False,
         framealpha=1.0,
         facecolor="whitesmoke",
         edgecolor="gray",
-        fontsize=9.5,
     )
-    axis.grid(False)
+
+    legend.get_frame().set_linewidth(0.8)
+
+    style_axis(axis)
     figure.tight_layout()
     figure.savefig(output_stem.with_suffix(".pdf"), bbox_inches="tight")
     plt.close(figure)
@@ -610,25 +617,15 @@ def main() -> None:
         for reference_name, path in reference_paths.items()
     }
 
-    pointwise = make_pointwise_comparison(
-        eventcalc_branches,
-        reference_branches,
-    )
+    pointwise = make_pointwise_comparison(eventcalc_branches, reference_branches)
     summary = make_summary(pointwise)
 
     pointwise.to_csv(POINTWISE_OUTPUT_PATH, index=False)
     summary.to_csv(SUMMARY_OUTPUT_PATH, index=False)
 
-    plot_log_distance(
-        pointwise,
-        branch_name="lower",
-        output_stem=LOWER_PLOT_STEM,
-    )
-    plot_log_distance(
-        pointwise,
-        branch_name="upper",
-        output_stem=UPPER_PLOT_STEM,
-    )
+    use_report_style()
+    plot_log_distance(pointwise, branch_name="lower", output_stem=LOWER_PLOT_STEM)
+    plot_log_distance(pointwise, branch_name="upper", output_stem=UPPER_PLOT_STEM)
 
     print_summary(summary)
 
