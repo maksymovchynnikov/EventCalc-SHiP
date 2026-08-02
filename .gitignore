@@ -25,3 +25,7 @@ plots/
 /analysis/energy_spectra_grid/energy_spectra_grid_summary.csv
 /analysis/energy_spectra_grid/plots/
 /analysis/event_density_scan/event_density_scan_coarse.csv
+
+# Refactored analysis: all generated products are local
+/analysis2/cache/
+/analysis2/outputs/
