@@ -1,0 +1,6 @@
+mass_GeV,rebin_factor,number_of_energy_bins,number_of_photon_lifetimes,number_of_su2_lifetimes,pseudoexperiments_per_truth_and_seed,number_of_seeds,target_accuracy,threshold_reached,minimum_persistent_events,maximum_tested_events,worst_case_accuracy_at_maximum_events,accuracy_at_threshold,limiting_seed_at_threshold,limiting_truth_model_at_threshold,limiting_truth_lifetime_index_at_threshold,limiting_truth_ctau_m_at_threshold
+0.3,2,9,20,20,100000,5,0.9,True,2,8,0.99982,0.97153,73241,su2,12,79.76003846519245
+0.4,2,9,20,20,100000,5,0.9,True,2,8,0.99973,0.96011,113253,photon,0,4.0
+0.5,2,10,20,20,100000,5,0.9,True,2,8,0.99944,0.9363,83244,photon,0,4.999999999999999
+0.75,2,10,41,41,100000,5,0.9,True,3,8,0.99591,0.94367,103250,photon,0,7.499999999999999
+1.0,2,11,41,41,100000,5,0.9,True,4,8,0.98365,0.92725,83244,photon,0,10.000000000000002

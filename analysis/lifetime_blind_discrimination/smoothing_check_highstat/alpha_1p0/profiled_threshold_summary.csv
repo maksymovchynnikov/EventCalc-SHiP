@@ -1,0 +1,6 @@
+mass_GeV,rebin_factor,number_of_energy_bins,jeffreys_alpha,stored_jeffreys_alpha,truth_grid,profile_grid,number_of_photon_truth_lifetimes,number_of_su2_truth_lifetimes,number_of_photon_profile_lifetimes,number_of_su2_profile_lifetimes,pseudoexperiments_per_truth_and_seed,number_of_seeds,target_accuracy,threshold_reached,minimum_persistent_events,maximum_tested_events,worst_case_accuracy_at_maximum_events,accuracy_at_threshold,limiting_seed_at_threshold,limiting_truth_model_at_threshold,limiting_truth_lifetime_index_at_threshold,limiting_truth_ctau_m_at_threshold
+0.3,1,18,1.0,0.5,all,all,20,20,20,20,100000,5,0.9,True,2,8,0.99985,0.97716,93247,photon,0,3.0000000000000004
+0.4,1,18,1.0,0.5,all,all,20,20,20,20,100000,5,0.9,True,2,8,0.99982,0.95933,113253,photon,0,4.0
+0.5,1,19,1.0,0.5,all,all,20,20,20,20,100000,5,0.9,True,2,8,0.99962,0.94464,73241,photon,0,4.999999999999999
+0.75,1,20,1.0,0.5,all,all,41,41,41,41,100000,5,0.9,True,3,8,0.99672,0.94303,103250,photon,0,7.499999999999999
+1.0,1,21,1.0,0.5,all,all,41,41,41,41,100000,5,0.9,True,4,8,0.98499,0.92935,113253,photon,0,10.000000000000002
