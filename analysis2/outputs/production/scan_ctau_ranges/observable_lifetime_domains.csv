@@ -1,0 +1,17 @@
+model,model_id,mass_GeV,template_domain_lower_m,template_domain_upper_m,bisection_diagnostic_lower_m,bisection_diagnostic_upper_m,lower_is_scan_boundary,upper_is_scan_boundary,template_log_endpoint_padding_fraction,template_grid_lower_m,template_grid_upper_m,number_of_lifetime_templates,template_endpoint_convention,diagnostic_endpoint_convention
+ALP-SU2L,alp_su2l,0.3,3.0,547.1305087856621,3.0,547.1228113373824,True,False,0.002,3.0000000000000004,541.4632591035622,20,log_log_rate_interpolation,fixed_step_log_bisection_midpoint
+ALP-photon-combined,alp_photon_combined,0.3,3.0,275.4241573767721,3.0,275.42860634586657,True,False,0.002,3.0000000000000004,272.9457069710534,20,log_log_rate_interpolation,fixed_step_log_bisection_midpoint
+ALP-SU2L,alp_su2l,0.4,4.0,401.5781966038221,4.0,401.5767146360846,True,False,0.002,4.0,397.89337196303796,20,log_log_rate_interpolation,fixed_step_log_bisection_midpoint
+ALP-photon-combined,alp_photon_combined,0.4,4.0,143.5859634664174,4.0,143.58828780184922,True,False,0.002,4.0,142.56137736137705,20,log_log_rate_interpolation,fixed_step_log_bisection_midpoint
+ALP-SU2L,alp_su2l,0.5,5.0,315.339577897365,5.0,315.34253201071414,True,False,0.002,4.999999999999999,312.7367113960327,20,log_log_rate_interpolation,fixed_step_log_bisection_midpoint
+ALP-photon-combined,alp_photon_combined,0.5,5.0,85.078136106899,5.0,85.07845199736937,True,False,0.002,4.999999999999999,84.59725491026656,20,log_log_rate_interpolation,fixed_step_log_bisection_midpoint
+ALP-SU2L,alp_su2l,0.6,6.0,258.10394567216883,6.0,258.10364973684585,True,False,0.002,6.0,256.1694624401711,20,log_log_rate_interpolation,fixed_step_log_bisection_midpoint
+ALP-photon-combined,alp_photon_combined,0.6,6.0,54.61946620602037,6.0,54.62030183051474,True,False,0.002,6.0,54.37872981652651,20,log_log_rate_interpolation,fixed_step_log_bisection_midpoint
+ALP-SU2L,alp_su2l,0.75,7.5,200.60423665684473,7.5,200.60204188519404,True,False,0.002,7.499999999999999,199.29001652804294,20,log_log_rate_interpolation,fixed_step_log_bisection_midpoint
+ALP-photon-combined,alp_photon_combined,0.75,7.5,30.84980142772569,7.5,30.849761048645433,True,False,0.002,7.499999999999999,30.762667450733804,20,log_log_rate_interpolation,fixed_step_log_bisection_midpoint
+ALP-SU2L,alp_su2l,0.9,9.0,162.90399392624585,9.0,162.90298097056296,True,False,0.002,9.000000000000002,161.96320180086857,20,log_log_rate_interpolation,fixed_step_log_bisection_midpoint
+ALP-photon-combined,alp_photon_combined,0.9,9.0,18.963660286668198,9.0,18.96376235320581,True,False,0.002,9.000000000000002,18.935414113492897,20,log_log_rate_interpolation,fixed_step_log_bisection_midpoint
+ALP-SU2L,alp_su2l,1.0,10.0,144.33224073415502,10.0,144.33404250767614,True,False,0.002,10.000000000000002,143.5636949233974,20,log_log_rate_interpolation,fixed_step_log_bisection_midpoint
+ALP-photon-combined,alp_photon_combined,1.0,10.0,14.080490604635353,10.0,14.080658221099586,True,False,0.002,10.000000000000002,14.070857070231174,20,log_log_rate_interpolation,fixed_step_log_bisection_midpoint
+ALP-SU2L,alp_su2l,1.05,10.500000000000002,136.3989746119871,10.500000000000002,136.4008618294494,True,False,0.002,10.5,135.70125429330454,20,log_log_rate_interpolation,fixed_step_log_bisection_midpoint
+ALP-photon-combined,alp_photon_combined,1.05,10.500000000000002,12.108093868064573,10.500000000000002,12.10794402069928,True,False,0.002,10.5,12.104643579961705,20,log_log_rate_interpolation,fixed_step_log_bisection_midpoint

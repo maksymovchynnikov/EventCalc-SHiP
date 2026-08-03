@@ -29,3 +29,7 @@ plots/
 # Refactored analysis: all generated products are local
 /analysis2/cache/
 /analysis2/outputs/
+analysis2/cache/
+analysis2/outputs/
+analysis2_without_cache/
+logs/

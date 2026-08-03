@@ -1,0 +1,349 @@
+{
+  "artifacts": [
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_accuracy_ma_0p3.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_worst_case_by_seed_ma_0p3.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_conservative_curve_ma_0p3.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_threshold_ma_0p3.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/plots/profiled_accuracy_ma_0p3.pdf",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/plots/profiled_accuracy_ma_0p3.png",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_accuracy_ma_0p4.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_worst_case_by_seed_ma_0p4.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_conservative_curve_ma_0p4.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_threshold_ma_0p4.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/plots/profiled_accuracy_ma_0p4.pdf",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/plots/profiled_accuracy_ma_0p4.png",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_accuracy_ma_0p5.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_worst_case_by_seed_ma_0p5.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_conservative_curve_ma_0p5.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_threshold_ma_0p5.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/plots/profiled_accuracy_ma_0p5.pdf",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/plots/profiled_accuracy_ma_0p5.png",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_accuracy_ma_0p6.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_worst_case_by_seed_ma_0p6.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_conservative_curve_ma_0p6.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_threshold_ma_0p6.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/plots/profiled_accuracy_ma_0p6.pdf",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/plots/profiled_accuracy_ma_0p6.png",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_accuracy_ma_0p75.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_worst_case_by_seed_ma_0p75.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_conservative_curve_ma_0p75.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_threshold_ma_0p75.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/plots/profiled_accuracy_ma_0p75.pdf",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/plots/profiled_accuracy_ma_0p75.png",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_accuracy_ma_0p9.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_worst_case_by_seed_ma_0p9.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_conservative_curve_ma_0p9.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_threshold_ma_0p9.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/plots/profiled_accuracy_ma_0p9.pdf",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/plots/profiled_accuracy_ma_0p9.png",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_accuracy_ma_1.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_worst_case_by_seed_ma_1.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_conservative_curve_ma_1.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_threshold_ma_1.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/plots/profiled_accuracy_ma_1.pdf",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/plots/profiled_accuracy_ma_1.png",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_accuracy_ma_1p05.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_worst_case_by_seed_ma_1p05.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_conservative_curve_ma_1p05.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/tables/profiled_threshold_ma_1p05.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/plots/profiled_accuracy_ma_1p05.pdf",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/plots/profiled_accuracy_ma_1p05.png",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/profiled_threshold_summary.csv",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/plots/profiled_minimum_events_vs_mass.pdf",
+    "analysis2/outputs/production/lifetime_blind_profiled_likelihood/plots/profiled_minimum_events_vs_mass.png"
+  ],
+  "cache_stats": {
+    "hits": 40,
+    "misses": 0,
+    "rejected": 0,
+    "writes": 0
+  },
+  "configuration": {
+    "ctau_sampling": {
+      "interpolation_points": 10000000,
+      "resample_size": 1000000
+    },
+    "discrimination": {
+      "jeffreys_alpha": 0.5,
+      "lifetime_points": [
+        [
+          "low",
+          0.1
+        ],
+        [
+          "mid",
+          0.5
+        ],
+        [
+          "high",
+          0.9
+        ]
+      ],
+      "maximum_observed_events": 100,
+      "maximum_threshold_spread": 1,
+      "minimum_bin_n_eff": 100.0,
+      "pseudoexperiments": 20000,
+      "target_accuracies": [
+        0.9,
+        0.95,
+        0.99
+      ],
+      "validation_maximum_events": 15,
+      "validation_pseudoexperiments": 100000,
+      "validation_seeds": 5
+    },
+    "ecal_geometry": {
+      "centre_x_m": 0.0,
+      "centre_y_m": 0.0,
+      "height_y_m": 6.0,
+      "width_x_m": 4.0,
+      "z_m": 95.0
+    },
+    "event_density": {
+      "coupling_points": 111,
+      "endpoint_refinement_points": 3,
+      "endpoint_relative_width": 0.005,
+      "event_levels": [
+        2.3,
+        3.0,
+        10.0,
+        30.0,
+        100.0
+      ],
+      "photon_masses": 50,
+      "sampling_ctau_m": 1e+99,
+      "su2_masses": 50
+    },
+    "event_density_sampling": {
+      "interpolation_points": 1000000,
+      "resample_size": 100000
+    },
+    "exposure_pot": 6e+20,
+    "lifetimes": {
+      "bisection_steps": 14,
+      "coarse_factor": 1.7,
+      "diagnostic_endpoint_convention": "fixed_step_log_bisection_midpoint",
+      "event_threshold": 10.0,
+      "maximum_ctau_m": 1000.0,
+      "reference_ctau_m": 1000.0,
+      "scan_points": 12
+    },
+    "masses_gev": [
+      0.3,
+      0.4,
+      0.5,
+      0.6,
+      0.75,
+      0.9,
+      1.0,
+      1.05
+    ],
+    "n_eff_warning": 20.0,
+    "name": "production",
+    "profiled_likelihood": {
+      "base_seed": 73241,
+      "chunk_size": 5000,
+      "independent_lifetime_profiling": true,
+      "maximum_observed_events": 12,
+      "number_of_seeds": 5,
+      "persistent_criterion": "all_larger_tested_event_counts",
+      "profile_lifetime_grid": "all",
+      "pseudoexperiments_per_truth_and_seed": 100000,
+      "rebin_factor": 1,
+      "seed_step": 10003,
+      "shape_only": true,
+      "target_accuracy": 0.9,
+      "tie_tolerance": 1e-12,
+      "truth_lifetime_grid": "all"
+    },
+    "seed_policy": {
+      "base_seed": 54321,
+      "ecal_seed_offset": 2,
+      "mass_order_gev": [
+        0.3,
+        0.4,
+        0.5,
+        0.6,
+        0.75,
+        0.9,
+        1.0,
+        1.05
+      ],
+      "mass_stride": 10000,
+      "model_order": [
+        "alp_photon_combined",
+        "alp_su2l"
+      ],
+      "model_stride": 100,
+      "source_stride": 1000,
+      "true_sample_seed_offset": 1
+    },
+    "selection_name": "diphoton_ecal",
+    "template_sampling": {
+      "interpolation_points": 10000000,
+      "resample_size": 1000000
+    },
+    "templates": {
+      "energy_lower_bound_convention": "mass_gev",
+      "energy_max_gev": 400.0,
+      "initial_energy_bins": 50,
+      "jeffreys_alpha": 0.5,
+      "lifetime_points_per_model": 20,
+      "log_endpoint_padding_fraction": 0.002,
+      "minimum_bin_n_eff": 100.0,
+      "observable_endpoint_convention": "log_log_rate_interpolation",
+      "seed_offset": 0
+    }
+  },
+  "created_at_utc": "2026-08-03T05:03:58.192983+00:00",
+  "elapsed_seconds": 11.37805817098706,
+  "event_counts": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12
+  ],
+  "git_commit": "8fe233e425f883b66dcb1c2d05ef7ecac0b96bc9",
+  "input_banks": [
+    "analysis2/outputs/production/lifetime_blind_discrimination/template_banks/template_bank_ma_0p3.npz",
+    "analysis2/outputs/production/lifetime_blind_discrimination/template_banks/template_bank_ma_0p4.npz",
+    "analysis2/outputs/production/lifetime_blind_discrimination/template_banks/template_bank_ma_0p5.npz",
+    "analysis2/outputs/production/lifetime_blind_discrimination/template_banks/template_bank_ma_0p6.npz",
+    "analysis2/outputs/production/lifetime_blind_discrimination/template_banks/template_bank_ma_0p75.npz",
+    "analysis2/outputs/production/lifetime_blind_discrimination/template_banks/template_bank_ma_0p9.npz",
+    "analysis2/outputs/production/lifetime_blind_discrimination/template_banks/template_bank_ma_1.npz",
+    "analysis2/outputs/production/lifetime_blind_discrimination/template_banks/template_bank_ma_1p05.npz"
+  ],
+  "input_fingerprints": [
+    {
+      "bank": {
+        "mtime_ns": 1785712296304053722,
+        "path": "analysis2/outputs/production/lifetime_blind_discrimination/template_banks/template_bank_ma_0p3.npz",
+        "sha256": "c55068bedff6259a6ce3c8f209f3b1bed5f5d8a69e36a044fed7152b55d6fbc0",
+        "size": 12391
+      },
+      "manifest": {
+        "mtime_ns": 1785712934987406443,
+        "path": "analysis2/outputs/production/lifetime_blind_discrimination/manifest.json",
+        "sha256": "8a4305a4b36768fdb805ce420d7a1915df64a27ca0c59ec6efbd7f2d82b516c8",
+        "size": 6587
+      }
+    },
+    {
+      "bank": {
+        "mtime_ns": 1785712407647520134,
+        "path": "analysis2/outputs/production/lifetime_blind_discrimination/template_banks/template_bank_ma_0p4.npz",
+        "sha256": "46d25fcc08a464b91894fe960f60f2ee0af581865772d350036434d77a211be3",
+        "size": 12407
+      },
+      "manifest": {
+        "mtime_ns": 1785712934987406443,
+        "path": "analysis2/outputs/production/lifetime_blind_discrimination/manifest.json",
+        "sha256": "8a4305a4b36768fdb805ce420d7a1915df64a27ca0c59ec6efbd7f2d82b516c8",
+        "size": 6587
+      }
+    },
+    {
+      "bank": {
+        "mtime_ns": 1785712517408704998,
+        "path": "analysis2/outputs/production/lifetime_blind_discrimination/template_banks/template_bank_ma_0p5.npz",
+        "sha256": "c382dc4473fc979041047b73e046cefcd1feee5c9ea845ab94700ea0c80922c3",
+        "size": 12716
+      },
+      "manifest": {
+        "mtime_ns": 1785712934987406443,
+        "path": "analysis2/outputs/production/lifetime_blind_discrimination/manifest.json",
+        "sha256": "8a4305a4b36768fdb805ce420d7a1915df64a27ca0c59ec6efbd7f2d82b516c8",
+        "size": 6587
+      }
+    },
+    {
+      "bank": {
+        "mtime_ns": 1785712607059591568,
+        "path": "analysis2/outputs/production/lifetime_blind_discrimination/template_banks/template_bank_ma_0p6.npz",
+        "sha256": "2a50843c003363dca63416ca979070688d43f781c375fecad97ac9fe69015d5a",
+        "size": 12713
+      },
+      "manifest": {
+        "mtime_ns": 1785712934987406443,
+        "path": "analysis2/outputs/production/lifetime_blind_discrimination/manifest.json",
+        "sha256": "8a4305a4b36768fdb805ce420d7a1915df64a27ca0c59ec6efbd7f2d82b516c8",
+        "size": 6587
+      }
+    },
+    {
+      "bank": {
+        "mtime_ns": 1785712696860993997,
+        "path": "analysis2/outputs/production/lifetime_blind_discrimination/template_banks/template_bank_ma_0p75.npz",
+        "sha256": "6533bf7b47dbd28a0eae2d4f73580aa7ff299b35ad16937fa58a4b3916cb2ae8",
+        "size": 13028
+      },
+      "manifest": {
+        "mtime_ns": 1785712934987406443,
+        "path": "analysis2/outputs/production/lifetime_blind_discrimination/manifest.json",
+        "sha256": "8a4305a4b36768fdb805ce420d7a1915df64a27ca0c59ec6efbd7f2d82b516c8",
+        "size": 6587
+      }
+    },
+    {
+      "bank": {
+        "mtime_ns": 1785712776660722589,
+        "path": "analysis2/outputs/production/lifetime_blind_discrimination/template_banks/template_bank_ma_0p9.npz",
+        "sha256": "c2bf1fc403583789c2e5acc29d3501f17b7529c0896836448d2143e008b35573",
+        "size": 13012
+      },
+      "manifest": {
+        "mtime_ns": 1785712934987406443,
+        "path": "analysis2/outputs/production/lifetime_blind_discrimination/manifest.json",
+        "sha256": "8a4305a4b36768fdb805ce420d7a1915df64a27ca0c59ec6efbd7f2d82b516c8",
+        "size": 6587
+      }
+    },
+    {
+      "bank": {
+        "mtime_ns": 1785712855381234744,
+        "path": "analysis2/outputs/production/lifetime_blind_discrimination/template_banks/template_bank_ma_1.npz",
+        "sha256": "a1bb1b10fee4b56c17c3f03a854e12132f0339e4c340d92f7feeba4d21ad766f",
+        "size": 13307
+      },
+      "manifest": {
+        "mtime_ns": 1785712934987406443,
+        "path": "analysis2/outputs/production/lifetime_blind_discrimination/manifest.json",
+        "sha256": "8a4305a4b36768fdb805ce420d7a1915df64a27ca0c59ec6efbd7f2d82b516c8",
+        "size": 6587
+      }
+    },
+    {
+      "bank": {
+        "mtime_ns": 1785712934603318148,
+        "path": "analysis2/outputs/production/lifetime_blind_discrimination/template_banks/template_bank_ma_1p05.npz",
+        "sha256": "053b25675ff727ce837417e819edc7d2c67b29c3a356e6aa5e12eab73617926e",
+        "size": 13294
+      },
+      "manifest": {
+        "mtime_ns": 1785712934987406443,
+        "path": "analysis2/outputs/production/lifetime_blind_discrimination/manifest.json",
+        "sha256": "8a4305a4b36768fdb805ce420d7a1915df64a27ca0c59ec6efbd7f2d82b516c8",
+        "size": 6587
+      }
+    }
+  ],
+  "profile": "production",
+  "pseudoexperiment_seeds": [
+    73241,
+    83244,
+    93247,
+    103250,
+    113253
+  ],
+  "selection_name": "diphoton_ecal",
+  "workflow": "lifetime_blind_profiled_likelihood"
+}

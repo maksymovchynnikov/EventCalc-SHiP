@@ -1,0 +1,183 @@
+{
+  "artifacts": [
+    "analysis2/outputs/production/lifetime_blind_discrimination/tables/observable_lifetime_domains.csv",
+    "analysis2/outputs/production/lifetime_blind_discrimination/template_banks/template_bank_ma_0p3.npz",
+    "analysis2/outputs/production/lifetime_blind_discrimination/tables/template_summary_ma_0p3.csv",
+    "analysis2/outputs/production/lifetime_blind_discrimination/tables/probability_templates_ma_0p3.csv",
+    "analysis2/outputs/production/lifetime_blind_discrimination/template_banks/template_bank_ma_0p4.npz",
+    "analysis2/outputs/production/lifetime_blind_discrimination/tables/template_summary_ma_0p4.csv",
+    "analysis2/outputs/production/lifetime_blind_discrimination/tables/probability_templates_ma_0p4.csv",
+    "analysis2/outputs/production/lifetime_blind_discrimination/template_banks/template_bank_ma_0p5.npz",
+    "analysis2/outputs/production/lifetime_blind_discrimination/tables/template_summary_ma_0p5.csv",
+    "analysis2/outputs/production/lifetime_blind_discrimination/tables/probability_templates_ma_0p5.csv",
+    "analysis2/outputs/production/lifetime_blind_discrimination/template_banks/template_bank_ma_0p6.npz",
+    "analysis2/outputs/production/lifetime_blind_discrimination/tables/template_summary_ma_0p6.csv",
+    "analysis2/outputs/production/lifetime_blind_discrimination/tables/probability_templates_ma_0p6.csv",
+    "analysis2/outputs/production/lifetime_blind_discrimination/template_banks/template_bank_ma_0p75.npz",
+    "analysis2/outputs/production/lifetime_blind_discrimination/tables/template_summary_ma_0p75.csv",
+    "analysis2/outputs/production/lifetime_blind_discrimination/tables/probability_templates_ma_0p75.csv",
+    "analysis2/outputs/production/lifetime_blind_discrimination/template_banks/template_bank_ma_0p9.npz",
+    "analysis2/outputs/production/lifetime_blind_discrimination/tables/template_summary_ma_0p9.csv",
+    "analysis2/outputs/production/lifetime_blind_discrimination/tables/probability_templates_ma_0p9.csv",
+    "analysis2/outputs/production/lifetime_blind_discrimination/template_banks/template_bank_ma_1.npz",
+    "analysis2/outputs/production/lifetime_blind_discrimination/tables/template_summary_ma_1.csv",
+    "analysis2/outputs/production/lifetime_blind_discrimination/tables/probability_templates_ma_1.csv",
+    "analysis2/outputs/production/lifetime_blind_discrimination/template_banks/template_bank_ma_1p05.npz",
+    "analysis2/outputs/production/lifetime_blind_discrimination/tables/template_summary_ma_1p05.csv",
+    "analysis2/outputs/production/lifetime_blind_discrimination/tables/probability_templates_ma_1p05.csv",
+    "analysis2/outputs/production/lifetime_blind_discrimination/template_bank_manifest.csv"
+  ],
+  "cache_stats": {
+    "hits": 664,
+    "misses": 0,
+    "rejected": 0,
+    "writes": 0
+  },
+  "configuration": {
+    "ctau_sampling": {
+      "interpolation_points": 10000000,
+      "resample_size": 1000000
+    },
+    "discrimination": {
+      "jeffreys_alpha": 0.5,
+      "lifetime_points": [
+        [
+          "low",
+          0.1
+        ],
+        [
+          "mid",
+          0.5
+        ],
+        [
+          "high",
+          0.9
+        ]
+      ],
+      "maximum_observed_events": 100,
+      "maximum_threshold_spread": 1,
+      "minimum_bin_n_eff": 100.0,
+      "pseudoexperiments": 20000,
+      "target_accuracies": [
+        0.9,
+        0.95,
+        0.99
+      ],
+      "validation_maximum_events": 15,
+      "validation_pseudoexperiments": 100000,
+      "validation_seeds": 5
+    },
+    "ecal_geometry": {
+      "centre_x_m": 0.0,
+      "centre_y_m": 0.0,
+      "height_y_m": 6.0,
+      "width_x_m": 4.0,
+      "z_m": 95.0
+    },
+    "event_density": {
+      "coupling_points": 111,
+      "endpoint_refinement_points": 3,
+      "endpoint_relative_width": 0.005,
+      "event_levels": [
+        2.3,
+        3.0,
+        10.0,
+        30.0,
+        100.0
+      ],
+      "photon_masses": 50,
+      "sampling_ctau_m": 1e+99,
+      "su2_masses": 50
+    },
+    "event_density_sampling": {
+      "interpolation_points": 1000000,
+      "resample_size": 100000
+    },
+    "exposure_pot": 6e+20,
+    "lifetimes": {
+      "bisection_steps": 14,
+      "coarse_factor": 1.7,
+      "diagnostic_endpoint_convention": "fixed_step_log_bisection_midpoint",
+      "event_threshold": 10.0,
+      "maximum_ctau_m": 1000.0,
+      "reference_ctau_m": 1000.0,
+      "scan_points": 12
+    },
+    "masses_gev": [
+      0.3,
+      0.4,
+      0.5,
+      0.6,
+      0.75,
+      0.9,
+      1.0,
+      1.05
+    ],
+    "n_eff_warning": 20.0,
+    "name": "production",
+    "profiled_likelihood": {
+      "base_seed": 73241,
+      "chunk_size": 5000,
+      "independent_lifetime_profiling": true,
+      "maximum_observed_events": 12,
+      "number_of_seeds": 5,
+      "persistent_criterion": "all_larger_tested_event_counts",
+      "profile_lifetime_grid": "all",
+      "pseudoexperiments_per_truth_and_seed": 100000,
+      "rebin_factor": 1,
+      "seed_step": 10003,
+      "shape_only": true,
+      "target_accuracy": 0.9,
+      "tie_tolerance": 1e-12,
+      "truth_lifetime_grid": "all"
+    },
+    "seed_policy": {
+      "base_seed": 54321,
+      "ecal_seed_offset": 2,
+      "mass_order_gev": [
+        0.3,
+        0.4,
+        0.5,
+        0.6,
+        0.75,
+        0.9,
+        1.0,
+        1.05
+      ],
+      "mass_stride": 10000,
+      "model_order": [
+        "alp_photon_combined",
+        "alp_su2l"
+      ],
+      "model_stride": 100,
+      "source_stride": 1000,
+      "true_sample_seed_offset": 1
+    },
+    "selection_name": "diphoton_ecal",
+    "template_sampling": {
+      "interpolation_points": 10000000,
+      "resample_size": 1000000
+    },
+    "templates": {
+      "energy_lower_bound_convention": "mass_gev",
+      "energy_max_gev": 400.0,
+      "initial_energy_bins": 50,
+      "jeffreys_alpha": 0.5,
+      "lifetime_points_per_model": 20,
+      "log_endpoint_padding_fraction": 0.002,
+      "minimum_bin_n_eff": 100.0,
+      "observable_endpoint_convention": "log_log_rate_interpolation",
+      "seed_offset": 0
+    }
+  },
+  "created_at_utc": "2026-08-02T23:22:14.966643+00:00",
+  "diagnostic_endpoint_convention": "fixed_step_log_bisection_midpoint",
+  "elapsed_seconds": 784.9803868079907,
+  "event_rate_relative_tolerance": 0.05,
+  "git_commit": "8fe233e425f883b66dcb1c2d05ef7ecac0b96bc9",
+  "production_endpoint_convention": "log_log_rate_interpolation",
+  "profile": "production",
+  "scan_path": "analysis2/outputs/production/scan_ctau_ranges/ctau_scan.csv",
+  "selection_name": "diphoton_ecal",
+  "workflow": "lifetime_blind_discrimination"
+}
