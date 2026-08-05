@@ -151,7 +151,7 @@ def load_bank_metadata(bank_path: Path) -> dict:
         "selection_name": str(bank.selection_name),
         "profile": str(bank.profile),
         "number_of_energy_bins": int(
-            np.asarray(bank.energy_bin_edges_gev).size - 1
+            np.asarray(bank.energy_edges_gev).size - 1
         ),
         "number_of_photon_lifetimes": int(
             np.asarray(bank.photon_ctau_m).size
