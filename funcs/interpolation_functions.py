@@ -111,7 +111,7 @@ def _trilinear_interpolation(rand_points, grid_x, grid_y, grid_z, distr, max_ene
     np.ndarray
         Interpolated values at the random points.
     """
-    results = np.empty(len(rand_points))
+    results = np.zeros(len(rand_points))
     len_y, len_z = grid_y.shape[0], grid_z.shape[0]
 
     for i in nb.prange(len(rand_points)):
@@ -119,6 +119,13 @@ def _trilinear_interpolation(rand_points, grid_x, grid_y, grid_z, distr, max_ene
 
         # Conditional to consider angle dependence on energy
         if z > max_energy[i]:
+            continue
+
+        # Outside the tabulated energy support the distribution is undefined.
+        # Return zero rather than letting the index clamping below turn the
+        # lookup into a linear extrapolation, which goes negative on a rising
+        # spectrum and breaks the weighted resampling.
+        if z < grid_z[0] or z > grid_z[len_z - 1]:
             continue
 
         idx_x1 = _searchsorted_opt(grid_x, x) - 1
@@ -161,6 +168,10 @@ def _trilinear_interpolation(rand_points, grid_x, grid_y, grid_z, distr, max_ene
         c1 = c01 * (1 - yd) + c11 * yd
 
         result = c0 * (1 - zd) + c1 * zd
+
+        # the tabulated distribution is non-negative; round-off must not flip it
+        if result < 0.0:
+            result = 0.0
 
         results[i] = result
 

@@ -87,6 +87,10 @@ class Grids:
             self.grid_x, self.grid_y, self.grid_z, self.Distr
         )
 
+        # tabulated energy support: outside it the distribution is undefined
+        self.energy_min_tab = self.grid_z[0]
+        self.energy_max_tab = self.grid_z[-1]
+
     # ==================================================================
     # Interpolation of θ, E and weight grid
     # ==================================================================
@@ -104,11 +108,16 @@ class Grids:
             points_2d, self.grid_m, self.grid_a, self.energy_distr
         )
 
-        # minimal sampled energy to avoid tiny exponential weights
+        # minimal sampled energy to avoid tiny exponential weights.  It must never
+        # drop below the tabulated energy floor: for m < grid_z[0] (light LLPs) and
+        # long lifetimes the exponential cut-off collapses to m, and sampling below
+        # the table makes the interpolator extrapolate to negative values.
         self.e_min_sampling = np.maximum(
-            self.m,
+            max(self.m, self.energy_min_tab),
             np.minimum(2.133 * self.m / self.c_tau, 0.5 * self.max_energy),
         )
+        # keep the sampling interval non-inverted where E_max is below that floor
+        self.e_min_sampling = np.minimum(self.e_min_sampling, self.max_energy)
 
         # draw energies uniformly in [E_min, E_max]
         self.energy = np.random.uniform(self.e_min_sampling, self.max_energy)
@@ -137,7 +146,33 @@ class Grids:
         self.rsample_size = rsample_size
         weights = self.interpolated_values * (self.max_energy - self.e_min_sampling)
         self.weights = weights
-        prob = weights / weights.sum()
+
+        # Guard the resampling weights explicitly: numpy only reports
+        # "probabilities are not non-negative", which says nothing about which
+        # (m, c_tau) point produced it.
+        if not np.all(np.isfinite(weights)):
+            raise ValueError(
+                f"Non-finite sampling weights for m={self.m} GeV, "
+                f"c_tau={self.c_tau} m "
+                f"({np.count_nonzero(~np.isfinite(weights))} of {len(weights)} points)."
+            )
+        if np.any(weights < 0):
+            raise ValueError(
+                f"Negative sampling weights for m={self.m} GeV, "
+                f"c_tau={self.c_tau} m: {np.count_nonzero(weights < 0)} of "
+                f"{len(weights)} points, most negative {weights.min():.3e}. "
+                "This means energies were sampled outside the tabulated support "
+                f"[{self.energy_min_tab}, {self.energy_max_tab}] GeV."
+            )
+        total_weight = weights.sum()
+        if total_weight <= 0:
+            raise ValueError(
+                f"All sampling weights vanish for m={self.m} GeV, "
+                f"c_tau={self.c_tau} m: the tabulated distribution has no support "
+                f"in theta=[{self.thetamin}, {self.theta_max}] rad."
+            )
+
+        prob = weights / total_weight
         self.true_points_indices = np.random.choice(
             self.nPoints, size=self.rsample_size, p=prob
         )
