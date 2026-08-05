@@ -44,6 +44,14 @@ MODEL_SPECS = (
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--bank-path", type=Path, required=True)
+    parser.add_argument(
+        "--domain-path",
+        type=Path,
+        default=Path(
+            "analysis2/outputs/production/week8_domains/"
+            "allowed_ctau_domains.csv"
+        ),
+    )
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument(
         "--pilot-script-dir",
@@ -179,14 +187,17 @@ def suggested_final_grid(
 _MOMENT_PILOT = None
 _MOMENT_ADAPTER = None
 _MOMENT_BANK = None
+_MOMENT_DOMAIN_PATH = None
 
 
 def initialise_moment_worker(
     pilot_script_dir: str,
     repo_root: str,
     bank_path: str,
+    domain_path: str,
 ) -> None:
     global _MOMENT_PILOT, _MOMENT_ADAPTER, _MOMENT_BANK
+    global _MOMENT_DOMAIN_PATH
     repo = Path(repo_root)
     if str(repo) not in sys.path:
         sys.path.insert(0, str(repo))
@@ -196,6 +207,7 @@ def initialise_moment_worker(
     from analysis2.eventcalc_adapter import EventCalcAdapter
 
     _MOMENT_BANK = _MOMENT_PILOT.load_template_bank(Path(bank_path))
+    _MOMENT_DOMAIN_PATH = Path(domain_path)
     config = replace(
         get_config(_MOMENT_BANK.profile),
         selection_name=_MOMENT_BANK.selection_name,
@@ -208,7 +220,12 @@ def initialise_moment_worker(
 
 
 def build_one_moment(model_id: str, prefix: str, lifetime_index: int) -> dict:
-    if _MOMENT_PILOT is None or _MOMENT_ADAPTER is None or _MOMENT_BANK is None:
+    if (
+        _MOMENT_PILOT is None
+        or _MOMENT_ADAPTER is None
+        or _MOMENT_BANK is None
+        or _MOMENT_DOMAIN_PATH is None
+    ):
         raise RuntimeError("Moment worker was not initialized.")
     return _MOMENT_PILOT.conditional_moments_for_lifetime(
         adapter=_MOMENT_ADAPTER,
@@ -216,6 +233,7 @@ def build_one_moment(model_id: str, prefix: str, lifetime_index: int) -> dict:
         model_id=model_id,
         prefix=prefix,
         lifetime_index=int(lifetime_index),
+        domain_path=_MOMENT_DOMAIN_PATH,
     )
 
 
@@ -257,6 +275,7 @@ def build_or_load_moments(
     output_dir: Path,
     pilot_script_dir: Path,
     repo: Path,
+    domain_path: Path,
     workers: int,
     token: str,
 ) -> tuple[dict[str, np.ndarray], pd.DataFrame, Path]:
@@ -281,7 +300,12 @@ def build_or_load_moments(
         with ProcessPoolExecutor(
             max_workers=workers,
             initializer=initialise_moment_worker,
-            initargs=(str(pilot_script_dir), str(repo), str(bank_path)),
+            initargs=(
+                str(pilot_script_dir),
+                str(repo),
+                str(bank_path),
+                str(domain_path),
+            ),
         ) as executor:
             futures = {
                 executor.submit(build_one_moment, model_id, prefix, index): (
@@ -500,10 +524,15 @@ def main() -> None:
 
     pilot = load_pilot(args.pilot_script_dir)
     bank_path = resolve(repo, args.bank_path)
+    domain_path = resolve(repo, args.domain_path)
     output_dir = resolve(repo, args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     if not bank_path.is_file():
         raise FileNotFoundError(f"Template bank not found: {bank_path}")
+    if not domain_path.is_file():
+        raise FileNotFoundError(
+            f"Week-8 domain table not found: {domain_path}"
+        )
 
     from analysis2.workflows import float_token
 
@@ -524,6 +553,7 @@ def main() -> None:
         output_dir=output_dir,
         pilot_script_dir=args.pilot_script_dir.expanduser().resolve(),
         repo=repo,
+        domain_path=domain_path,
         workers=args.workers,
         token=token,
     )
@@ -738,6 +768,7 @@ def main() -> None:
         "mass_GeV": float(bank.mass_gev),
         "selection_name": str(bank.selection_name),
         "bank_path": str(bank_path),
+        "domain_path": str(domain_path),
         "conditional_moments_path": str(moments_path),
         "number_of_energy_bins": int(bank.number_of_energy_bins),
         "number_of_profile_lifetimes": {

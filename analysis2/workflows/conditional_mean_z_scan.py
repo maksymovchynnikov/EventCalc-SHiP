@@ -63,6 +63,22 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--workers", choices=(1, 2), type=int, default=2)
     parser.add_argument(
+        "--domain-path",
+        type=Path,
+        default=Path(
+            "analysis2/outputs/production/week8_domains/"
+            "allowed_ctau_domains.csv"
+        ),
+    )
+    parser.add_argument(
+        "--allow-low-neff-bank",
+        action="store_true",
+        help=(
+            "Allow a bank whose configured minimum bin N_eff is "
+            "below 100. Such points are diagnostics only."
+        ),
+    )
+    parser.add_argument(
         "--stop-after",
         choices=STAGES,
         default="uniform",
@@ -150,6 +166,9 @@ def load_bank_metadata(bank_path: Path) -> dict:
         "mass_GeV": float(bank.mass_gev),
         "selection_name": str(bank.selection_name),
         "profile": str(bank.profile),
+        "minimum_bin_n_eff": float(bank.minimum_bin_n_eff),
+        "template_seed_offset": int(bank.template_seed_offset),
+        "template_base_seed": int(bank.template_base_seed),
         "number_of_energy_bins": int(
             np.asarray(bank.energy_edges_gev).size - 1
         ),
@@ -162,7 +181,12 @@ def load_bank_metadata(bank_path: Path) -> dict:
     }
 
 
-def validate_point(repo: Path, point: ScanPoint) -> tuple[Path, dict]:
+def validate_point(
+    repo: Path,
+    point: ScanPoint,
+    *,
+    allow_low_neff_bank: bool,
+) -> tuple[Path, dict]:
     bank_path = resolve(repo, point.bank_path)
     if not bank_path.is_file():
         raise FileNotFoundError(f"Missing template bank: {bank_path}")
@@ -182,6 +206,17 @@ def validate_point(repo: Path, point: ScanPoint) -> tuple[Path, dict]:
             f"Requested selection {point.requested_selection!r} does not "
             f"match bank selection {metadata['selection_name']!r}: "
             f"{bank_path}"
+        )
+    if (
+        metadata["minimum_bin_n_eff"] < 100.0
+        and not allow_low_neff_bank
+    ):
+        raise ValueError(
+            "Template bank is not eligible for conditional-feature "
+            "production: configured minimum bin N_eff="
+            f"{metadata['minimum_bin_n_eff']:g} < 100. "
+            "Build a validation/production bank instead of lowering "
+            "the quality threshold."
         )
     return bank_path, metadata
 
@@ -231,6 +266,7 @@ def command_for_stage(
     bank_path: Path,
     paths: dict[str, tuple[Path, Path]],
     workers: int,
+    domain_path: Path,
 ) -> list[str]:
     output_dir = paths[stage][0]
     command = [
@@ -242,6 +278,8 @@ def command_for_stage(
         command += [
             "--bank-path",
             str(bank_path),
+            "--domain-path",
+            str(domain_path),
             "--output-dir",
             str(output_dir),
             "--workers",
@@ -579,6 +617,7 @@ def main() -> None:
                     "mass_GeV",
                     "selection_name",
                     "profile",
+                    "minimum_bin_n_eff",
                     "number_of_energy_bins",
                     "number_of_photon_lifetimes",
                     "number_of_su2_lifetimes",
@@ -606,11 +645,20 @@ def main() -> None:
         raise ValueError("--uniform-margin must be non-negative.")
 
     output_root = resolve(repo, args.output_dir)
+    domain_path = resolve(repo, args.domain_path)
+    if not domain_path.is_file():
+        raise FileNotFoundError(
+            f"Week-8 domain table not found: {domain_path}"
+        )
     output_root.mkdir(parents=True, exist_ok=True)
 
     point_records = []
     for point in points:
-        bank_path, metadata = validate_point(repo, point)
+        bank_path, metadata = validate_point(
+            repo,
+            point,
+            allow_low_neff_bank=args.allow_low_neff_bank,
+        )
         root = point_root(
             output_root,
             point.requested_mass,
@@ -682,6 +730,7 @@ def main() -> None:
                         bank_path=bank_path,
                         paths=paths,
                         workers=args.workers,
+                        domain_path=domain_path,
                     )
                     print(
                         "\nRUN "

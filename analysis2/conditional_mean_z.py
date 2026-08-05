@@ -32,6 +32,10 @@ from analysis2.config import get_config
 from analysis2.eventcalc_adapter import EventCalcAdapter
 from analysis2.eventcalc_proposals import generate_mother_sample
 from analysis2.lifetime_template_banks import load_template_bank
+from analysis2.mass_seed_resolution import (
+    DEFAULT_WEEK8_DOMAIN_PATH,
+    model_seed_for_bank,
+)
 from analysis2.models import get_model
 from analysis2.profiled_statistics import stable_truth_rng
 from analysis2.selections import SelectionContext
@@ -199,12 +203,14 @@ def conditional_moments_for_lifetime(
     model_id: str,
     prefix: str,
     lifetime_index: int,
+    domain_path: Path = DEFAULT_WEEK8_DOMAIN_PATH,
 ) -> dict[str, np.ndarray | float | int | str]:
     ctau_m = float(getattr(bank, f"{prefix}_ctau_m")[lifetime_index])
-    model_seed = adapter.config.seed_policy.model_seed(
-        bank.mass_gev,
-        model_id,
-        seed_offset=bank.template_seed_offset,
+    model_seed = model_seed_for_bank(
+        config=adapter.config,
+        bank=bank,
+        model_id=model_id,
+        domain_path=domain_path,
     )
     model = get_model(model_id)
 

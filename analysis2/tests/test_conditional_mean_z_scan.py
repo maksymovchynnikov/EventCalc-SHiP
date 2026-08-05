@@ -38,6 +38,7 @@ def test_stage_commands_use_package_modules(tmp_path):
         bank_path=tmp_path / "bank.npz",
         paths=paths,
         workers=2,
+        domain_path=tmp_path / "domains.csv",
     )
     assert "-m" in command
     assert (
