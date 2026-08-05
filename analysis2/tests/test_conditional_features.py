@@ -230,3 +230,30 @@ def test_all_feature_labels_render_with_matplotlib():
         axis.text(0.05, float(row), label)
     figure.canvas.draw()
     plt.close(figure)
+
+
+
+def test_all_truths_from_bank_covers_both_models():
+    from analysis2.workflows.conditional_feature_pilot import (
+        all_truths_from_bank,
+    )
+
+    class Bank:
+        photon_ctau_m = np.asarray([1.0, 2.0, 3.0])
+        su2_ctau_m = np.asarray([4.0, 5.0])
+        photon_interval_index = np.asarray([0, 0, 1])
+        su2_interval_index = np.asarray([0, 1])
+
+    table, selected = all_truths_from_bank(Bank())
+    np.testing.assert_array_equal(
+        selected["photon"],
+        np.asarray([0, 1, 2]),
+    )
+    np.testing.assert_array_equal(
+        selected["su2"],
+        np.asarray([0, 1]),
+    )
+    assert len(table) == 5
+    assert set(table["selection_reasons"]) == {
+        "full_domain_truth_grid"
+    }

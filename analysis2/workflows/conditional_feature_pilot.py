@@ -101,6 +101,15 @@ def parse_args() -> argparse.Namespace:
         default=list(DEFAULT_OBSERVABLES),
     )
     parser.add_argument("--pairs-per-interval", type=int, default=4)
+    parser.add_argument(
+        "--truth-grid",
+        choices=("screening", "all"),
+        default="screening",
+        help=(
+            "Use distance-selected difficult truths or every lifetime "
+            "truth in the template bank."
+        ),
+    )
     parser.add_argument("--neighbour-radius", type=int, default=1)
     parser.add_argument("--reuse-moments", action="store_true")
     parser.add_argument(
@@ -365,6 +374,35 @@ def screening_truths_from_maps(
     return pd.DataFrame(rows), arrays
 
 
+
+def all_truths_from_bank(bank) -> tuple[pd.DataFrame, dict[str, np.ndarray]]:
+    """Return every photon and SU(2) lifetime as a truth point."""
+
+    rows = []
+    selected: dict[str, np.ndarray] = {}
+    for model in ("photon", "su2"):
+        lifetimes = np.asarray(
+            getattr(bank, f"{model}_ctau_m"),
+            dtype=float,
+        )
+        intervals = np.asarray(
+            getattr(bank, f"{model}_interval_index"),
+            dtype=int,
+        )
+        indices = np.arange(len(lifetimes), dtype=int)
+        selected[model] = indices
+        for index in indices:
+            rows.append(
+                {
+                    "truth_model": model,
+                    "truth_lifetime_index": int(index),
+                    "truth_interval_index": int(intervals[index]),
+                    "truth_ctau_m": float(lifetimes[index]),
+                    "selection_reasons": "full_domain_truth_grid",
+                }
+            )
+    return pd.DataFrame(rows), selected
+
 def plot_distance_map(
     *,
     bank,
@@ -513,12 +551,16 @@ def main() -> None:
         index=False,
     )
 
-    screening_table, screening = screening_truths_from_maps(
-        bank=bank,
-        maps=maps,
-        pairs_per_interval=int(args.pairs_per_interval),
-        neighbour_radius=int(args.neighbour_radius),
-    )
+    if args.truth_grid == "all":
+        screening_table, screening = all_truths_from_bank(bank)
+    else:
+        screening_table, screening = screening_truths_from_maps(
+            bank=bank,
+            maps=maps,
+            pairs_per_interval=int(args.pairs_per_interval),
+            neighbour_radius=int(args.neighbour_radius),
+        )
+    screening_table["truth_grid"] = str(args.truth_grid)
     screening_table.to_csv(
         output_dir / f"conditional_feature_screening_truths_ma_{token}.csv",
         index=False,
@@ -660,7 +702,12 @@ def main() -> None:
     plt.close(figure)
 
     summary = {
-        "status": "focused_conditional_feature_screening_pilot",
+        "status": (
+            "full_domain_conditional_feature_screen"
+            if args.truth_grid == "all"
+            else "focused_conditional_feature_screening_pilot"
+        ),
+        "truth_grid": str(args.truth_grid),
         "mass_GeV": float(bank.mass_gev),
         "selection_name": str(bank.selection_name),
         "bank_path": str(bank_path),
@@ -704,16 +751,31 @@ def main() -> None:
         },
         "runtime_seconds": float(perf_counter() - started),
         "interpretation_guardrails": [
-            "All thresholds are screening values based on selected difficult truths.",
+            (
+                "All truth lifetimes in the bank were evaluated."
+                if args.truth_grid == "all"
+                else "Thresholds use distance-selected difficult truths."
+            ),
             "The Gaussian feature-vector truth generator is an approximation.",
             "The winning observable must pass empirical conditional resampling.",
-            "A full-domain 2k plus selected 5k/10k audit is still required.",
+            (
+                "Selected 5k/10k crossing validation is still required."
+                if args.truth_grid == "all"
+                else "A full-domain 2k plus selected 5k/10k audit is still required."
+            ),
             "Distance maps are diagnostic proxies, not the project test statistic.",
         ],
         "next_action": (
-            "Compare feature gains at the validated 0.3 and 0.5 GeV anchors. "
-            "Choose at most two candidate observables for empirical-resampling "
-            "validation before any new full mass scan."
+            (
+                "Use the full-domain 2k curve to select difficult truths for "
+                "5k/10k crossing validation and a decision-relevant audit."
+            )
+            if args.truth_grid == "all"
+            else (
+                "Compare feature gains at the validated 0.3 and 0.5 GeV "
+                "anchors. Choose at most two candidates for empirical "
+                "validation before a full-domain scan."
+            )
         ),
     }
     summary_path.write_text(json.dumps(summary, indent=2) + "\n")
