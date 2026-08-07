@@ -23,7 +23,7 @@ from dataclasses import dataclass
 import json
 from pathlib import Path
 from time import perf_counter
-from typing import Mapping
+from typing import Mapping, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -453,8 +453,9 @@ def plot_distance_map(
     plt.close(figure)
 
 
-def main() -> None:
-    args = parse_args()
+def _run_conditional_feature_args(
+    args: argparse.Namespace,
+) -> dict | None:
     started = perf_counter()
     repo = Path.cwd().resolve()
     if not (repo / "analysis2").is_dir():
@@ -781,6 +782,73 @@ def main() -> None:
     summary_path.write_text(json.dumps(summary, indent=2) + "\n")
     print(json.dumps(summary, indent=2), flush=True)
     print(f"Outputs: {output_dir}", flush=True)
+    return summary
+
+
+def run_conditional_feature_point(
+    *,
+    bank_path: Path,
+    output_dir: Path,
+    domain_path: Path = Path(
+        "analysis2/outputs/production/week8_domains/"
+        "allowed_ctau_domains.csv"
+    ),
+    pseudoexperiments: int = 500,
+    seeds: Sequence[int] = (73241, 83244),
+    workers: int = 2,
+    chunk_size: int = 30,
+    event_counts: Sequence[int] | None = None,
+    observables: Sequence[str] = DEFAULT_OBSERVABLES,
+    pairs_per_interval: int = 4,
+    truth_grid: str = "screening",
+    neighbour_radius: int = 1,
+    reuse_moments: bool = False,
+    moments_only: bool = False,
+    restart_checkpoint: bool = False,
+) -> dict | None:
+    """Run one conditional-feature mass/selection point programmatically.
+
+    This is the reusable API corresponding to the existing command-line
+    workflow.  The statistical calculation and output format are unchanged.
+    """
+    if workers not in (1, 2):
+        raise ValueError("workers must be 1 or 2.")
+    if truth_grid not in ("screening", "all"):
+        raise ValueError("truth_grid must be 'screening' or 'all'.")
+
+    requested_observables = tuple(dict.fromkeys(observables))
+    unknown = sorted(set(requested_observables) - set(FEATURE_SUBSETS))
+    if unknown:
+        raise ValueError(f"Unknown observables: {unknown}")
+
+    resolved_event_counts = (
+        DEFAULT_EVENT_COUNTS.tolist()
+        if event_counts is None
+        else [int(value) for value in event_counts]
+    )
+
+    args = argparse.Namespace(
+        bank_path=Path(bank_path),
+        domain_path=Path(domain_path),
+        output_dir=Path(output_dir),
+        pseudoexperiments=int(pseudoexperiments),
+        seeds=[int(seed) for seed in seeds],
+        workers=int(workers),
+        chunk_size=int(chunk_size),
+        event_counts=resolved_event_counts,
+        observables=list(requested_observables),
+        pairs_per_interval=int(pairs_per_interval),
+        truth_grid=str(truth_grid),
+        neighbour_radius=int(neighbour_radius),
+        reuse_moments=bool(reuse_moments),
+        moments_only=bool(moments_only),
+        restart_checkpoint=bool(restart_checkpoint),
+    )
+    return _run_conditional_feature_args(args)
+
+
+def main() -> None:
+    _run_conditional_feature_args(parse_args())
 
 
 if __name__ == "__main__":

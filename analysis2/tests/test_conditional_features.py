@@ -257,3 +257,55 @@ def test_all_truths_from_bank_covers_both_models():
     assert set(table["selection_reasons"]) == {
         "full_domain_truth_grid"
     }
+
+
+
+def test_callable_conditional_feature_runner_forwards_settings(
+    monkeypatch,
+    tmp_path,
+):
+    from analysis2.workflows import conditional_feature_pilot as pilot
+
+    captured = {}
+
+    def fake_runner(args):
+        captured.update(vars(args))
+        return {"status": "ok"}
+
+    monkeypatch.setattr(
+        pilot,
+        "_run_conditional_feature_args",
+        fake_runner,
+    )
+
+    result = pilot.run_conditional_feature_point(
+        bank_path=tmp_path / "bank.npz",
+        output_dir=tmp_path / "output",
+        pseudoexperiments=123,
+        seeds=(11, 22),
+        workers=1,
+        chunk_size=7,
+        event_counts=(3, 4, 5),
+        observables=("energy", "energy_mean_z_r_perp"),
+        pairs_per_interval=2,
+        truth_grid="all",
+        neighbour_radius=2,
+        reuse_moments=True,
+    )
+
+    assert result == {"status": "ok"}
+    assert captured["bank_path"] == tmp_path / "bank.npz"
+    assert captured["output_dir"] == tmp_path / "output"
+    assert captured["pseudoexperiments"] == 123
+    assert captured["seeds"] == [11, 22]
+    assert captured["workers"] == 1
+    assert captured["chunk_size"] == 7
+    assert captured["event_counts"] == [3, 4, 5]
+    assert captured["observables"] == [
+        "energy",
+        "energy_mean_z_r_perp",
+    ]
+    assert captured["pairs_per_interval"] == 2
+    assert captured["truth_grid"] == "all"
+    assert captured["neighbour_radius"] == 2
+    assert captured["reuse_moments"] is True
