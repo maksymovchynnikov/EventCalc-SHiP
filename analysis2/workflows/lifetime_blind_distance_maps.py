@@ -58,6 +58,34 @@ def parse_arguments(arguments: Sequence[str] | None = None):
     return parser.parse_args(arguments)
 
 
+def discover_template_bank_masses(input_dir: Path) -> tuple[float, ...]:
+    """Return masses stored in the template banks found in ``input_dir``."""
+    candidates = sorted(input_dir.glob("template_bank_ma_*.npz"))
+    if not candidates:
+        raise FileNotFoundError(f"No template banks found in {input_dir}.")
+
+    masses: list[float] = []
+    for path in candidates:
+        mass = float(load_template_bank(path).mass_gev)
+        if any(
+            np.isclose(mass, other, rtol=0.0, atol=1.0e-12)
+            for other in masses
+        ):
+            raise ValueError(
+                f"Multiple template banks in {input_dir} contain "
+                f"m_a={mass:g} GeV."
+            )
+        expected_name = f"template_bank_ma_{float_token(mass)}.npz"
+        if path.name != expected_name:
+            raise ValueError(
+                f"Template-bank filename and stored mass disagree: {path}. "
+                f"Expected filename {expected_name}."
+            )
+        masses.append(mass)
+
+    return tuple(sorted(masses))
+
+
 def select_bank_paths(
     input_dir: Path,
     masses: tuple[float, ...],
@@ -84,6 +112,8 @@ def distance_products(
         su2_ctau_m=bank.su2_ctau_m,
         su2_expected_events=bank.su2_n_events,
         distances=distances,
+        photon_interval_index=bank.photon_interval_index,
+        su2_interval_index=bank.su2_interval_index,
     )
     table = build_distance_table(
         mass_gev=bank.mass_gev,
@@ -92,6 +122,8 @@ def distance_products(
         su2_ctau_m=bank.su2_ctau_m,
         su2_expected_events=bank.su2_n_events,
         distances=distances,
+        photon_interval_index=bank.photon_interval_index,
+        su2_interval_index=bank.su2_interval_index,
     )
     photon_index = int(summary["minimum_photon_lifetime_index"])
     su2_index = int(summary["minimum_su2_lifetime_index"])
@@ -102,6 +134,8 @@ def distance_products(
         photon_probabilities=bank.photon_probabilities[photon_index],
         su2_ctau_m=bank.su2_ctau_m[su2_index],
         su2_probabilities=bank.su2_probabilities[su2_index],
+        photon_interval_index=int(bank.photon_interval_index[photon_index]),
+        su2_interval_index=int(bank.su2_interval_index[su2_index]),
     )
     return DistanceProducts(distances, table, summary, minimum)
 
@@ -197,7 +231,8 @@ def run_distance_map_workflow(
 ) -> pd.DataFrame:
     """Run cached pure post-processing and return the combined summary."""
     started = perf_counter()
-    masses = resolve_requested_masses(requested_masses, config.masses_gev)
+    available_masses = discover_template_bank_masses(input_dir)
+    masses = resolve_requested_masses(requested_masses, available_masses)
     bank_paths = select_bank_paths(input_dir, masses)
     path_sets = [
         distance_output_paths(output_dir, mass, include_plots=make_plots)
@@ -258,6 +293,7 @@ def run_distance_map_workflow(
         extra={
             "input_template_banks": [portable_path(path) for path in bank_paths],
             "distance_definition": "D_TV=0.5*sum(abs(photon-su2))",
+            "interval_aware_domains": True,
         },
     )
     return summary

@@ -7,7 +7,7 @@ are numerical conventions of the frozen frozen reference calculation.
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from typing import TYPE_CHECKING, Any, ClassVar, Final
 
 import numpy as np
@@ -343,3 +343,63 @@ __all__ = [
     "rectangular_ecal_hit_mask",
     "sample_diphoton_lab_four_momenta",
 ]
+
+
+@dataclass(frozen=True)
+class DiphotonECALEnergySelection(DiphotonECALSelection):
+    minimum_photon_energy_gev: float = 1.0
+    name: ClassVar[str] = "diphoton_ecal_e1gev"
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        if (
+            not np.isfinite(self.minimum_photon_energy_gev)
+            or self.minimum_photon_energy_gev < 0.0
+        ):
+            raise ValueError(
+                "minimum photon energy must be finite and non-negative"
+            )
+
+    def cache_identity(self, context: SelectionContext) -> dict:
+        geometry_identity = super().cache_identity(context)
+        return {
+            **geometry_identity,
+            "name": self.name,
+            "algorithm": (
+                "diphoton_ecal_geometry;"
+                "inclusive_minimum_lab_photon_energy;"
+                "require_both_photons"
+            ),
+            "algorithm_version": 1,
+            "geometry_algorithm": geometry_identity["algorithm"],
+            "geometry_algorithm_version": (
+                geometry_identity["algorithm_version"]
+            ),
+            "minimum_photon_energy_gev": (
+                self.minimum_photon_energy_gev
+            ),
+            "photon_energy_boundary": "inclusive",
+        }
+
+    def details(
+        self,
+        sample: MotherSampleLike,
+        context: SelectionContext,
+    ) -> DiphotonECALResult:
+        geometry_result = super().details(sample, context)
+
+        photon_energy_mask = (
+            (
+                geometry_result.photon_1_four_momentum[:, 3]
+                >= self.minimum_photon_energy_gev
+            )
+            & (
+                geometry_result.photon_2_four_momentum[:, 3]
+                >= self.minimum_photon_energy_gev
+            )
+        )
+
+        return replace(
+            geometry_result,
+            event_mask=geometry_result.event_mask & photon_energy_mask,
+        )

@@ -14,6 +14,7 @@ from .ecal_selection import (
     DIPHOTON_ECAL_ALGORITHM_VERSION,
     BoolArray,
     DiphotonECALResult,
+    DiphotonECALEnergySelection,
     DiphotonECALSelection,
     ECALGeometry,
     project_particles_to_ecal,
@@ -99,6 +100,12 @@ def selection_for_name(
         return MotherLevelSelection()
     if name == "diphoton_ecal":
         return DiphotonECALSelection(geometry=geometry, seed_offset=ecal_seed_offset)
+    if name == "diphoton_ecal_e1gev":
+        return DiphotonECALEnergySelection(
+            geometry=geometry,
+            seed_offset=ecal_seed_offset,
+            minimum_photon_energy_gev=1.0,
+        )
     raise ValueError(f"unknown selection {name!r}")
 
 
@@ -108,6 +115,7 @@ __all__ = [
     "DIPHOTON_ECAL_ALGORITHM",
     "DIPHOTON_ECAL_ALGORITHM_VERSION",
     "DiphotonECALResult",
+    "DiphotonECALEnergySelection",
     "DiphotonECALSelection",
     "ECALGeometry",
     "MotherLevelSelection",

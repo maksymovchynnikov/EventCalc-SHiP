@@ -30,8 +30,8 @@ class ReferenceCurveTests(unittest.TestCase):
         )
         summary = make_distance_summary(pointwise).set_index("reference")
         expected = {
-            "geom_only": (0.0689190692889179, 0.03461029778530555, 0.7933333333333333),
-            "baseline": (0.24463558216477216, 0.045974457745375154, 0.8766666666666667),
+            "epsilon_dec_1": (0.0689190692889179, 0.03461029778530555, 0.7933333333333333),
+            "geom_only": (0.24463558216477216, 0.045974457745375154, 0.8766666666666667),
         }
         for name, values in expected.items():
             actual = summary.loc[name, [

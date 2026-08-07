@@ -20,6 +20,7 @@ from analysis2.plot_style import (
 )
 from analysis2.plotting import draw_event_contours
 from analysis2.workflows import require_columns
+from analysis2.constraints.bc9 import draw_bc9_constraints
 
 Y_LABELS = {
     "ALP-photon-combined": r"$g_{a\gamma\gamma}$ [GeV$^{-1}$]",
@@ -33,6 +34,17 @@ def main() -> None:
     parser = ArgumentParser(description=__doc__)
     parser.add_argument("--profile", choices=sorted(PROFILES), default="production")
     parser.add_argument("--with-constraints", action="store_true")
+    parser.add_argument(
+        "--photon-constraints",
+        choices=("bc9", "legacy"),
+        default="bc9",
+        help=(
+            "Constraint set used for the photophilic-ALP plot. "
+            "'bc9' uses Maksym's combined laboratory and "
+            "astrophysical polygons; 'legacy' uses the previous "
+            "per-experiment FORESEE polygons."
+        ),
+    )
     parser.add_argument("--label-config", type=Path, default=LABEL_CONFIG_PATH)
     args = parser.parse_args()
     use_report_style()
@@ -47,20 +59,44 @@ def main() -> None:
     unsupported = set(data["model"]) - set(Y_LABELS)
     if unsupported:
         raise ValueError(f"unsupported event-density models: {sorted(unsupported)}")
-    levels = tuple(level for level in config.event_density.event_levels if level != 2.3)
+    levels = tuple(config.event_density.event_levels)
     constraint_dir = profile_output_dir(config.name, "constraints")
     label_config = load_label_config(args.label_config) if args.with_constraints else None
     for model, model_data in data.groupby("model", sort=True):
         figure, axis = plt.subplots(figsize=PLOT_CONFIG.event_density_figsize)
         if args.with_constraints:
-            subdirectory, specs, constraint_model = CONSTRAINT_INPUTS[model]
-            directory = constraint_dir / subdirectory
-            if not directory.exists():
-                raise FileNotFoundError(f"constraint directory not found: {directory}")
-            draw_constraints(
-                axis, directory, specs, model=constraint_model,
-                context="event_density_overlay", config=label_config,
-            )
+            if (
+                model == "ALP-photon-combined"
+                and args.photon_constraints == "bc9"
+            ):
+                draw_bc9_constraints(axis)
+
+            else:
+                (
+                    subdirectory,
+                    specs,
+                    constraint_model,
+                ) = CONSTRAINT_INPUTS[model]
+
+                directory = (
+                    constraint_dir / subdirectory
+                )
+
+                if not directory.exists():
+                    raise FileNotFoundError(
+                        "constraint directory not found: "
+                        f"{directory}"
+                    )
+
+                draw_constraints(
+                    axis,
+                    directory,
+                    specs,
+                    model=constraint_model,
+                    context="event_density_overlay",
+                    config=label_config,
+                )
+
             overlay = EVENT_DENSITY_OVERLAY_LAYOUT[model]
             if overlay.corner_polygon_axes:
                 axis.add_patch(Polygon(
@@ -102,8 +138,21 @@ def main() -> None:
             axis.legend()
         style_axis(axis)
         figure.tight_layout()
-        stem = (f"event_density_with_constraints_{model.lower()}" if args.with_constraints
-                else f"event_density_{model.lower()}")
+        if args.with_constraints:
+            constraint_version = (
+                args.photon_constraints
+                if model == "ALP-photon-combined"
+                else "current"
+            )
+            stem = (
+                "week8_sensitivity_"
+                f"{model.lower()}_"
+                f"{constraint_version}"
+            )
+        else:
+            stem = (
+                f"event_density_{model.lower()}"
+            )
         output = event_dir / "plots" / f"{stem}.pdf"
         output.parent.mkdir(parents=True, exist_ok=True)
         figure.savefig(output, bbox_inches="tight")

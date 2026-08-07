@@ -13,6 +13,7 @@ from analysis2.constraints.plotting import (
     LABEL_CONFIG_PATH, LABEL_CONTEXTS, MODEL_SPECS, PHOTON_SPECS,
     draw_constraints, load_constraint, load_label_config,
 )
+from analysis2.constraints.bc9 import load_bc9_polygon
 
 import matplotlib.pyplot as plt  # noqa: E402
 
@@ -81,6 +82,28 @@ class ConstraintTests(unittest.TestCase):
                 self.assertEqual(axis.texts[0].get_text(), "BESIII")
             finally:
                 plt.close(figure)
+    def test_bc9_loader_accepts_decimal_and_rational_values(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "Constraints_BC9_test.csv"
+
+            path.write_text(
+                '"mass","coupling"\n'
+                '0.1,1.0e-6\n'
+                '0.2,1/5000\n'
+                '0.3,2.0e-6\n',
+                encoding="utf-8",
+            )
+
+            data = load_bc9_polygon(path)
+
+            np.testing.assert_allclose(
+                data[:, 0],
+                [0.1, 0.2, 0.3],
+            )
+            np.testing.assert_allclose(
+                data[:, 1],
+                [1.0e-6, 2.0e-4, 2.0e-6],
+            )
 
 
 if __name__ == "__main__":

@@ -13,9 +13,11 @@ import pandas as pd
 DISTANCE_TABLE_COLUMNS = (
     "mass_GeV",
     "photon_lifetime_index",
+    "photon_interval_index",
     "photon_ctau_m",
     "photon_N_events",
     "su2_lifetime_index",
+    "su2_interval_index",
     "su2_ctau_m",
     "su2_N_events",
     "D_TV",
@@ -31,6 +33,24 @@ def _probability_matrix(probabilities: np.ndarray, *, label: str) -> np.ndarray:
     if not np.allclose(values.sum(axis=1), 1.0, rtol=0.0, atol=1.0e-10):
         raise ValueError(f"Every {label} probability template must sum to one.")
     return values
+
+
+def _validated_interval_indices(
+    values: np.ndarray | None,
+    *,
+    number_of_lifetimes: int,
+    label: str,
+) -> np.ndarray:
+    """Return non-negative integer interval labels, defaulting to one domain."""
+    if values is None:
+        return np.zeros(number_of_lifetimes, dtype=int)
+    raw = np.asarray(values, dtype=float)
+    if raw.shape != (number_of_lifetimes,) or np.any(~np.isfinite(raw)):
+        raise ValueError(f"{label} interval indices have the wrong shape or values.")
+    indices = np.rint(raw).astype(int)
+    if not np.allclose(raw, indices, rtol=0.0, atol=1.0e-12) or np.any(indices < 0):
+        raise ValueError(f"{label} interval indices must be non-negative integers.")
+    return indices
 
 
 def total_variation_matrix(
@@ -66,6 +86,8 @@ def build_distance_table(
     su2_ctau_m: np.ndarray,
     su2_expected_events: np.ndarray,
     distances: np.ndarray,
+    photon_interval_index: np.ndarray | None = None,
+    su2_interval_index: np.ndarray | None = None,
 ) -> pd.DataFrame:
     """Create the legacy long-form row for every lifetime pair."""
     photon_ctau = np.asarray(photon_ctau_m, dtype=float)
@@ -82,15 +104,27 @@ def build_distance_table(
         raise ValueError("Distance matrix shape does not match the lifetime grids.")
     if np.any(~np.isfinite(values)):
         raise ValueError("Distance matrix must be finite.")
+    photon_intervals = _validated_interval_indices(
+        photon_interval_index,
+        number_of_lifetimes=len(photon_ctau),
+        label="Photon",
+    )
+    su2_intervals = _validated_interval_indices(
+        su2_interval_index,
+        number_of_lifetimes=len(su2_ctau),
+        label="SU(2)_L",
+    )
 
     photon_indices, su2_indices = np.indices(values.shape)
     table = pd.DataFrame(
         {
             "mass_GeV": float(mass_gev),
             "photon_lifetime_index": photon_indices.ravel(),
+            "photon_interval_index": photon_intervals[photon_indices.ravel()],
             "photon_ctau_m": photon_ctau[photon_indices.ravel()],
             "photon_N_events": photon_events[photon_indices.ravel()],
             "su2_lifetime_index": su2_indices.ravel(),
+            "su2_interval_index": su2_intervals[su2_indices.ravel()],
             "su2_ctau_m": su2_ctau[su2_indices.ravel()],
             "su2_N_events": su2_events[su2_indices.ravel()],
             "D_TV": values.ravel(),
@@ -112,6 +146,8 @@ def summarize_distance_matrix(
     su2_ctau_m: np.ndarray,
     su2_expected_events: np.ndarray,
     distances: np.ndarray,
+    photon_interval_index: np.ndarray | None = None,
+    su2_interval_index: np.ndarray | None = None,
 ) -> dict:
     """Return the legacy summary of the global minimum and maximum pairs."""
     photon_ctau = np.asarray(photon_ctau_m, dtype=float)
@@ -121,6 +157,16 @@ def summarize_distance_matrix(
     values = np.asarray(distances, dtype=float)
     if values.shape != (len(photon_ctau), len(su2_ctau)):
         raise ValueError("Distance matrix shape does not match lifetime grids.")
+    photon_intervals = _validated_interval_indices(
+        photon_interval_index,
+        number_of_lifetimes=len(photon_ctau),
+        label="Photon",
+    )
+    su2_intervals = _validated_interval_indices(
+        su2_interval_index,
+        number_of_lifetimes=len(su2_ctau),
+        label="SU(2)_L",
+    )
     minimum = tuple(map(int, np.unravel_index(np.argmin(values), values.shape)))
     maximum = tuple(map(int, np.unravel_index(np.argmax(values), values.shape)))
     photon_min, su2_min = minimum
@@ -132,15 +178,19 @@ def summarize_distance_matrix(
         "number_of_su2_lifetimes": len(su2_ctau),
         "minimum_D_TV": float(values[photon_min, su2_min]),
         "minimum_photon_lifetime_index": photon_min,
+        "minimum_photon_interval_index": int(photon_intervals[photon_min]),
         "minimum_photon_ctau_m": float(photon_ctau[photon_min]),
         "minimum_photon_N_events": float(photon_events[photon_min]),
         "minimum_su2_lifetime_index": su2_min,
+        "minimum_su2_interval_index": int(su2_intervals[su2_min]),
         "minimum_su2_ctau_m": float(su2_ctau[su2_min]),
         "minimum_su2_N_events": float(su2_events[su2_min]),
         "maximum_D_TV": float(values[photon_max, su2_max]),
         "maximum_photon_lifetime_index": photon_max,
+        "maximum_photon_interval_index": int(photon_intervals[photon_max]),
         "maximum_photon_ctau_m": float(photon_ctau[photon_max]),
         "maximum_su2_lifetime_index": su2_max,
+        "maximum_su2_interval_index": int(su2_intervals[su2_max]),
         "maximum_su2_ctau_m": float(su2_ctau[su2_max]),
     }
 
@@ -153,6 +203,8 @@ def minimum_pair_bin_table(
     photon_probabilities: np.ndarray,
     su2_ctau_m: float,
     su2_probabilities: np.ndarray,
+    photon_interval_index: int = 0,
+    su2_interval_index: int = 0,
 ) -> pd.DataFrame:
     """Tabulate bin contributions for the least-distinguishable pair."""
     edges = np.asarray(energy_edges_gev, dtype=float)
@@ -164,7 +216,9 @@ def minimum_pair_bin_table(
     return pd.DataFrame(
         {
             "mass_GeV": float(mass_gev),
+            "photon_interval_index": int(photon_interval_index),
             "photon_ctau_m": float(photon_ctau_m),
+            "su2_interval_index": int(su2_interval_index),
             "su2_ctau_m": float(su2_ctau_m),
             "bin_index": np.arange(len(photon), dtype=int),
             "energy_low_GeV": edges[:-1],

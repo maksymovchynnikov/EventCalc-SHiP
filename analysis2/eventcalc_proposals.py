@@ -19,7 +19,11 @@ from .config import AnalysisConfig, SamplingSettings, lower_ctau_m
 from .models import ModelDefinition, ProductionSource
 
 
-ADAPTER_VERSION = 3
+ADAPTER_VERSION = 4
+
+# EventCalc uses e_min = max(m, min(2.133*m/c_tau, 0.5*E_max)).
+# At and above this lifetime the kinematic proposal has full E_a >= m_a support.
+EVENTCALC_FULL_SUPPORT_CTAU_M = float(np.nextafter(2.133, np.inf))
 
 
 @contextmanager
@@ -72,6 +76,9 @@ class KinematicProposal:
     theta_max_rad: float
     sanitation_policy: str
     input_fingerprints: tuple[dict, ...]
+    energy_support_mode: str = "full_Ea_ge_mass"
+    e_min_sampling_min_gev: float | None = None
+    e_min_sampling_max_gev: float | None = None
     cache_key: str | None = None
 
     def __post_init__(self) -> None:
@@ -85,6 +92,14 @@ class KinematicProposal:
             raise ValueError("proposal energies must be finite and at least the mass")
         if self.mass_gev <= 0.0 or self.proposal_ctau_m <= 0.0 or self.epsilon_polar <= 0.0:
             raise ValueError("proposal mass, lifetime and polar efficiency must be positive")
+        if self.energy_support_mode not in {
+            "full_Ea_ge_mass",
+            "lifetime_specific_truncated_Ea",
+        }:
+            raise ValueError(f"unknown proposal energy support {self.energy_support_mode!r}")
+        for value in (self.e_min_sampling_min_gev, self.e_min_sampling_max_gev):
+            if value is not None and (not np.isfinite(value) or value < self.mass_gev):
+                raise ValueError("proposal minimum-energy metadata must be finite and >= mass")
 
     def arrays(self) -> dict[str, np.ndarray]:
         return {"r_theta_rad": self.r_theta_rad, "r_energy_gev": self.r_energy_gev}
@@ -148,7 +163,8 @@ def _proposal_identity(
         "source": source.identifier, "eventcalc_mode": source.eventcalc_mode,
         "mass_gev": mass_gev, "proposal_ctau_m": proposal_ctau_m, "seed": seed,
         "sampling": asdict(sampling), "theta_max_sim_rad": theta_max_dec_vol,
-        "emin_policy": "require_equal_mass", "sanitation_policy": sanitation_policy,
+        "emin_policy": "adaptive_exact_lifetime_or_full_support",
+        "sanitation_policy": sanitation_policy,
         "inputs": fingerprints, "runtime": _runtime_versions(),
     }
 
@@ -316,10 +332,19 @@ class ProposalGenerator:
                 mass_gev, proposal_ctau_m, theta_max_sim=theta_max_dec_vol,
             )
             kin.interpolate(False)
-            if not np.allclose(kin.e_min_sampling, mass_gev, rtol=1e-12, atol=1e-14):
-                raise RuntimeError(
-                    "proposal is lifetime-dependent because e_min_sampling != mass"
+            full_energy_support = bool(
+                np.allclose(
+                    kin.e_min_sampling,
+                    mass_gev,
+                    rtol=1.0e-12,
+                    atol=1.0e-14,
                 )
+            )
+            energy_support_mode = (
+                "full_Ea_ge_mass"
+                if full_energy_support
+                else "lifetime_specific_truncated_Ea"
+            )
             _sanitize_interpolation(kin, policy)
             kin.resample(sampling.resample_size, False)
         proposal = KinematicProposal(
@@ -334,6 +359,9 @@ class ProposalGenerator:
             unit_coupling_ctau_m=float(llp.c_tau_int),
             theta_min_rad=float(kin.thetamin), theta_max_rad=float(kin.theta_max),
             sanitation_policy=policy, input_fingerprints=fingerprints,
+            energy_support_mode=energy_support_mode,
+            e_min_sampling_min_gev=float(np.min(kin.e_min_sampling)),
+            e_min_sampling_max_gev=float(np.max(kin.e_min_sampling)),
         )
         metadata = self.cache.save(
             "proposal", identity, proposal.arrays(), proposal.metadata()
@@ -345,6 +373,7 @@ class ProposalGenerator:
 
 __all__ = [
     "ADAPTER_VERSION",
+    "EVENTCALC_FULL_SUPPORT_CTAU_M",
     "KinematicProposal",
     "MotherSample",
     "ProposalGenerator",

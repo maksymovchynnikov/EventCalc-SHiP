@@ -8,15 +8,22 @@ import numpy as np
 import pandas as pd
 
 from analysis2.config import QUICK
+from analysis2.lifetime_template_banks import load_template_bank
 from analysis2.spectra import WeightedSpectrum
+from analysis2.eventcalc_proposals import EVENTCALC_FULL_SUPPORT_CTAU_M
+from analysis2.paths import profile_output_dir
 from analysis2.workflows.lifetime_blind_discrimination import (
+    _mass_seed_indices,
+    apply_cli_overrides,
     build_mass_bank,
-    collect_profile_domains,
-    profile_domain_table,
+    build_template_lifetime_grid_table,
+    load_custom_lifetime_grid,
+    parse_arguments,
     resolve_requested_masses,
+    proposal_lifetime_for_target,
+    resolve_template_output_dir,
     run_template_bank_workflow,
 )
-
 
 class _CounterCache:
     def counter_snapshot(self):
@@ -47,7 +54,9 @@ class _FakeAdapter:
         lifetime_scale = 1.0 + 0.01 * np.log(ctau_m)
         pattern = np.repeat([1.0, 1.4, 1.8, 2.2], 4)
         weights = pattern * model_scale * lifetime_scale
-        weights *= 11.0 / weights.sum()
+        # Deliberately below both the old N_events >= 10 cut and the new
+        # geom-only domain event level. The post-ECAL rate is diagnostic only.
+        weights *= 1.0 / weights.sum()
         return WeightedSpectrum(
             model_id=model_id,
             source="combined",
@@ -76,26 +85,44 @@ class _FakeAdapter:
         )
 
 
-def _scan(config):
-    rows = []
-    rates = {
-        "ALP-photon-combined": (20.0, 15.0, 5.0),
-        "ALP-SU2L": (20.0, 13.0, 4.0),
-    }
-    for model, values in rates.items():
-        for ctau_m, rate in zip((3.0, 10.0, 30.0), values):
-            rows.append(
-                {
-                    "profile": config.name,
-                    "selection_name": config.selection_name,
-                    "model": model,
-                    "mass_GeV": 0.3,
-                    "ctau_m": ctau_m,
-                    "N_events": rate,
-                    "passes_event_cut": rate >= 10.0,
-                }
-            )
-    return pd.DataFrame(rows)
+def _domains():
+    return pd.DataFrame(
+        [
+            {
+                "model": "ALP-photon-combined",
+                "mass_GeV": 0.3,
+                "event_level": 2.3,
+                "interval_index": 1,
+                "coupling_min_GeV_inv": 0.5,
+                "coupling_max_GeV_inv": 1.0,
+                "unit_coupling_ctau_m": 1.0,
+                "ctau_min_m": 1.0,
+                "ctau_max_m": 4.0,
+            },
+            {
+                "model": "ALP-photon-combined",
+                "mass_GeV": 0.3,
+                "event_level": 2.3,
+                "interval_index": 0,
+                "coupling_min_GeV_inv": 0.1,
+                "coupling_max_GeV_inv": 0.2,
+                "unit_coupling_ctau_m": 1.0,
+                "ctau_min_m": 25.0,
+                "ctau_max_m": 100.0,
+            },
+            {
+                "model": "ALP-SU2L",
+                "mass_GeV": 0.3,
+                "event_level": 2.3,
+                "interval_index": 0,
+                "coupling_min_GeV_inv": 0.2,
+                "coupling_max_GeV_inv": 2.0,
+                "unit_coupling_ctau_m": 1.0,
+                "ctau_min_m": 0.25,
+                "ctau_max_m": 25.0,
+            },
+        ]
+    )
 
 
 class LifetimeBlindDiscriminationWorkflowTests(unittest.TestCase):
@@ -110,32 +137,74 @@ class LifetimeBlindDiscriminationWorkflowTests(unittest.TestCase):
             ),
         )
 
-    def test_domain_conventions_and_common_bank_construction(self):
-        domains = collect_profile_domains(_scan(self.config), self.config, (0.3,))
-        table = profile_domain_table(domains, self.config)
-        photon = table.loc[table["model"] == "ALP-photon-combined"].iloc[0]
-        crossing_fraction = (np.log(10.0) - np.log(15.0)) / (
-            np.log(5.0) - np.log(15.0)
+    def test_template_cli_overrides_are_validated_and_require_separate_output(self):
+        args = parse_arguments(
+            [
+                "--lifetime-points-per-interval",
+                "39",
+                "--initial-energy-bins",
+                "100",
+                "--minimum-bin-n-eff",
+                "125.5",
+                "--output-dir",
+                "convergence-output",
+            ]
         )
-        expected_crossing = np.exp(
-            np.log(10.0)
-            + crossing_fraction * (np.log(30.0) - np.log(10.0))
+        config = apply_cli_overrides(self.config, args)
+        self.assertEqual(config.templates.lifetime_points_per_model, 39)
+        self.assertEqual(config.templates.initial_energy_bins, 100)
+        self.assertEqual(config.templates.minimum_bin_n_eff, 125.5)
+        self.assertEqual(
+            resolve_template_output_dir(config, args),
+            Path("convergence-output"),
         )
-        expected_grid_upper = np.exp(
-            np.log(expected_crossing)
-            - 0.002 * (np.log(expected_crossing) - np.log(3.0))
-        )
-        self.assertEqual(photon["template_domain_lower_m"], 3.0)
-        self.assertAlmostEqual(photon["template_grid_lower_m"], 3.0)
-        self.assertAlmostEqual(
-            photon["template_domain_upper_m"], expected_crossing
-        )
-        self.assertAlmostEqual(
-            photon["template_grid_upper_m"], expected_grid_upper
+
+        defaults = parse_arguments([])
+        self.assertEqual(
+            apply_cli_overrides(self.config, defaults).templates,
+            self.config.templates,
         )
         self.assertEqual(
-            photon["bisection_diagnostic_upper_m"],
-            np.sqrt(10.0 * 30.0),
+            resolve_template_output_dir(self.config, defaults),
+            profile_output_dir(
+                self.config.name,
+                "lifetime_blind_discrimination_week8",
+            ),
+        )
+
+        with self.assertRaisesRegex(ValueError, "explicit --output-dir"):
+            resolve_template_output_dir(
+                self.config,
+                parse_arguments(["--initial-energy-bins", "100"]),
+            )
+        with self.assertRaisesRegex(ValueError, "at least 2"):
+            apply_cli_overrides(
+                self.config,
+                parse_arguments(["--lifetime-points-per-interval", "1"]),
+            )
+        with self.assertRaisesRegex(ValueError, "positive"):
+            apply_cli_overrides(
+                self.config,
+                parse_arguments(["--initial-energy-bins", "0"]),
+            )
+        with self.assertRaisesRegex(ValueError, "finite and positive"):
+            apply_cli_overrides(
+                self.config,
+                parse_arguments(["--minimum-bin-n-eff", "nan"]),
+            )
+
+    def test_disconnected_domains_and_common_bank_construction(self):
+        domains = _domains()
+        grid_table = build_template_lifetime_grid_table(domains, (0.3,), 3)
+        photon_grid = grid_table.loc[
+            grid_table["model"] == "ALP-photon-combined"
+        ]
+        self.assertEqual(photon_grid["interval_index"].tolist(), [1, 1, 1, 0, 0, 0])
+        self.assertFalse(
+            np.any(
+                (photon_grid["ctau_m"].to_numpy(float) > 4.0)
+                & (photon_grid["ctau_m"].to_numpy(float) < 25.0)
+            )
         )
 
         adapter = _FakeAdapter(self.config)
@@ -144,41 +213,78 @@ class LifetimeBlindDiscriminationWorkflowTests(unittest.TestCase):
             adapter=adapter,
             mass_gev=0.3,
             domains=domains,
+            mass_seed_index=0,
         )
-        self.assertEqual(bank.photon_probabilities.shape, (3, 4))
+        self.assertEqual(bank.photon_probabilities.shape, (6, 4))
         self.assertEqual(bank.su2_probabilities.shape, (3, 4))
         np.testing.assert_array_equal(bank.energy_edges_gev.shape, (5,))
         np.testing.assert_allclose(bank.photon_probabilities.sum(axis=1), 1.0)
         self.assertTrue(np.all(bank.photon_probabilities > 0.0))
+        np.testing.assert_array_equal(
+            bank.photon_interval_index,
+            [1, 1, 1, 0, 0, 0],
+        )
+        np.testing.assert_allclose(
+            bank.photon_allowed_intervals_m,
+            [[25.0, 100.0], [1.0, 4.0]],
+        )
+        # Old frozen seeds are retained for old masses.
         self.assertEqual({call[3] for call in adapter.calls}, {54_321, 54_421})
         self.assertEqual({call[4] for call in adapter.calls}, {"spectrum"})
-        expected_proposal_ctau_m = float(np.exp(np.log(3.0)))
-        self.assertNotEqual(expected_proposal_ctau_m, 3.0)
+        proposal_by_model = {
+            model_id: {call[5] for call in adapter.calls if call[0] == model_id}
+            for model_id in ("alp_photon_combined", "alp_su2l")
+        }
         self.assertEqual(
-            {call[5] for call in adapter.calls},
-            {expected_proposal_ctau_m},
+            proposal_by_model["alp_photon_combined"],
+            {1.0, 2.0, EVENTCALC_FULL_SUPPORT_CTAU_M},
         )
+        self.assertEqual(
+            proposal_by_model["alp_su2l"],
+            {0.25, EVENTCALC_FULL_SUPPORT_CTAU_M},
+        )
+        self.assertTrue(np.all(bank.photon_n_events < 2.3))
 
-    def test_workflow_writes_portable_manifest_and_profile_outputs(self):
+    def test_workflow_writes_week8_provenance_and_portable_manifest(self):
         adapter = _FakeAdapter(self.config)
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            scan_path = root / "scan.csv"
-            _scan(self.config).to_csv(scan_path, index=False)
+            domain_path = root / "allowed_ctau_domains.csv"
+            _domains().to_csv(domain_path, index=False)
             output_dir = root / "outputs" / self.config.name
             summary = run_template_bank_workflow(
                 config=self.config,
                 adapter=adapter,
-                scan_path=scan_path,
+                domain_path=domain_path,
                 output_dir=output_dir,
             )
-            self.assertEqual(summary["number_of_photon_lifetimes"].tolist(), [3])
+            self.assertEqual(summary["number_of_photon_lifetimes"].tolist(), [6])
+            self.assertEqual(summary["number_of_photon_intervals"].tolist(), [2])
             self.assertTrue(
                 (output_dir / "template_banks" / "template_bank_ma_0p3.npz").is_file()
+            )
+            self.assertTrue(
+                (output_dir / "tables" / "week8_template_lifetime_grid.csv").is_file()
             )
             payload = json.loads((output_dir / "manifest.json").read_text())
             self.assertEqual(payload["profile"], "quick")
             self.assertEqual(payload["cache_stats"]["hits"], 2)
+            self.assertEqual(payload["domain_event_level"], 2.3)
+            self.assertIn("exact-lifetime adaptive-Emin", payload["proposal_strategy"])
+            self.assertEqual(
+                payload["eventcalc_full_support_ctau_m"],
+                EVENTCALC_FULL_SUPPORT_CTAU_M,
+            )
+            self.assertEqual(
+                payload["lifetime_points_per_connected_interval"],
+                3,
+            )
+            self.assertEqual(payload["initial_energy_bins"], 4)
+            self.assertEqual(payload["minimum_bin_N_eff"], 2.0)
+            self.assertFalse(payload["old_N_events_ge_10_cut_applied"])
+            self.assertFalse(
+                payload["old_mass_scaled_ctau_lower_cut_applied"]
+            )
             serialized = json.dumps(payload)
             self.assertNotIn("/Users/", serialized)
             self.assertNotIn(directory, serialized)
@@ -186,15 +292,133 @@ class LifetimeBlindDiscriminationWorkflowTests(unittest.TestCase):
                 run_template_bank_workflow(
                     config=self.config,
                     adapter=adapter,
-                    scan_path=scan_path,
+                    domain_path=domain_path,
                     output_dir=output_dir,
                 )
 
-    def test_requested_masses_retain_stable_order(self):
-        configured = (0.3, 0.4, 0.5)
-        self.assertEqual(resolve_requested_masses([0.5, 0.3], configured), (0.3, 0.5))
+    def test_custom_grid_and_fixed_edges_are_preserved_exactly(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            domain_path = root / "allowed_ctau_domains.csv"
+            domains = _domains()
+            domains.to_csv(domain_path, index=False)
+
+            source_output = root / "source"
+            run_template_bank_workflow(
+                config=self.config,
+                adapter=_FakeAdapter(self.config),
+                domain_path=domain_path,
+                output_dir=source_output,
+            )
+            source_bank_path = (
+                source_output / "template_banks/template_bank_ma_0p3.npz"
+            )
+
+            custom_path = root / "custom_lifetimes.csv"
+            custom = build_template_lifetime_grid_table(
+                domains,
+                (0.3,),
+                3,
+            )[["model", "mass_GeV", "interval_index", "ctau_m"]]
+            custom.to_csv(custom_path, index=False, float_format="%.17g")
+
+            loaded_grid = load_custom_lifetime_grid(
+                custom_path,
+                domains=domains,
+                masses=(0.3,),
+            )
+            self.assertEqual(len(loaded_grid), 9)
+            self.assertEqual(set(loaded_grid["model_id"]), {
+                "alp_photon_combined",
+                "alp_su2l",
+            })
+
+            destination = root / "derived"
+            run_template_bank_workflow(
+                config=self.config,
+                adapter=_FakeAdapter(self.config),
+                domain_path=domain_path,
+                output_dir=destination,
+                energy_edges_from_bank=source_bank_path,
+                lifetime_grid_path=custom_path,
+            )
+
+            source = load_template_bank(source_bank_path)
+            derived = load_template_bank(
+                destination / "template_banks/template_bank_ma_0p3.npz"
+            )
+            np.testing.assert_array_equal(
+                derived.energy_edges_gev,
+                source.energy_edges_gev,
+            )
+            manifest = json.loads((destination / "manifest.json").read_text())
+            self.assertEqual(manifest["energy_binning_mode"], "fixed_from_bank")
+            self.assertEqual(manifest["lifetime_grid_mode"], "custom_csv")
+            self.assertEqual(manifest["number_of_fixed_energy_bins"], 4)
+            self.assertIsNone(
+                manifest["lifetime_points_per_connected_interval"]
+            )
+
+    def test_custom_grid_rejects_missing_endpoints_and_fixed_edges_never_merge(self):
+        domains = _domains()
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "bad_grid.csv"
+            bad = build_template_lifetime_grid_table(
+                domains,
+                (0.3,),
+                3,
+            )[["model", "mass_GeV", "interval_index", "ctau_m"]]
+            bad = bad.drop(bad.index[0])
+            bad.to_csv(path, index=False)
+            with self.assertRaisesRegex(ValueError, "retain both endpoints"):
+                load_custom_lifetime_grid(
+                    path,
+                    domains=domains,
+                    masses=(0.3,),
+                )
+
+        strict = replace(
+            self.config,
+            templates=replace(
+                self.config.templates,
+                minimum_bin_n_eff=5.0,
+            ),
+        )
+        with self.assertRaisesRegex(ValueError, "Fixed energy edges fail"):
+            build_mass_bank(
+                config=strict,
+                adapter=_FakeAdapter(strict),
+                mass_gev=0.3,
+                domains=domains,
+                mass_seed_index=0,
+                fixed_energy_edges_gev=np.array(
+                    [0.3, 0.6, 1.0, 4.0, 400.0]
+                ),
+            )
+
+    def test_proposal_lifetime_strategy_preserves_short_lifetime_sampling(self):
+        self.assertEqual(proposal_lifetime_for_target(0.25), 0.25)
+        self.assertEqual(proposal_lifetime_for_target(2.0), 2.0)
+        self.assertEqual(
+            proposal_lifetime_for_target(3.0),
+            EVENTCALC_FULL_SUPPORT_CTAU_M,
+        )
+
+    def test_requested_masses_and_seed_indices_are_stable(self):
+        available = (0.3, 0.4, 0.5, 1.2, 2.5)
+        self.assertEqual(
+            resolve_requested_masses([2.5, 0.3], available),
+            (0.3, 2.5),
+        )
         with self.assertRaises(ValueError):
-            resolve_requested_masses([0.6], configured)
+            resolve_requested_masses([0.6], available)
+
+        indices = _mass_seed_indices(self.config, available)
+        self.assertEqual(indices[0.3], 0)
+        self.assertEqual(indices[0.4], 1)
+        self.assertEqual(indices[0.5], 2)
+        self.assertGreaterEqual(indices[1.2], len(self.config.seed_policy.mass_order_gev))
+        self.assertGreater(indices[2.5], indices[1.2])
 
 
 if __name__ == "__main__":

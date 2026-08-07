@@ -142,32 +142,77 @@ class SeedPolicy:
             seed_offset=seed_offset,
         )
 
+    def mass_index_from_model_seed(
+        self, model_seed: int, model_id: str, *, seed_offset: int = 0,
+    ) -> int:
+        """Recover and validate the deterministic mass index in a model seed.
+
+        This supports Week-8 masses appended after the frozen Week-7 mass order
+        without changing the seeds of the original masses.
+        """
+        if model_seed < 0 or seed_offset < 0:
+            raise ValueError("model seed and seed offset must be non-negative")
+        model_base = (
+            self.base_seed
+            + self.model_stride * self.model_index(model_id)
+            + seed_offset
+        )
+        delta = int(model_seed) - model_base
+        if delta < 0 or delta % self.mass_stride != 0:
+            raise ValueError(
+                "model_seed disagrees with the deterministic profile seed policy"
+            )
+        return delta // self.mass_stride
+
+    def source_proposal_seed_from_model_seed(
+        self, model_seed: int, source_index: int,
+    ) -> int:
+        if model_seed < 0 or source_index < 0:
+            raise ValueError("model_seed and source_index must be non-negative")
+        return int(model_seed) + self.source_stride * source_index
+
+    def true_sample_seed_from_model_seed(
+        self, model_seed: int, source_index: int,
+    ) -> int:
+        return (
+            self.source_proposal_seed_from_model_seed(model_seed, source_index)
+            + self.true_sample_seed_offset
+        )
+
+    def ecal_seed_from_model_seed(
+        self, model_seed: int, source_index: int,
+    ) -> int:
+        return (
+            self.source_proposal_seed_from_model_seed(model_seed, source_index)
+            + self.ecal_seed_offset
+        )
+
     def source_proposal_seed(
         self, mass_gev: float, model_id: str, source_index: int,
         *, seed_offset: int = 0,
     ) -> int:
-        if source_index < 0:
-            raise ValueError("source_index must be non-negative")
-        return (
-            self.model_seed(mass_gev, model_id, seed_offset=seed_offset)
-            + self.source_stride * source_index
+        return self.source_proposal_seed_from_model_seed(
+            self.model_seed(mass_gev, model_id, seed_offset=seed_offset),
+            source_index,
         )
 
     def true_sample_seed(
         self, mass_gev: float, model_id: str, source_index: int,
         *, seed_offset: int = 0,
     ) -> int:
-        return self.source_proposal_seed(
-            mass_gev, model_id, source_index, seed_offset=seed_offset,
-        ) + self.true_sample_seed_offset
+        return self.true_sample_seed_from_model_seed(
+            self.model_seed(mass_gev, model_id, seed_offset=seed_offset),
+            source_index,
+        )
 
     def ecal_seed(
         self, mass_gev: float, model_id: str, source_index: int,
         *, seed_offset: int = 0,
     ) -> int:
-        return self.source_proposal_seed(
-            mass_gev, model_id, source_index, seed_offset=seed_offset,
-        ) + self.ecal_seed_offset
+        return self.ecal_seed_from_model_seed(
+            self.model_seed(mass_gev, model_id, seed_offset=seed_offset),
+            source_index,
+        )
 
 
 @dataclass(frozen=True)

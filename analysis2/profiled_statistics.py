@@ -13,6 +13,7 @@ order reproduce the legacy frozen-reference implementation.
 from __future__ import annotations
 
 import zlib
+from typing import Mapping
 
 import numpy as np
 import pandas as pd
@@ -66,16 +67,58 @@ def _probability_matrix(probabilities: np.ndarray, *, label: str) -> np.ndarray:
     return values
 
 
+_PROFILE_TEMPORARY_TARGET_BYTES = 32 * 1024**2
+
+
 def _profile_log_likelihoods(
     sampled_bins: np.ndarray,
     log_templates: np.ndarray,
     event_indices: np.ndarray,
 ) -> np.ndarray:
-    """Maximize prefix log likelihoods over one model's lifetime grid."""
-    contributions = log_templates[:, sampled_bins]
-    np.cumsum(contributions, axis=2, out=contributions)
-    selected = contributions[:, :, event_indices]
-    return np.max(selected, axis=0)
+    """Maximize prefix log likelihoods over one model's lifetime grid.
+
+    Block over pseudoexperiments, not lifetime templates.  For each block,
+    ``log_templates[:, sampled_bins_block]`` therefore has the same
+    lifetime-fast memory layout and uses the same rank-three cumulative-sum
+    path as the legacy implementation.  This preserves the frozen numerical
+    result exactly while bounding the dominant temporary allocation.
+    """
+    number_of_pseudoexperiments = sampled_bins.shape[0]
+    maximum_events = sampled_bins.shape[1]
+    bytes_per_pseudoexperiment = (
+        log_templates.shape[0]
+        * maximum_events
+        * np.dtype(float).itemsize
+    )
+    pseudoexperiment_block_size = max(
+        1,
+        min(
+            number_of_pseudoexperiments,
+            _PROFILE_TEMPORARY_TARGET_BYTES
+            // bytes_per_pseudoexperiment,
+        ),
+    )
+    best = np.empty(
+        (number_of_pseudoexperiments, len(event_indices)),
+        dtype=float,
+        order="F",
+    )
+    for block_start in range(
+        0,
+        number_of_pseudoexperiments,
+        pseudoexperiment_block_size,
+    ):
+        block_stop = min(
+            number_of_pseudoexperiments,
+            block_start + pseudoexperiment_block_size,
+        )
+        contributions = log_templates[:, sampled_bins[block_start:block_stop]]
+        np.cumsum(contributions, axis=2, out=contributions)
+        best[block_start:block_stop] = np.max(
+            contributions[:, :, event_indices],
+            axis=0,
+        )
+    return best
 
 
 def profile_log_likelihoods(
@@ -118,6 +161,30 @@ def stable_truth_rng(
     return np.random.default_rng(sequence)
 
 
+def _discard_truth_stream_prefix(
+    *,
+    rng: np.random.Generator,
+    truth: np.ndarray,
+    maximum_events: int,
+    number_of_pseudoexperiments: int,
+    chunk_size: int,
+) -> None:
+    """Advance one stable truth stream without profiling discarded draws."""
+    discarded = 0
+    while discarded < number_of_pseudoexperiments:
+        current_chunk = min(
+            chunk_size,
+            number_of_pseudoexperiments - discarded,
+        )
+        rng.choice(
+            len(truth),
+            size=(current_chunk, maximum_events),
+            replace=True,
+            p=truth,
+        )
+        discarded += current_chunk
+
+
 def simulate_truth_template(
     *,
     mass_gev: float,
@@ -132,8 +199,17 @@ def simulate_truth_template(
     seed: int,
     chunk_size: int,
     tie_tolerance: float,
+    pseudoexperiment_start: int = 0,
+    maximum_sampled_events: int | None = None,
+    initial_rng_state: Mapping | None = None,
 ) -> pd.DataFrame:
-    """Run all correlated-prefix event counts for one true lifetime."""
+    """Run one deterministic contiguous range of correlated-prefix PEs.
+
+    ``pseudoexperiment_start`` advances the same stable truth stream used by a
+    direct run and then evaluates only the requested number of subsequent
+    pseudoexperiments.  This permits progressive extensions without repeating
+    the expensive likelihood profiling of an already cached prefix.
+    """
     event_counts = np.asarray(event_counts, dtype=int)
     truth = np.asarray(truth_probabilities, dtype=float)
     photon = _probability_matrix(photon_probabilities, label="photon")
@@ -145,6 +221,8 @@ def simulate_truth_template(
         raise ValueError("event_counts must be positive, unique, and increasing.")
     if number_of_pseudoexperiments <= 0 or chunk_size <= 0:
         raise ValueError("Pseudoexperiment count and chunk size must be positive.")
+    if pseudoexperiment_start < 0:
+        raise ValueError("pseudoexperiment_start cannot be negative.")
     if tie_tolerance < 0.0:
         raise ValueError("tie_tolerance cannot be negative.")
     if truth.ndim != 1 or len(truth) == 0:
@@ -158,12 +236,20 @@ def simulate_truth_template(
     if su2.shape[1] != len(truth):
         raise ValueError("SU(2)_L templates and truth use different energy bins.")
 
-    log_photon = np.log(photon)
-    log_su2 = np.log(su2)
-    maximum_events = int(event_counts[-1])
+    maximum_events = (
+        int(event_counts[-1])
+        if maximum_sampled_events is None
+        else int(maximum_sampled_events)
+    )
+    if maximum_events < int(event_counts[-1]):
+        raise ValueError(
+            "maximum_sampled_events cannot be below the largest event count."
+        )
     event_indices = event_counts - 1
     number_of_counts = len(event_counts)
 
+    log_photon = np.log(photon)
+    log_su2 = np.log(su2)
     correct_sum = np.zeros(number_of_counts, dtype=float)
     photon_selected_sum = np.zeros(number_of_counts, dtype=float)
     su2_selected_sum = np.zeros(number_of_counts, dtype=float)
@@ -176,6 +262,19 @@ def simulate_truth_template(
         truth_model=truth_model,
         truth_index=truth_index,
     )
+    if initial_rng_state is None:
+        _discard_truth_stream_prefix(
+            rng=rng,
+            truth=truth,
+            maximum_events=maximum_events,
+            number_of_pseudoexperiments=int(pseudoexperiment_start),
+            chunk_size=chunk_size,
+        )
+    else:
+        try:
+            rng.bit_generator.state = dict(initial_rng_state)
+        except (TypeError, ValueError, KeyError) as error:
+            raise ValueError("initial_rng_state is invalid") from error
 
     processed = 0
     while processed < number_of_pseudoexperiments:
@@ -215,7 +314,7 @@ def simulate_truth_template(
     mean_statistic = statistic_sum / normalization
     variance = statistic_squared_sum / normalization - np.square(mean_statistic)
     standard_deviation = np.sqrt(np.maximum(variance, 0.0))
-    return pd.DataFrame(
+    result = pd.DataFrame(
         {
             "mass_GeV": float(mass_gev),
             "seed": int(seed),
@@ -233,7 +332,121 @@ def simulate_truth_template(
         },
         columns=PROFILED_ACCURACY_COLUMNS,
     )
+    result.attrs["rng_state_after"] = rng.bit_generator.state
+    result.attrs["rng_state_resume_used"] = initial_rng_state is not None
+    return result
 
+
+def _half_integer_numerators(
+    values: np.ndarray,
+    number_of_pseudoexperiments: int,
+    *,
+    label: str,
+) -> np.ndarray:
+    raw = 2.0 * float(number_of_pseudoexperiments) * np.asarray(values, dtype=float)
+    rounded = np.rint(raw).astype(np.int64)
+    if not np.allclose(raw, rounded, rtol=0.0, atol=1.0e-7):
+        raise ValueError(f"Cannot reconstruct exact half-integer {label} counts.")
+    return rounded
+
+
+def combine_profiled_truth_tables(
+    tables: list[pd.DataFrame] | tuple[pd.DataFrame, ...],
+) -> pd.DataFrame:
+    """Combine disjoint deterministic PE ranges for one truth hypothesis.
+
+    Classification numerators are reconstructed as exact half-integers before
+    summation.  The profiled-statistic moments are combined from their first
+    and second population moments and are therefore statistically equivalent,
+    although their final floating-point roundoff need not be bitwise identical
+    to a single uninterrupted reduction.
+    """
+    if not tables:
+        raise ValueError("At least one profiled truth table is required.")
+
+    ordered = [
+        table.loc[:, PROFILED_ACCURACY_COLUMNS].reset_index(drop=True)
+        for table in tables
+    ]
+    reference = ordered[0]
+    identity_columns = (
+        "mass_GeV",
+        "seed",
+        "truth_model",
+        "truth_lifetime_index",
+        "truth_ctau_m",
+        "number_of_events",
+    )
+    for table in ordered[1:]:
+        if len(table) != len(reference):
+            raise ValueError("Profiled truth tables have different row counts.")
+        for column in identity_columns:
+            left = reference[column].to_numpy()
+            right = table[column].to_numpy()
+            if np.issubdtype(left.dtype, np.number):
+                if not np.array_equal(left, right):
+                    raise ValueError(
+                        f"Profiled truth tables disagree in {column}."
+                    )
+            elif not np.array_equal(left.astype(str), right.astype(str)):
+                raise ValueError(f"Profiled truth tables disagree in {column}.")
+
+    counts = [
+        int(table["number_of_pseudoexperiments"].iloc[0])
+        for table in ordered
+    ]
+    for table, count in zip(ordered, counts):
+        if count <= 0 or not np.all(
+            table["number_of_pseudoexperiments"] == count
+        ):
+            raise ValueError("Each profiled truth table must have one positive PE count.")
+    total = int(sum(counts))
+
+    combined = reference.copy()
+    for column in (
+        "correct_fraction",
+        "selected_photon_fraction",
+        "selected_su2_fraction",
+    ):
+        numerator = sum(
+            (
+                _half_integer_numerators(
+                    table[column].to_numpy(float),
+                    count,
+                    label=column,
+                )
+                for table, count in zip(ordered, counts)
+            ),
+            start=np.zeros(len(reference), dtype=np.int64),
+        )
+        combined[column] = numerator / (2.0 * float(total))
+
+    tie_numerator = sum(
+        (
+            np.rint(
+                table["tie_fraction"].to_numpy(float) * float(count)
+            ).astype(np.int64)
+            for table, count in zip(ordered, counts)
+        ),
+        start=np.zeros(len(reference), dtype=np.int64),
+    )
+    combined["tie_fraction"] = tie_numerator / float(total)
+
+    statistic_sum = np.zeros(len(reference), dtype=float)
+    statistic_squared_sum = np.zeros(len(reference), dtype=float)
+    for table, count in zip(ordered, counts):
+        mean = table["mean_profile_statistic_T"].to_numpy(float)
+        standard_deviation = table["std_profile_statistic_T"].to_numpy(float)
+        statistic_sum += mean * float(count)
+        statistic_squared_sum += (
+            np.square(standard_deviation) + np.square(mean)
+        ) * float(count)
+    mean = statistic_sum / float(total)
+    variance = statistic_squared_sum / float(total) - np.square(mean)
+    combined["mean_profile_statistic_T"] = mean
+    combined["std_profile_statistic_T"] = np.sqrt(np.maximum(variance, 0.0))
+    combined["number_of_pseudoexperiments"] = total
+    return combined.loc[:, PROFILED_ACCURACY_COLUMNS]
 
 def run_profiled_seed(
     *,

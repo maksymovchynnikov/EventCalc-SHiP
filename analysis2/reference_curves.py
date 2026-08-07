@@ -16,11 +16,11 @@ N_COMPARISON_POINTS = 600
 ENDPOINT_FRACTION = 0.98
 CONTAINMENT_TOLERANCE_DEX = 1.0e-3
 REFERENCE_FILENAMES = {
-    "geom_only": (
+    "epsilon_dec_1": (
         "Sensitivity_ALP-photon_at_SHiP-ECN3-"
         "epsilon-dec-1_Nev=2.3_Npot=6.e20.json"
     ),
-    "baseline": (
+    "geom_only": (
         "Sensitivity_ALP-photon_at_SHiP-ECN3-"
         "geom-only_Nev=2.3_Npot=6.e20.json"
     ),

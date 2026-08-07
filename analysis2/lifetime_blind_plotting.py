@@ -9,6 +9,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+from matplotlib.cm import ScalarMappable
+from matplotlib.colors import Normalize
 from matplotlib.lines import Line2D
 import numpy as np
 import pandas as pd
@@ -99,6 +101,95 @@ def logarithmic_cell_edges(centres: np.ndarray) -> np.ndarray:
     return np.exp(log_edges)
 
 
+def interval_cell_edges(
+    centres: np.ndarray,
+    interval_bounds_m: np.ndarray,
+) -> np.ndarray:
+    """Return logarithmic cell edges clipped to one connected domain."""
+    centres = np.asarray(centres, dtype=float)
+    bounds = np.asarray(interval_bounds_m, dtype=float)
+    if centres.ndim != 1 or len(centres) < 1:
+        raise ValueError("At least one lifetime centre is required.")
+    if np.any(centres <= 0.0) or np.any(np.diff(centres) <= 0.0):
+        raise ValueError("Lifetime centres must be positive and increasing.")
+    if (
+        bounds.shape != (2,)
+        or np.any(~np.isfinite(bounds))
+        or np.any(bounds <= 0.0)
+        or bounds[1] <= bounds[0]
+    ):
+        raise ValueError("Allowed lifetime bounds must be finite, positive and ordered.")
+    tolerance = 1.0e-12
+    if centres[0] < bounds[0] * (1.0 - tolerance) or centres[-1] > bounds[1] * (1.0 + tolerance):
+        raise ValueError("A lifetime centre lies outside its connected allowed interval.")
+    if len(centres) == 1:
+        return bounds.copy()
+    edges = logarithmic_cell_edges(centres)
+    edges[0] = bounds[0]
+    edges[-1] = bounds[1]
+    if np.any(np.diff(edges) <= 0.0):
+        raise ValueError("Clipped logarithmic cell edges are not increasing.")
+    return edges
+
+
+def _ordered_interval_ids(
+    lifetimes: np.ndarray,
+    interval_index: np.ndarray,
+) -> list[int]:
+    """Order interval labels by the smallest sampled lifetime in each one."""
+    ids = np.unique(np.asarray(interval_index, dtype=int))
+    return sorted(
+        (int(value) for value in ids),
+        key=lambda value: float(np.min(lifetimes[interval_index == value])),
+    )
+
+
+def distance_map_interval_blocks(
+    bank: LifetimeTemplateBank,
+    distances: np.ndarray,
+) -> list[tuple[int, int, np.ndarray, np.ndarray, np.ndarray]]:
+    """Split a distance matrix into connected-domain plotting blocks.
+
+    Every returned block contains one photon interval and one SU(2)_L
+    interval.  Consequently no pcolormesh cell can span an excluded gap.
+    """
+    values = np.asarray(distances, dtype=float)
+    expected_shape = (len(bank.photon_ctau_m), len(bank.su2_ctau_m))
+    if values.shape != expected_shape or np.any(~np.isfinite(values)):
+        raise ValueError("Distance matrix shape or values are invalid.")
+
+    blocks = []
+    photon_ids = _ordered_interval_ids(
+        bank.photon_ctau_m,
+        bank.photon_interval_index,
+    )
+    su2_ids = _ordered_interval_ids(
+        bank.su2_ctau_m,
+        bank.su2_interval_index,
+    )
+    for photon_interval in photon_ids:
+        photon_indices = np.flatnonzero(
+            bank.photon_interval_index == photon_interval
+        )
+        x_edges = interval_cell_edges(
+            bank.photon_ctau_m[photon_indices],
+            bank.photon_allowed_intervals_m[photon_interval],
+        )
+        for su2_interval in su2_ids:
+            su2_indices = np.flatnonzero(
+                bank.su2_interval_index == su2_interval
+            )
+            y_edges = interval_cell_edges(
+                bank.su2_ctau_m[su2_indices],
+                bank.su2_allowed_intervals_m[su2_interval],
+            )
+            block = values[np.ix_(photon_indices, su2_indices)].T
+            blocks.append(
+                (photon_interval, su2_interval, x_edges, y_edges, block)
+            )
+    return blocks
+
+
 def plot_distance_map(
     bank: LifetimeTemplateBank,
     distances: np.ndarray,
@@ -108,16 +199,25 @@ def plot_distance_map(
 ) -> tuple[Path, Path]:
     use_report_style()
     figure, axis = plt.subplots(figsize=PLOT_CONFIG.distance_map_figsize)
-    mesh = axis.pcolormesh(
-        logarithmic_cell_edges(bank.photon_ctau_m),
-        logarithmic_cell_edges(bank.su2_ctau_m),
-        np.asarray(distances).T,
-        shading="flat",
+    normalisation = Normalize(
         vmin=PLOT_CONFIG.distance_vmin,
         vmax=PLOT_CONFIG.distance_vmax,
-        cmap=PLOT_CONFIG.distance_cmap,
     )
-    colorbar = figure.colorbar(mesh, ax=axis)
+    colour_map = plt.get_cmap(PLOT_CONFIG.distance_cmap)
+    for _, _, x_edges, y_edges, block in distance_map_interval_blocks(
+        bank, distances
+    ):
+        axis.pcolormesh(
+            x_edges,
+            y_edges,
+            block,
+            shading="flat",
+            norm=normalisation,
+            cmap=colour_map,
+        )
+    scalar_mappable = ScalarMappable(norm=normalisation, cmap=colour_map)
+    scalar_mappable.set_array([])
+    colorbar = figure.colorbar(scalar_mappable, ax=axis)
     colorbar.set_label(r"$D_{\mathrm{TV}}$")
     axis.scatter(
         [summary["minimum_photon_ctau_m"]],
@@ -134,6 +234,7 @@ def plot_distance_map(
     axis.set_ylabel(r"$SU(2)_L$ $c\tau_a$ [m]")
     axis.legend(loc="best")
     style_axis(axis)
+    axis.set_title(rf"$m_a={bank.mass_gev:g}\,\mathrm{{GeV}}$")
     figure.tight_layout()
     return _save_pdf_png(figure, output_stem)
 
@@ -184,20 +285,58 @@ def plot_profiled_accuracy(
     use_report_style()
     figure, axis = plt.subplots(figsize=PLOT_CONFIG.profiled_figsize)
     events = curve["number_of_events"].to_numpy(dtype=int)
-    axis.plot(events, curve["photon_truth_worst_accuracy"], marker="o", label="Worst photophilic truth lifetime")
-    axis.plot(events, curve["su2_truth_worst_accuracy"], marker="s", label=r"Worst $SU(2)_L$ truth lifetime")
-    axis.plot(events, curve["worst_case_correct_fraction"], marker="^", linewidth=2.2, label="Overall worst case")
-    axis.axhline(target_accuracy, linestyle="--", linewidth=1.4, label=f"Target = {100 * target_accuracy:.0f}%")
+
+    axis.plot(
+        events,
+        curve["photon_truth_worst_accuracy"],
+        linewidth=1.6,
+        label="Worst photophilic truth lifetime",
+    )
+    axis.plot(
+        events,
+        curve["su2_truth_worst_accuracy"],
+        linewidth=1.6,
+        label=r"Worst $SU(2)_L$ truth lifetime",
+    )
+    axis.plot(
+        events,
+        curve["worst_case_correct_fraction"],
+        linewidth=2.3,
+        label="Overall worst case",
+    )
+
     if threshold is not None:
-        axis.axvline(threshold, linestyle=":", linewidth=1.4, label=f"Persistent threshold: N = {threshold}")
+        axis.axvline(
+            threshold,
+            linestyle=":",
+            linewidth=1.4,
+            label=f"Persistent threshold: $N={threshold}$",
+        )
+        visible_max = min(
+            int(events.max()),
+            max(250, int(np.ceil(1.5 * threshold / 25.0) * 25)),
+        )
+    else:
+        visible_max = int(events.max())
+
+    tick_step = 25 if visible_max <= 300 else 50 if visible_max <= 600 else 100
+
+    axis.set_xlim(0, visible_max)
+    axis.set_xticks(np.arange(0, visible_max + tick_step, tick_step))
+    axis.set_ylim(0.45, 1.01)
+
     axis.set_xlabel("Observed ALP decays, $N$")
     axis.set_ylabel("Correct-classification probability")
-    axis.set_xticks(events)
-    axis.set_ylim(0.45, 1.01)
+
     axis.grid(True, alpha=PLOT_CONFIG.grid_alpha)
     axis.legend(loc="lower right")
     style_axis(axis)
+    axis.set_title(
+        rf"$m_a={mass_gev:g}\,\mathrm{{GeV}}$"
+        + rf"  (persistence checked through $N={events.max()}$)"
+    )
     figure.tight_layout()
+
     return _save_pdf_png(figure, output_stem)
 
 
@@ -208,26 +347,64 @@ def plot_profiled_thresholds(
 ) -> tuple[Path, Path]:
     use_report_style()
     figure, axis = plt.subplots(figsize=PLOT_CONFIG.profiled_figsize)
+
+    summary = summary.sort_values("mass_GeV")
     masses = summary["mass_GeV"].to_numpy(dtype=float)
     reached = summary["threshold_reached"].to_numpy(dtype=bool)
     maximum_tested = int(summary["maximum_tested_events"].max())
+
     requirements = np.where(
         reached,
         summary["minimum_persistent_events"].to_numpy(dtype=float),
         maximum_tested + 1.0,
     )
-    axis.plot(masses, requirements, marker="o", linewidth=1.8)
+
+    axis.plot(
+        masses,
+        requirements,
+        marker="o",
+        markersize=6,
+        linewidth=1.5,
+        linestyle="--",
+    )
+
     for mass, reached_here, value in zip(masses, reached, requirements):
-        if not reached_here:
-            axis.annotate(f">{maximum_tested}", (mass, value), textcoords="offset points", xytext=(0, 6), ha="center")
-    axis.set_xlabel(r"$m_a$ [GeV]")
-    axis.set_ylabel("Minimum persistent observed events")
+        label = f"{int(value)}" if reached_here else f">{maximum_tested}"
+        axis.annotate(
+            label,
+            (mass, value),
+            textcoords="offset points",
+            xytext=(0, 7),
+            ha="center",
+        )
+
     axis.set_xscale("log")
-    finite = requirements[reached]
-    upper = max(5.5, float(np.max(finite)) + 1.0) if len(finite) else maximum_tested + 1.8
-    axis.set_ylim(0.5, upper)
-    axis.set_yticks(np.arange(1, int(np.ceil(upper)), dtype=int))
+    axis.set_xticks(masses)
+    axis.set_xticklabels([f"{mass:g}" for mass in masses])
+
+    finite_values = requirements[reached]
+    largest_value = (
+        float(np.max(finite_values))
+        if len(finite_values)
+        else float(maximum_tested)
+    )
+    y_max = max(50.0, 1.18 * largest_value)
+    tick_step = 25 if y_max <= 250 else 50 if y_max <= 600 else 100
+
+    axis.set_ylim(0, y_max)
+    axis.set_yticks(
+        np.arange(
+            0,
+            tick_step * np.ceil(y_max / tick_step) + 0.5 * tick_step,
+            tick_step,
+        )
+    )
+
+    axis.set_xlabel(r"$m_a$ [GeV]")
+    axis.set_ylabel(r"Minimum persistent events for 90% classification")
+
     axis.grid(True, alpha=PLOT_CONFIG.grid_alpha)
     style_axis(axis)
     figure.tight_layout()
+
     return _save_pdf_png(figure, output_stem)

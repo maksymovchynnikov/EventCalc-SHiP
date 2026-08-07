@@ -113,12 +113,24 @@ class EventCalcAdapter:
         self, proposal: KinematicProposal, ctau_m: float, true_sample_seed: int,
         coupling_squared_gev_inv2: float | None = None, *, cache_result: bool = True,
     ) -> WeightedSpectrum:
-        if (
+        if proposal.energy_support_mode == "lifetime_specific_truncated_Ea":
+            if not np.isclose(
+                ctau_m,
+                proposal.proposal_ctau_m,
+                rtol=1.0e-12,
+                atol=0.0,
+            ):
+                raise ValueError(
+                    "lifetime-specific proposal may only be evaluated at its "
+                    "preparation lifetime"
+                )
+        elif (
             proposal.sanitation_policy == "strict_core"
             and ctau_m < proposal.proposal_ctau_m
         ):
             raise ValueError(
-                "cached proposal is valid only at or above its preparation lifetime"
+                "full-support cached proposal is valid only at or above its "
+                "preparation lifetime"
             )
         coupling_squared = (
             proposal.unit_coupling_ctau_m / ctau_m
@@ -224,18 +236,14 @@ class EventCalcAdapter:
             seed_policy = getattr(self.config, "seed_policy", None)
             if seed_policy is not None:
                 seed_offset = self.config.templates.seed_offset if stage == "spectrum" else 0
-                expected_model_seed = seed_policy.model_seed(
-                    mass_gev, model_id, seed_offset=seed_offset,
+                seed_policy.mass_index_from_model_seed(
+                    model_seed, model_id, seed_offset=seed_offset,
                 )
-                if model_seed != expected_model_seed:
-                    raise ValueError(
-                        "model_seed disagrees with the immutable profile seed policy"
-                    )
-                seed = seed_policy.source_proposal_seed(
-                    mass_gev, model_id, source_index, seed_offset=seed_offset,
+                seed = seed_policy.source_proposal_seed_from_model_seed(
+                    model_seed, source_index,
                 )
-                true_sample_seed = seed_policy.true_sample_seed(
-                    mass_gev, model_id, source_index, seed_offset=seed_offset,
+                true_sample_seed = seed_policy.true_sample_seed_from_model_seed(
+                    model_seed, source_index,
                 )
             else:
                 seed = (

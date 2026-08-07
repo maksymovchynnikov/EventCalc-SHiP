@@ -1,7 +1,10 @@
 import unittest
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
+
+import analysis2.profiled_statistics as profiled_statistics
 
 from analysis2.distance_statistics import (
     DISTANCE_TABLE_COLUMNS,
@@ -17,6 +20,7 @@ from analysis2.profiled_reduction import (
 )
 from analysis2.profiled_statistics import (
     PROFILED_ACCURACY_COLUMNS,
+    combine_profiled_truth_tables,
     profile_log_likelihoods,
     simulate_truth_template,
     stable_truth_rng,
@@ -50,6 +54,39 @@ class DistanceStatisticsTests(unittest.TestCase):
 
 
 class ProfiledLikelihoodTests(unittest.TestCase):
+    def test_blocked_profiler_is_bitwise_identical_to_legacy_vectorization(self):
+        rng = np.random.default_rng(20260803)
+        templates = rng.dirichlet(np.ones(6), size=40)
+        sampled_bins = rng.choice(
+            6,
+            size=(17, 53),
+            replace=True,
+            p=templates[7],
+        )
+        event_counts = np.array([1, 2, 7, 19, 53])
+
+        log_templates = np.log(templates)
+        legacy_contributions = log_templates[:, sampled_bins]
+        np.cumsum(legacy_contributions, axis=2, out=legacy_contributions)
+        legacy = np.max(
+            legacy_contributions[:, :, event_counts - 1],
+            axis=0,
+        )
+
+        # Force several pseudoexperiment blocks while retaining the legacy
+        # lifetime-fast, rank-three cumulative-sum path within each block.
+        with patch.object(
+            profiled_statistics,
+            "_PROFILE_TEMPORARY_TARGET_BYTES",
+            1,
+        ):
+            blocked = profile_log_likelihoods(
+                sampled_bins,
+                templates,
+                event_counts,
+            )
+        np.testing.assert_array_equal(blocked, legacy)
+
     def test_lifetimes_are_profiled_independently_between_models(self):
         samples = np.array([[0, 0], [1, 1]])
         photon = np.array([[0.9, 0.1], [0.6, 0.4]])
@@ -114,6 +151,61 @@ class ProfiledLikelihoodTests(unittest.TestCase):
             unchunked[["mean_profile_statistic_T", "std_profile_statistic_T"]],
             rtol=0.0,
             atol=5.0e-15,
+        )
+
+    def test_progressive_ranges_reproduce_direct_classification_exactly(self):
+        arguments = {
+            "mass_gev": 0.75,
+            "truth_model": "su2",
+            "truth_index": 1,
+            "truth_ctau_m": 9.0,
+            "truth_probabilities": np.array([0.2, 0.5, 0.3]),
+            "photon_probabilities": np.array(
+                [[0.6, 0.3, 0.1], [0.2, 0.5, 0.3]]
+            ),
+            "su2_probabilities": np.array(
+                [[0.3, 0.3, 0.4], [0.1, 0.2, 0.7]]
+            ),
+            "event_counts": np.array([2, 4, 7]),
+            "seed": 71,
+            "chunk_size": 13,
+            "tie_tolerance": 1.0e-12,
+        }
+        direct = simulate_truth_template(
+            **arguments,
+            number_of_pseudoexperiments=100,
+        )
+        first = simulate_truth_template(
+            **arguments,
+            number_of_pseudoexperiments=40,
+        )
+        second = simulate_truth_template(
+            **arguments,
+            number_of_pseudoexperiments=60,
+            pseudoexperiment_start=40,
+        )
+        staged = combine_profiled_truth_tables([first, second])
+
+        exact_columns = [
+            "correct_fraction",
+            "selected_photon_fraction",
+            "selected_su2_fraction",
+            "tie_fraction",
+        ]
+        pd.testing.assert_frame_equal(
+            staged[exact_columns],
+            direct[exact_columns],
+            check_exact=True,
+        )
+        np.testing.assert_allclose(
+            staged[["mean_profile_statistic_T", "std_profile_statistic_T"]],
+            direct[["mean_profile_statistic_T", "std_profile_statistic_T"]],
+            rtol=0.0,
+            atol=2.0e-14,
+        )
+        self.assertEqual(
+            set(staged["number_of_pseudoexperiments"]),
+            {100},
         )
 
     def test_ties_are_split_equally_with_the_legacy_schema(self):
