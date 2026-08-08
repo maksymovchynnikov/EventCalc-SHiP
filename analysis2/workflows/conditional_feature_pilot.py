@@ -74,8 +74,8 @@ def parse_args() -> argparse.Namespace:
         "--domain-path",
         type=Path,
         default=Path(
-            "analysis2/outputs/production/week8_domains/"
-            "allowed_ctau_domains.csv"
+            "analysis2/outputs/production/alp_su2l_analysis/final_results/"
+            "provenance/allowed_lifetime_domains.csv"
         ),
     )
     parser.add_argument("--output-dir", type=Path, required=True)
@@ -472,7 +472,7 @@ def _run_conditional_feature_args(
     bank = load_template_bank(bank_path)
     if not domain_path.is_file():
         raise FileNotFoundError(
-            f"Week-8 domain table not found: {domain_path}"
+            f"Allowed-lifetime domain table not found: {domain_path}"
         )
     output_dir = args.output_dir.expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)

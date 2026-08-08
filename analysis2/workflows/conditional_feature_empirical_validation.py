@@ -45,6 +45,7 @@ from analysis2.lifetime_template_banks import load_template_bank
 from analysis2.mass_seed_resolution import model_seed_for_bank
 from analysis2.models import get_model
 from analysis2.profiled_statistics import stable_truth_rng
+from analysis2.progress import ProgressMeter
 from analysis2.workflows import float_token
 
 
@@ -67,8 +68,8 @@ def parse_args() -> argparse.Namespace:
         "--domain-path",
         type=Path,
         default=Path(
-            "analysis2/outputs/production/week8_domains/"
-            "allowed_ctau_domains.csv"
+            "analysis2/outputs/production/alp_su2l_analysis/final_results/"
+            "provenance/allowed_lifetime_domains.csv"
         ),
     )
     parser.add_argument("--pseudoexperiments", type=int, default=2000)
@@ -548,6 +549,7 @@ def main() -> None:
     )
 
     if tasks:
+        progress = ProgressMeter(total=len(tasks), label="empirical")
         with ProcessPoolExecutor(
             max_workers=args.workers,
             initializer=initialize_worker,
@@ -577,7 +579,7 @@ def main() -> None:
                 temporary.replace(part)
                 print(
                     f"COMPLETED {model:6s} index={index:3d} "
-                    f"({completed}/{len(tasks)})",
+                    f"({completed}/{len(tasks)}) | {progress.message(completed)}",
                     flush=True,
                 )
 

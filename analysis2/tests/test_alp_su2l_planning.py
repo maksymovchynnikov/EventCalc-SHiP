@@ -138,3 +138,15 @@ def test_every_mass_selection_has_isolated_bank_workspace(
     assert len(plan) == 4
     assert plan["bank_workspace"].nunique() == 4
     assert plan["result_dir"].nunique() == 4
+
+
+def test_reuse_only_skips_missing_banks(tmp_path):
+    manifest = pd.DataFrame(
+        columns=["mass_GeV", "selection_name", "status", "bank_path"]
+    )
+    plan = build_analysis_plan(
+        config=config(tmp_path, run_mode="reuse_only"),
+        manifest=manifest,
+        repo=tmp_path,
+    )
+    assert set(plan["bank_action"]) == {"skip_unavailable"}

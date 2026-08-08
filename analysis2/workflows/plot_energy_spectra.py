@@ -1,16 +1,6 @@
-"""Create the report energy-spectrum figure before and after the ECAL requirement.
+"""Create report-ready accepted energy-spectrum figures.
 
-The default figure compares m_a = 0.3 and 1.0 GeV.  For each mass, the
-photophilic and SU(2)_L spectra are evaluated at the same representative
-proper lifetime: the stored "mid" same-lifetime point when available, or the
-geometric midpoint of the common observable lifetime interval otherwise.
-
-Run from the repository root with
-
-    python -m analysis2.workflows.plot_report_energy_spectra
-
-The workflow reuses the production proposal and weighted-spectrum caches.  It
-writes only to analysis2/outputs/<profile>/report/.
+This module reads existing analysis products and does not rerun the full scan.
 """
 
 from __future__ import annotations

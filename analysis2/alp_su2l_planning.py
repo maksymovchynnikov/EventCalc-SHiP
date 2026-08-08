@@ -42,6 +42,7 @@ PROFILES = (
 RUN_MODES = (
     "automatic",
     "custom",
+    "reuse_only",
 )
 
 
@@ -286,6 +287,8 @@ def build_analysis_plan(
 
             if state in safe_reuse_states and bank_exists:
                 action = "reuse"
+            elif config.run_mode == "reuse_only":
+                action = "skip_unavailable"
             elif config.run_mode == "automatic":
                 if state in (
                     BankState.INCOMPLETE,
