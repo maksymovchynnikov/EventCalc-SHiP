@@ -173,3 +173,137 @@ def test_controller_calls_conditional_feature_runner(
         "energy_mean_z_r_perp",
     ]
     assert list(summary["provisional_N90"]) == [20, 4]
+
+
+def test_generated_bank_is_resolved_from_adaptive_state(
+    tmp_path,
+    monkeypatch,
+):
+    bank_dir = tmp_path / "banks" / "round_07"
+    template_dir = bank_dir / "template_banks"
+    template_dir.mkdir(parents=True)
+
+    bank_path = template_dir / "template_bank_ma_0p5.npz"
+    bank_path.write_bytes(b"test")
+
+    state_path = tmp_path / "state.json"
+    state_path.write_text(
+        __import__("json").dumps(
+            {
+                "status": "bank_complete",
+                "bank_dir": str(bank_dir),
+                "bank_status": "converged",
+            }
+        )
+    )
+
+    fake_bank = SimpleNamespace(
+        mass_gev=0.5,
+        selection_name="diphoton_ecal_e1gev",
+    )
+    monkeypatch.setattr(
+        workflow,
+        "load_template_bank",
+        lambda path: fake_bank,
+    )
+
+    resolved, status = workflow.generated_bank_from_state(
+        repo=tmp_path,
+        state_path=state_path,
+        mass_gev=0.5,
+        selection_name="diphoton_ecal_e1gev",
+    )
+
+    assert resolved == bank_path
+    assert status == "converged"
+
+
+def test_build_or_resume_bank_calls_adaptive_api(
+    tmp_path,
+    monkeypatch,
+):
+    output_dir = tmp_path / "analysis"
+    domain_path = tmp_path / "domains.csv"
+    manifest_path = tmp_path / "manifest.csv"
+
+    domain_path.write_text("mass_GeV\n0.5\n")
+    manifest_path.write_text(
+        "mass_GeV,selection_name,status,bank_path\n"
+    )
+
+    config = workflow.AnalysisConfig(
+        masses=(0.5,),
+        selections=("diphoton_ecal_e1gev",),
+        observables=("energy",),
+        profile="production",
+        workers=2,
+        run_mode="automatic",
+        output_dir=output_dir,
+        domain_path=domain_path,
+        bank_manifest=manifest_path,
+        resume=True,
+    )
+
+    captured = {}
+
+    def fake_adaptive_run(**kwargs):
+        captured.update(kwargs)
+
+        point = (
+            kwargs["output_dir"]
+            / "per_mass"
+            / "ma_0p5"
+            / "e1gev"
+        )
+        bank_dir = point / "banks" / "round_03"
+        template_dir = bank_dir / "template_banks"
+        template_dir.mkdir(parents=True)
+
+        (
+            template_dir / "template_bank_ma_0p5.npz"
+        ).write_bytes(b"test")
+
+        point.mkdir(parents=True, exist_ok=True)
+        (
+            point / "state.json"
+        ).write_text(
+            __import__("json").dumps(
+                {
+                    "status": "bank_complete",
+                    "bank_dir": str(bank_dir),
+                    "bank_status": "converged",
+                }
+            )
+        )
+
+    monkeypatch.setattr(
+        workflow,
+        "run_adaptive_bank_point",
+        fake_adaptive_run,
+    )
+
+    fake_bank = SimpleNamespace(
+        mass_gev=0.5,
+        selection_name="diphoton_ecal_e1gev",
+    )
+    monkeypatch.setattr(
+        workflow,
+        "load_template_bank",
+        lambda path: fake_bank,
+    )
+
+    bank_path, status = workflow.build_or_resume_bank(
+        config=config,
+        repo=tmp_path,
+        domains=pd.DataFrame({"mass_GeV": [0.5]}),
+        mass_gev=0.5,
+        selection_name="diphoton_ecal_e1gev",
+    )
+
+    assert bank_path.is_file()
+    assert status == "converged"
+    assert captured["mass_gev"] == 0.5
+    assert captured["selection_name"] == "diphoton_ecal_e1gev"
+    assert captured["profile"] == "production"
+    assert captured["workers"] == 2
+    assert captured["stop_after"] == "bank"

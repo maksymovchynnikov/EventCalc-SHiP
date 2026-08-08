@@ -16,10 +16,19 @@ from typing import Sequence
 import numpy as np
 import pandas as pd
 
+from analysis2.alp_su2l_planning import (
+    AnalysisConfig,
+    build_analysis_plan,
+    write_run_configuration,
+)
+from analysis2.adaptive_week8 import AdaptiveWeek8Settings
 from analysis2.conditional_features import FEATURE_SUBSETS
 from analysis2.lifetime_template_banks import load_template_bank
 from analysis2.paths import OUTPUT_ROOT
 from analysis2.workflows import float_token
+from analysis2.workflows.adaptive_week8_scan import (
+    run_point as run_adaptive_bank_point,
+)
 from analysis2.workflows.conditional_feature_pilot import (
     run_conditional_feature_point,
 )
@@ -86,6 +95,20 @@ def parse_arguments(argv: Sequence[str] | None = None):
         nargs="+",
         choices=tuple(FEATURE_SUBSETS),
         default=list(DEFAULT_OBSERVABLES),
+    )
+    parser.add_argument(
+        "--profile",
+        choices=("quick", "validation", "production"),
+        default="validation",
+    )
+    parser.add_argument(
+        "--run-mode",
+        choices=("automatic", "custom"),
+        default="automatic",
+        help=(
+            "automatic plans construction/resumption of missing banks; "
+            "custom requires a reusable registered bank."
+        ),
     )
     parser.add_argument(
         "--bank-manifest",
@@ -233,6 +256,111 @@ def validate_bank(
     return bank
 
 
+
+def adaptive_bank_output_root(config: AnalysisConfig) -> Path:
+    """Root consumed by adaptive_week8_scan.run_point()."""
+    return Path(config.output_dir) / "bank_workspaces"
+
+
+def generated_bank_from_state(
+    *,
+    repo: Path,
+    state_path: Path,
+    mass_gev: float,
+    selection_name: str,
+) -> tuple[Path, str]:
+    """Resolve the canonical generated bank recorded by adaptive state."""
+
+    if not state_path.is_file():
+        raise RuntimeError(
+            f"Adaptive bank stage produced no state file: {state_path}"
+        )
+
+    state = json.loads(state_path.read_text())
+
+    if state.get("status") != "bank_complete":
+        raise RuntimeError(
+            "Adaptive bank stage did not reach bank_complete: "
+            f"{state.get('status')!r}"
+        )
+
+    raw_bank_dir = state.get("bank_dir")
+    if not raw_bank_dir:
+        raise RuntimeError(
+            "Completed adaptive state does not record bank_dir."
+        )
+
+    bank_dir = resolve_path(repo, raw_bank_dir)
+    bank_path = (
+        bank_dir
+        / "template_banks"
+        / f"template_bank_ma_{float_token(mass_gev)}.npz"
+    )
+
+    if not bank_path.is_file():
+        raise FileNotFoundError(
+            "Adaptive state records a completed bank directory, "
+            f"but the bank file is absent: {bank_path}"
+        )
+
+    validate_bank(
+        bank_path,
+        mass_gev,
+        selection_name,
+    )
+
+    return bank_path, str(
+        state.get("bank_status", "generated")
+    )
+
+
+def build_or_resume_bank(
+    *,
+    config: AnalysisConfig,
+    repo: Path,
+    domains: pd.DataFrame,
+    mass_gev: float,
+    selection_name: str,
+) -> tuple[Path, str]:
+    """Build or safely resume one adaptive lifetime-template bank."""
+
+    output_root = adaptive_bank_output_root(config)
+
+    # AdaptiveWeek8Settings is the canonical settings dataclass used by
+    # adaptive_week8_scan itself.  Do not reproduce these numerical
+    # defaults inside the unified controller.
+    settings = AdaptiveWeek8Settings()
+
+    run_adaptive_bank_point(
+        mass_gev=float(mass_gev),
+        selection_name=str(selection_name),
+        profile=str(config.profile),
+        domain_path=Path(config.domain_path),
+        domains=domains,
+        output_dir=output_root,
+        settings=settings,
+        workers=int(config.workers),
+        stop_after="bank",
+        skip_conditional_binning_check=False,
+        diagnostic_plots=False,
+    )
+
+    state_path = (
+        output_root
+        / "per_mass"
+        / f"ma_{float_token(mass_gev)}"
+        / selection_token(selection_name)
+        / "state.json"
+    )
+
+    return generated_bank_from_state(
+        repo=repo,
+        state_path=state_path,
+        mass_gev=mass_gev,
+        selection_name=selection_name,
+    )
+
+
 def summary_rows(summary: dict, bank_status: str) -> list[dict]:
     rows = []
     thresholds = summary.get("provisional_thresholds", {})
@@ -292,49 +420,94 @@ def main(argv: Sequence[str] | None = None) -> None:
     selections = tuple(dict.fromkeys(args.selections))
     observables = tuple(dict.fromkeys(args.observables))
 
-    plan_rows = []
+    config = AnalysisConfig(
+        masses=masses,
+        selections=selections,
+        observables=observables,
+        profile=str(args.profile),
+        workers=int(args.workers),
+        run_mode=str(args.run_mode),
+        output_dir=output_dir,
+        domain_path=domain_path,
+        bank_manifest=manifest_path,
+        resume=bool(args.resume),
+    )
 
-    for mass_gev in masses:
-        for selection_name in selections:
-            record = resolve_bank_record(
-                manifest,
-                mass_gev,
-                selection_name,
-            )
-            bank_path = resolve_path(repo, record["bank_path"])
-            if not bank_path.is_file():
-                raise FileNotFoundError(
-                    f"Registered bank does not exist: {bank_path}"
-                )
+    plan = build_analysis_plan(
+        config=config,
+        manifest=manifest,
+        repo=repo,
+    )
 
-            result_dir = point_output_dir(
-                output_dir,
-                mass_gev,
-                selection_name,
-            )
-
-            plan_rows.append(
-                {
-                    "mass_GeV": mass_gev,
-                    "selection_name": selection_name,
-                    "bank_status": str(record["status"]),
-                    "bank_path": str(bank_path),
-                    "output_dir": str(result_dir),
-                }
-            )
-
-    plan = pd.DataFrame(plan_rows)
+    # Compatibility aliases for the existing execution layer.
+    # These disappear once the executor consumes the planner schema directly.
+    plan["bank_status"] = plan["bank_state"]
+    plan["output_dir"] = plan["result_dir"]
 
     print("===== ALP-SU2L ANALYSIS PLAN =====")
     print(plan.to_string(index=False))
 
     output_dir.mkdir(parents=True, exist_ok=True)
     plan.to_csv(output_dir / "latest_run_plan.csv", index=False)
+    write_run_configuration(config, output_dir)
 
     if args.dry_run:
         print()
         print("DRY RUN: no EventCalc or pseudoexperiments were launched.")
         return
+
+    domains = pd.read_csv(domain_path)
+
+    for index, row in plan.iterrows():
+        action = str(row["bank_action"])
+
+        if action == "reuse":
+            continue
+
+        if action == "requires_bank":
+            raise RuntimeError(
+                "Custom mode requires a reusable registered bank for "
+                f"m_a={float(row['mass_GeV']):g} GeV, "
+                f"selection={row['selection_name']}."
+            )
+
+        if action not in ("build", "build_or_resume"):
+            raise RuntimeError(
+                f"Unknown bank action: {action}"
+            )
+
+        mass_gev = float(row["mass_GeV"])
+        selection_name = str(row["selection_name"])
+
+        print()
+        print("=" * 78)
+        print(
+            f"BANK {action.upper()}: "
+            f"m_a={mass_gev:g} GeV, "
+            f"selection={selection_name}"
+        )
+        print("=" * 78)
+
+        bank_path, generated_status = build_or_resume_bank(
+            config=config,
+            repo=repo,
+            domains=domains,
+            mass_gev=mass_gev,
+            selection_name=selection_name,
+        )
+
+        plan.at[index, "bank_path"] = str(bank_path)
+        plan.at[index, "bank_exists"] = True
+        plan.at[index, "bank_action"] = "reuse"
+        plan.at[index, "bank_state"] = generated_status
+        plan.at[index, "bank_status"] = generated_status
+
+    # Re-save the plan after preparation so the file records the exact
+    # artifacts actually consumed by the subsequent analysis.
+    plan.to_csv(
+        output_dir / "latest_run_plan.csv",
+        index=False,
+    )
 
     all_rows = []
 
