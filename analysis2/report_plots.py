@@ -55,6 +55,24 @@ def observable_token(name: str) -> str:
     return OBSERVABLE_TOKENS.get(str(name), str(name))
 
 
+OBSERVABLE_TITLES = {
+    "energy": r"$E_a$",
+    "energy_mean_z": r"$E_a,\langle z_d\rangle$",
+    "energy_mean_r_perp": r"$E_a,\langle r_\perp\rangle$",
+    "energy_mean_z_r_perp": (
+        r"$E_a,\langle z_d\rangle,\langle r_\perp\rangle$"
+    ),
+}
+
+
+def observable_title(name: str) -> str:
+    return OBSERVABLE_TITLES.get(str(name), FEATURE_LABELS.get(name, str(name)))
+
+
+def mass_observable_title(mass: float, observable: str) -> str:
+    return rf"$m_a={float(mass):g}$ GeV, " + observable_title(observable)
+
+
 def plot_classification_accuracy(
     *,
     mass: float,
@@ -115,16 +133,16 @@ def plot_classification_accuracy(
     ax.set_ylim(ymin, 1.005)
     ax.set_xlabel("Observed ALP decays, $N$")
     ax.set_ylabel("Worst-case correct-classification probability")
-    ax.set_title(rf"ALP model discrimination at $m_a={mass:g}$ GeV")
+    ax.set_title(mass_observable_title(mass, observable))
+    xmax = float(high_statistics_curve["number_of_events"].max())
+    note_x = min(float(n90) + 0.8, xmax - 0.5)
+    note_y = ymin + 0.035 * (1.005 - ymin)
     ax.text(
-        0.02,
-        0.96,
-        SELECTION_LABELS.get(selection, selection)
-        + "\n"
-        + FEATURE_LABELS.get(observable, observable),
-        transform=ax.transAxes,
+        note_x,
+        note_y,
+        SELECTION_LABELS.get(selection, selection),
         ha="left",
-        va="top",
+        va="bottom",
         fontsize=9,
     )
     ax.grid(alpha=0.22)
@@ -154,16 +172,27 @@ def plot_classification_accuracy(
     ax.axvline(n90, linestyle=":", linewidth=1.0)
     ax.set_xlabel("Observed ALP decays, $N$")
     ax.set_ylabel("Worst-case correct-classification probability")
-    ax.set_title(rf"Classification validation at $m_a={mass:g}$ GeV")
+    validation_ymin = max(
+        0.45,
+        float(
+            min(
+                validation_comparison["full_domain_2k_accuracy"].min(),
+                validation_comparison["selected_5k_accuracy"].min(),
+            )
+        )
+        - 0.035,
+    )
+    ax.set_ylim(validation_ymin, 1.005)
+    ax.set_title(mass_observable_title(mass, observable))
+    xmax = float(validation_comparison["number_of_events"].max())
+    note_x = min(float(n90) + 0.8, xmax - 0.5)
+    note_y = validation_ymin + 0.035 * (1.005 - validation_ymin)
     ax.text(
-        0.02,
-        0.96,
-        SELECTION_LABELS.get(selection, selection)
-        + "\n"
-        + FEATURE_LABELS.get(observable, observable),
-        transform=ax.transAxes,
+        note_x,
+        note_y,
+        SELECTION_LABELS.get(selection, selection),
         ha="left",
-        va="top",
+        va="bottom",
         fontsize=9,
     )
     ax.grid(alpha=0.22)
@@ -264,20 +293,17 @@ def plot_distance_diagnostics(
             markeredgewidth=0.7,
             linestyle="none",
         )
-    colorbar = fig.colorbar(image, ax=axes, fraction=0.034, pad=0.035)
-    colorbar.set_label("Distance diagnostic")
-    fig.suptitle(
-        rf"Allowed lifetime domains at $m_a={mass:g}$ GeV — "
-        + SELECTION_LABELS.get(selection, selection),
-        fontsize=10,
-    )
+    fig.suptitle(rf"$m_a={mass:g}$ GeV", fontsize=10)
     fig.subplots_adjust(
         left=0.10,
-        right=0.89,
+        right=0.86,
         bottom=0.17,
         top=0.82,
         wspace=0.12,
     )
+    colorbar_axis = fig.add_axes([0.875, 0.17, 0.020, 0.65])
+    colorbar = fig.colorbar(image, cax=colorbar_axis)
+    colorbar.set_label("Distance diagnostic")
     stem = f"distance_diagnostics_ma_{float_token(mass)}_{selection_token(selection)}"
     output_dir.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_dir / f"{stem}.pdf", bbox_inches="tight")
@@ -336,10 +362,7 @@ def plot_observable_comparison(
         ha="right",
     )
     ax.set_ylabel(r"Minimum observed events, $N_{90}$")
-    ax.set_title(
-        rf"Observable comparison at $m_a={mass:g}$ GeV — "
-        + SELECTION_LABELS.get(selection, selection)
-    )
+    ax.set_title(rf"$m_a={mass:g}$ GeV")
     ax.grid(axis="y", alpha=0.22)
     _save(
         fig,
@@ -368,7 +391,7 @@ def plot_n90_vs_mass(thresholds: pd.DataFrame, output_dir: Path) -> None:
         )
     ax.set_xlabel(r"ALP mass, $m_a$ [GeV]")
     ax.set_ylabel(r"Minimum observed events, $N_{90}$")
-    ax.set_title("ALP model-discrimination threshold")
+    ax.set_title(observable_title("energy_mean_z_r_perp"))
     ax.grid(alpha=0.22)
     ax.legend()
     _save(fig, output_dir / "n90_vs_mass")
