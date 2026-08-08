@@ -13,7 +13,7 @@ import pandas as pd
 from analysis2.conditional_features import FEATURE_LABELS, load_conditional_feature_moments, validate_conditional_feature_moments
 from analysis2.lifetime_template_banks import load_template_bank
 from analysis2.workflows import float_token
-from analysis2.workflows.conditional_feature_pilot import persistent_threshold, run_conditional_feature_point
+from analysis2.workflows.conditional_feature_scan import persistent_threshold, run_conditional_feature_point
 from analysis2.progress import CheckpointMonitor
 
 OBSERVABLES = ("energy","energy_mean_z","energy_mean_r_perp","energy_mean_z_r_perp")
@@ -81,13 +81,14 @@ def copy_moments(mp, qp, stage):
         elif dst.stat().st_size != src.stat().st_size:
             raise FileExistsError(f"Incompatible stage moment file: {dst}")
 
+# Legacy checkpoint filenames retain 'pilot' so completed runs remain resumable.
 def stage_summary(stage, mass):
     return stage/f"conditional_feature_pilot_summary_ma_{float_token(mass)}.json"
 
 def stage_curve(stage, mass):
     return stage/f"conditional_feature_pilot_curves_ma_{float_token(mass)}.csv"
 
-def run_pilot(bank_path, domain_path, stage, mp, qp, observable, counts, pes, seeds, truth_grid, workers, chunk, resume):
+def run_scan(bank_path, domain_path, stage, mp, qp, observable, counts, pes, seeds, truth_grid, workers, chunk, resume):
     bank = load_template_bank(bank_path)
     summary = stage_summary(stage, float(bank.mass_gev))
     if summary.is_file():
@@ -170,7 +171,7 @@ def rangefinder(bank_path, domain_path, root, mp, qp, observable, pes, workers, 
     lower = upper = None
     for i, grid in enumerate(SPARSE_GRIDS):
         stage = base/f"sparse_{i:02d}"
-        run_pilot(bank_path,domain_path,stage,mp,qp,observable,grid,pes,SCREEN_SEEDS,"screening",workers,chunk,resume)
+        run_scan(bank_path,domain_path,stage,mp,qp,observable,grid,pes,SCREEN_SEEDS,"screening",workers,chunk,resume)
         threshold, lo, hi = bracket(read_curve(stage,mass,observable))
         lower = lo
         if threshold is not None:
@@ -182,7 +183,7 @@ def rangefinder(bank_path, domain_path, root, mp, qp, observable, pes, workers, 
     while upper-lower > 1:
         stage = base/f"refine_{i:02d}"
         grid = refinement_grid(lower,upper)
-        run_pilot(bank_path,domain_path,stage,mp,qp,observable,grid,pes,SCREEN_SEEDS,"screening",workers,chunk,resume)
+        run_scan(bank_path,domain_path,stage,mp,qp,observable,grid,pes,SCREEN_SEEDS,"screening",workers,chunk,resume)
         threshold, lo, hi = bracket(read_curve(stage,mass,observable))
         if threshold is None:
             raise RuntimeError(f"Refinement lost crossing for {observable}; inspect {stage}")
@@ -200,7 +201,7 @@ def rangefinder(bank_path, domain_path, root, mp, qp, observable, pes, workers, 
 def full_domain(bank_path,domain_path,root,mp,qp,rr,pes,workers,chunk,resume):
     bank = load_template_bank(bank_path)
     stage = root/"full_domain"/rr.observable
-    run_pilot(bank_path,domain_path,stage,mp,qp,rr.observable,rr.full_grid,pes,PROD_SEEDS,"all",workers,chunk,resume)
+    run_scan(bank_path,domain_path,stage,mp,qp,rr.observable,rr.full_grid,pes,PROD_SEEDS,"all",workers,chunk,resume)
     curve = read_curve(stage,float(bank.mass_gev),rr.observable)
     threshold = persistent_threshold(curve)
     if threshold is None:
@@ -282,19 +283,19 @@ def main(argv=None):
         print(mp); return
     ranges={}
     for obs in dict.fromkeys(args.observables):
-        print(f"\n=== RANGEFINDER {obs} ===",flush=True)
+        print(f"\n=== THRESHOLD SCAN {obs} ===", flush=True)
         ranges[obs]=rangefinder(bank_path,domain_path,root,mp,qp,obs,args.screen_pseudoexperiments,args.workers,args.chunk_size,args.resume)
     if args.stop_after=="rangefinder":
         return
     full={}
     for obs,rr in ranges.items():
-        print(f"\n=== FULL DOMAIN {obs} ===",flush=True)
+        print(f"\n=== LIFETIME SCAN {obs} ===", flush=True)
         full[obs]=full_domain(bank_path,domain_path,root,mp,qp,rr,args.full_domain_pseudoexperiments,args.workers,args.chunk_size,args.resume)
     if args.stop_after=="full_domain":
         return
     rows=[]
     for obs,(fd,thr2k) in full.items():
-        print(f"\n=== SELECTED 5K {obs} ===",flush=True)
+        print(f"\n=== HIGH-STATISTICS VALIDATION {obs} ===", flush=True)
         out,s=selected_audit(bank_path,mp,fd,root,obs,thr2k,ranges[obs].full_grid,args.selected_pseudoexperiments,args.workers,args.chunk_size,args.resume)
         thr5=s["persistent_thresholds"]["selected_5k"]
         rows.append({

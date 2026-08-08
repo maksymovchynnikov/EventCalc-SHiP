@@ -2,7 +2,7 @@ import unittest
 
 import pandas as pd
 
-from analysis2.workflows.build_week8_ctau_domains import (
+from analysis2.workflows.build_lifetime_domains import (
     _common_supported_mass_range,
 )
 

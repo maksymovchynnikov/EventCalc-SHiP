@@ -1,6 +1,6 @@
 import json
 
-from analysis2.workflows.alp_su2l_results import write_project_outputs
+from analysis2.workflows.results import write_project_outputs
 
 
 def test_project_outputs_from_point_summary(tmp_path):

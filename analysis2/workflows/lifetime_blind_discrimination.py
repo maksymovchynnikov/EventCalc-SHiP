@@ -22,9 +22,9 @@ from analysis2.lifetime_template_banks import (
 )
 from analysis2.models import MODELS
 from analysis2.paths import portable_path, profile_output_dir
-from analysis2.week8_domains import (
-    available_week8_masses,
-    build_week8_lifetime_grid,
+from analysis2.lifetime_domains import (
+    available_lifetime_domain_masses,
+    build_lifetime_grid,
     load_allowed_ctau_domains,
 )
 from analysis2.workflows import (
@@ -270,7 +270,7 @@ def build_template_lifetime_grid_table(
     frames = []
     for mass_gev in masses:
         for model in MODELS:
-            grid = build_week8_lifetime_grid(
+            grid = build_lifetime_grid(
                 domains,
                 model=model.legacy_name,
                 mass_gev=mass_gev,
@@ -494,7 +494,7 @@ def build_mass_bank(
             mass_gev=mass_gev,
         )
         if lifetime_grid_table is None:
-            grid = build_week8_lifetime_grid(
+            grid = build_lifetime_grid(
                 domains,
                 model=model.legacy_name,
                 mass_gev=mass_gev,
@@ -607,7 +607,7 @@ def run_template_bank_workflow(
         domain_path,
         expected_event_level=WEEK8_DOMAIN_EVENT_LEVEL,
     )
-    available_masses = tuple(available_week8_masses(domains))
+    available_masses = tuple(available_lifetime_domain_masses(domains))
     masses = resolve_requested_masses(requested_masses, available_masses)
     seed_indices = _mass_seed_indices(config, available_masses)
 

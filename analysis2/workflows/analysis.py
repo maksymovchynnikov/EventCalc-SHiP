@@ -13,7 +13,7 @@ construction.
 
 from __future__ import annotations
 
-from argparse import ArgumentParser, BooleanOptionalAction
+from argparse import ArgumentParser, ArgumentTypeError, BooleanOptionalAction
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -27,8 +27,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from analysis2.adaptive_week8 import AdaptiveWeek8Settings
-from analysis2.alp_su2l_planning import (
+from analysis2.adaptive_lifetime_grid import AdaptiveScanSettings
+from analysis2.planning import (
     AnalysisConfig,
     build_analysis_plan,
     write_run_configuration,
@@ -37,14 +37,14 @@ from analysis2.conditional_features import FEATURE_LABELS, FEATURE_SUBSETS
 from analysis2.lifetime_template_banks import load_template_bank
 from analysis2.paths import OUTPUT_ROOT
 from analysis2.workflows import float_token
-from analysis2.workflows.adaptive_week8_scan import (
+from analysis2.workflows.lifetime_bank_builder import (
     run_point as run_adaptive_bank_point,
 )
 # Compatibility import retained for old external/tests code.
-from analysis2.workflows.conditional_feature_pilot import (
+from analysis2.workflows.conditional_feature_scan import (
     run_conditional_feature_point,
 )
-from analysis2.workflows.alp_su2l_results import write_project_outputs
+from analysis2.workflows.results import write_project_outputs
 
 
 SELECTIONS = ("diphoton_ecal", "diphoton_ecal_e1gev")
@@ -56,6 +56,36 @@ ALL_OBSERVABLES = (
 )
 DEFAULT_OBSERVABLES = ("energy_mean_z_r_perp",)
 PRODUCTION_SEEDS = (73241, 83244, 93247, 103250, 113253)
+
+# Public stage names are physics-facing. Legacy tokens remain accepted so
+# existing checkpoint/resume commands continue to work unchanged.
+STOP_AFTER_ALIASES = {
+    "bank": "bank",
+    "moments": "moments",
+    "threshold_scan": "rangefinder",
+    "rangefinder": "rangefinder",
+    "lifetime_scan": "full_domain",
+    "full_domain": "full_domain",
+    "validation": "selected",
+    "selected": "selected",
+    "empirical": "empirical",
+    "final": "final",
+}
+
+
+def parse_stop_after(value: str) -> str:
+    token = str(value).strip().lower().replace("-", "_")
+    try:
+        return STOP_AFTER_ALIASES[token]
+    except KeyError as exc:
+        public = (
+            "bank, moments, threshold_scan, lifetime_scan, "
+            "validation, empirical, final"
+        )
+        raise ArgumentTypeError(
+            f"Unknown stop stage {value!r}; choose one of: {public}."
+        ) from exc
+
 
 DEFAULT_DOMAIN_PATH = (
     OUTPUT_ROOT
@@ -175,14 +205,13 @@ def configure_interactively(args):
     args.workers = int(_prompt_text("Workers (1 or 2)", "2"))
     if args.workers not in (1, 2):
         raise ValueError("Workers must be 1 or 2.")
-    args.stop_after = _prompt_text(
-        "Stop after (moments/rangefinder/full_domain/selected/empirical/final)",
-        "final",
+    args.stop_after = parse_stop_after(
+        _prompt_text(
+            "Stop after "
+            "(moments/threshold_scan/lifetime_scan/validation/empirical/final)",
+            "final",
+        )
     )
-    if args.stop_after not in {
-        "moments", "rangefinder", "full_domain", "selected", "empirical", "final"
-    }:
-        raise ValueError("Unknown stop-after stage.")
     return args
 
 
@@ -248,28 +277,46 @@ def parse_arguments(argv: Sequence[str] | None = None):
     )
     parser.add_argument(
         "--stop-after",
-        choices=(
-            "bank",
-            "moments",
-            "rangefinder",
-            "full_domain",
-            "selected",
-            "empirical",
-            "final",
-        ),
+        type=parse_stop_after,
         default="final",
+        metavar="STAGE",
+        help=(
+            "Stop after bank, moments, threshold_scan, lifetime_scan, "
+            "validation, empirical, or final. Legacy stage tokens remain "
+            "accepted for checkpoint compatibility."
+        ),
     )
     parser.add_argument("--bank-manifest", type=Path)
     parser.add_argument("--domain-path", type=Path, default=DEFAULT_DOMAIN_PATH)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--workers", choices=(1, 2), type=int, default=2)
     parser.add_argument("--chunk-size", type=int, default=30)
-    parser.add_argument("--screen-pseudoexperiments", type=int, default=500)
-    parser.add_argument("--full-domain-pseudoexperiments", type=int, default=2000)
-    parser.add_argument("--selected-pseudoexperiments", type=int, default=5000)
+    parser.add_argument(
+        "--threshold-scan-pseudoexperiments",
+        "--screen-pseudoexperiments",
+        dest="screen_pseudoexperiments",
+        type=int,
+        default=500,
+    )
+    parser.add_argument(
+        "--lifetime-scan-pseudoexperiments",
+        "--full-domain-pseudoexperiments",
+        dest="full_domain_pseudoexperiments",
+        type=int,
+        default=2000,
+    )
+    parser.add_argument(
+        "--validation-pseudoexperiments",
+        "--selected-pseudoexperiments",
+        dest="selected_pseudoexperiments",
+        type=int,
+        default=5000,
+    )
     parser.add_argument("--empirical-pseudoexperiments", type=int, default=2000)
     parser.add_argument(
+        "--validation-10k-policy",
         "--selected-10k-policy",
+        dest="selected_10k_policy",
         choices=("auto", "always", "never"),
         default="auto",
     )
@@ -466,7 +513,7 @@ def build_or_resume_bank(
         domain_path=Path(config.domain_path),
         domains=domains,
         output_dir=output_root,
-        settings=AdaptiveWeek8Settings(),
+        settings=AdaptiveScanSettings(),
         workers=int(config.workers),
         stop_after="bank",
         skip_conditional_binning_check=False,
@@ -881,9 +928,8 @@ def finalize_point(
             ha="right",
         )
         ax.set_ylabel(r"Minimum observed events, $N_{90}$")
-        ax.set_title(
-            f"$m_a={float(bank.mass_gev):g}$ GeV, {bank.selection_name}"
-        )
+        # Observable names are already on the x axis; keep the title to mass only.
+        ax.set_title(rf"$m_a={float(bank.mass_gev):g}$ GeV")
         ax.grid(axis="y", alpha=0.25)
         fig.tight_layout()
         fig.savefig(plots / "n90_observable_ablation.pdf")

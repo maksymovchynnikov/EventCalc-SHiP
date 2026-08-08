@@ -1,4 +1,4 @@
-"""Build Week-8 allowed coupling and lifetime domains from saved scan outputs."""
+"""Build allowed coupling and lifetime domains from saved scan outputs."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from analysis2.constraints.bc9 import load_bc9_constraints
 from analysis2.constraints.plotting import SU2_SPECS, load_constraint
 from analysis2.paths import profile_output_dir
 from analysis2.plot_style import style_axis, use_report_style
-from analysis2.week8_domains import (
+from analysis2.lifetime_domains import (
     Interval,
     allowed_coupling_intervals,
     coupling_interval_to_ctau,
@@ -23,7 +23,7 @@ from analysis2.week8_domains import (
 )
 from analysis2.workflows import float_token, require_columns, write_dataframe, write_manifest
 
-WEEK8_MASSES_GEV = (
+DOMAIN_MASSES_GEV = (
     0.30,
     0.40,
     0.50,
@@ -191,7 +191,7 @@ def _requested_masses(
     )
 
     if args.all_common_masses:
-        masses = WEEK8_MASSES_GEV
+        masses = DOMAIN_MASSES_GEV
     elif args.all_production_masses:
         masses = tuple(PRODUCTION_MASSES_GEV)
     else:

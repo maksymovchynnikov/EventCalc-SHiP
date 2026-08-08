@@ -1,6 +1,6 @@
-"""Focused comparison of richer z information and transverse displacement.
+"""Conditional-feature screening and pseudoexperiment utilities.
 
-This workflow is deliberately a screening pilot, not a final N90 calculation.
+This workflow provides the low-statistics screening layer used before final validation.
 For one existing lifetime template bank it:
 
 1. builds conditional moments of (u_z, u_z^2, rho_perp) in every energy bin;
@@ -10,9 +10,8 @@ For one existing lifetime template bank it:
 5. writes provisional discrimination curves and a recommendation table.
 
 The same sampled energy bins and full feature-vector draws are used for every
-observable, so differences between curves are paired.  A winning observable
-must subsequently pass empirical-resampling, seed, binning and full-domain
-validations before entering the final mass scan.
+observable, so differences between curves are paired.  A selected observable must subsequently pass empirical resampling and the
+full validation procedure before entering the final mass scan.
 """
 
 from __future__ import annotations

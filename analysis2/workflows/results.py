@@ -136,7 +136,6 @@ def plot_ablation(table: pd.DataFrame, plots: Path) -> None:
             )
         ax.set_xlabel(r"ALP mass, $m_a$ [GeV]")
         ax.set_ylabel(r"Minimum observed events, $N_{90}$")
-        ax.set_title(SELECTION_LABELS.get(selection, selection))
         ax.grid(alpha=0.25)
         ax.legend()
         token = "geom" if selection == "diphoton_ecal" else "e1gev"

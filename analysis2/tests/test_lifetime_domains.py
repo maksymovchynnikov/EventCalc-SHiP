@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 import numpy as np
 import pandas as pd
 
-from analysis2.week8_domains import (
+from analysis2.lifetime_domains import (
     Interval,
     allowed_coupling_intervals,
     coupling_interval_to_ctau,
@@ -18,9 +18,9 @@ from analysis2.week8_domains import (
 # Saved-domain loading and disconnected lifetime-grid tests
 # -----------------------------------------------------------------------------
 
-from analysis2.week8_domains import (
-    available_week8_masses,
-    build_week8_lifetime_grid,
+from analysis2.lifetime_domains import (
+    available_lifetime_domain_masses,
+    build_lifetime_grid,
     load_allowed_ctau_domains,
 )
 
@@ -156,11 +156,11 @@ class Week8DomainTests(unittest.TestCase):
             [4.0, 100.0],
         )
         self.assertEqual(
-            available_week8_masses(domains),
+            available_lifetime_domain_masses(domains),
             [0.3],
         )
 
-    def test_build_week8_lifetime_grid_does_not_bridge_excluded_gap(
+    def test_build_lifetime_grid_does_not_bridge_excluded_gap(
         self,
     ):
         with TemporaryDirectory() as temporary_directory:
@@ -172,7 +172,7 @@ class Week8DomainTests(unittest.TestCase):
 
             domains = load_allowed_ctau_domains(path)
 
-        grid = build_week8_lifetime_grid(
+        grid = build_lifetime_grid(
             domains,
             model="ALP-photon-combined",
             mass_gev=0.3,

@@ -14,7 +14,7 @@ This workflow starts from a completed full-domain conditional-feature screen
    same-interval neighbours) to 5k, up to a small number of rounds.
 
 The likelihood and truth generator are the same conditional-Gaussian feature
-implementation used by analysis2.workflows.conditional_feature_pilot.  The
+implementation used by analysis2.workflows.conditional_feature_scan.  The
 result remains subject to empirical conditional-resampling and an independent
 EventCalc/template-stream check before publication use.
 """
@@ -441,12 +441,12 @@ def run_missing_5k_jobs(
     progress = ProgressMeter(total=len(jobs), label="selected")
     with ProcessPoolExecutor(
         max_workers=int(workers),
-        initializer=pilot.initialize_worker,
+        initializer=feature_scan.initialize_worker,
         initargs=(common,),
     ) as executor:
         futures = {
             executor.submit(
-                pilot.simulate_truth_all_observables,
+                feature_scan.simulate_truth_all_observables,
                 model,
                 index,
                 seed,
@@ -841,8 +841,8 @@ def main() -> None:
 
     # Delay the full EventCalc/analysis2 import until simulation is required.
     # This also keeps --prepare-only useful for lightweight audits.
-    global pilot
-    from analysis2.workflows import conditional_feature_pilot as pilot
+    global feature_scan
+    from analysis2.workflows import conditional_feature_scan as feature_scan
 
     common = {
         "mass_gev": float(bank.mass_gev),

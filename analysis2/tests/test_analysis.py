@@ -3,7 +3,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from analysis2.workflows import alp_su2l_analysis as workflow
+from analysis2.workflows import analysis as workflow
 
 
 def write_manifest(path: Path, bank_path: Path) -> None:
@@ -116,9 +116,22 @@ def test_progress_meter_reports_eta(monkeypatch):
 
 
 def test_bank_quality_noise_floor_is_stable_and_usable():
-    from analysis2.workflows.alp_su2l_analysis import bank_quality_metadata
+    from analysis2.workflows.analysis import bank_quality_metadata
 
     quality = bank_quality_metadata("production_noise_floor_limited")
     assert quality["physics_usable"] is True
     assert quality["global_minimum_status"] == "stable"
     assert quality["refinement_status"] == "numerical_template_statistical_noise_floor"
+
+
+def test_public_stop_stage_aliases():
+    assert workflow.parse_stop_after("threshold_scan") == "rangefinder"
+    assert workflow.parse_stop_after("lifetime-scan") == "full_domain"
+    assert workflow.parse_stop_after("validation") == "selected"
+    assert workflow.parse_stop_after("final") == "final"
+
+
+def test_legacy_stop_stage_aliases_remain_compatible():
+    assert workflow.parse_stop_after("rangefinder") == "rangefinder"
+    assert workflow.parse_stop_after("full_domain") == "full_domain"
+    assert workflow.parse_stop_after("selected") == "selected"

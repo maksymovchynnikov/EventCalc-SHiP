@@ -234,7 +234,7 @@ def test_all_feature_labels_render_with_matplotlib():
 
 
 def test_all_truths_from_bank_covers_both_models():
-    from analysis2.workflows.conditional_feature_pilot import (
+    from analysis2.workflows.conditional_feature_scan import (
         all_truths_from_bank,
     )
 
@@ -264,7 +264,7 @@ def test_callable_conditional_feature_runner_forwards_settings(
     monkeypatch,
     tmp_path,
 ):
-    from analysis2.workflows import conditional_feature_pilot as pilot
+    from analysis2.workflows import conditional_feature_scan as pilot
 
     captured = {}
 

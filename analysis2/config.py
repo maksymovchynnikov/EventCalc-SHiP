@@ -147,7 +147,7 @@ class SeedPolicy:
     ) -> int:
         """Recover and validate the deterministic mass index in a model seed.
 
-        This supports Week-8 masses appended after the frozen Week-7 mass order
+        This supports additional masses appended after the frozen reference mass order
         without changing the seeds of the original masses.
         """
         if model_seed < 0 or seed_offset < 0:

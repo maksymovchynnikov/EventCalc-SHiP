@@ -1,4 +1,4 @@
-"""Run a resumable adaptive Week-8 N90 scan for arbitrary masses and selections.
+"""Run a resumable adaptive lifetime-profiled N90 scan for arbitrary masses and selections.
 
 The controller keeps the validated EventCalc/template/profiled-likelihood
 kernels unchanged.  It adapts only the lifetime grid, event-count grid, truth
@@ -21,10 +21,10 @@ from typing import Mapping, Sequence
 import numpy as np
 import pandas as pd
 
-from analysis2.adaptive_week8 import (
+from analysis2.adaptive_lifetime_grid import (
     AdaptiveLifetimeSettings,
     AdaptivePseudoexperimentSettings,
-    AdaptiveWeek8Settings,
+    AdaptiveScanSettings,
     DOMAIN_MODEL_LABELS,
     SELECTIONS,
     TRUTH_MODELS,
@@ -55,11 +55,12 @@ from analysis2.lifetime_template_banks import LifetimeTemplateBank, load_templat
 from analysis2.paths import OUTPUT_ROOT, portable_path
 from analysis2.profiled_reduction import minimum_persistent_events
 from analysis2.workflows import float_token, write_dataframe
-from analysis2.workflows.plot_week8_n90_comparison import (
-    plot_week8_n90_comparison,
+from analysis2.workflows.plot_n90_comparison import (
+    plot_n90_comparison,
 )
 
 
+# Legacy cache/workflow key retained so existing expensive checkpoints remain reusable.
 WORKFLOW_NAME = "adaptive_week8_scan"
 RESULT_COLUMNS = (
     "mass_GeV",
@@ -223,7 +224,7 @@ def parse_arguments(argv: Sequence[str] | None = None):
     return parser.parse_args(argv)
 
 
-def settings_from_arguments(args) -> AdaptiveWeek8Settings:
+def settings_from_arguments(args) -> AdaptiveScanSettings:
     lifetime = AdaptiveLifetimeSettings(
         initial_points_per_decade=args.lifetime_points_per_decade,
         minimum_points_per_interval=args.minimum_lifetime_points_per_interval,
@@ -256,7 +257,7 @@ def settings_from_arguments(args) -> AdaptiveWeek8Settings:
         maximum_unit_window_points=args.maximum_unit_window_points,
         persistence_tail_factor=args.persistence_tail_factor,
     )
-    return AdaptiveWeek8Settings(
+    return AdaptiveScanSettings(
         lifetime=lifetime,
         pseudoexperiments=pseudo,
         initial_energy_bins=args.initial_energy_bins,
@@ -283,7 +284,7 @@ def _read_json(path: Path) -> dict:
     return json.loads(path.read_text())
 
 
-def _settings_fingerprint(settings: AdaptiveWeek8Settings, profile: str) -> str:
+def _settings_fingerprint(settings: AdaptiveScanSettings, profile: str) -> str:
     payload = {"profile": profile, "settings": settings.as_dict()}
     return hashlib.sha256(canonical_json(payload).encode()).hexdigest()
 
@@ -349,7 +350,7 @@ def _resolve_masses(requested: Sequence[float], domains: pd.DataFrame) -> tuple[
 def _base_config(
     profile: str,
     selection_name: str,
-    settings: AdaptiveWeek8Settings,
+    settings: AdaptiveScanSettings,
 ) -> AnalysisConfig:
     config = get_config(profile)
     return replace(
@@ -624,7 +625,7 @@ def _adaptive_bank(
     domain_path: Path,
     domains: pd.DataFrame,
     mass_gev: float,
-    settings: AdaptiveWeek8Settings,
+    settings: AdaptiveScanSettings,
     workers: int,
     diagnostic_plots: bool,
 ) -> tuple[Path, LifetimeTemplateBank, pd.Series, int, str]:
@@ -865,7 +866,7 @@ def _run_rangefinder(
     distances: np.ndarray,
     minimum_distance: float,
     mass_gev: float,
-    settings: AdaptiveWeek8Settings,
+    settings: AdaptiveScanSettings,
     workers: int,
 ) -> tuple[np.ndarray, dict]:
     indices = distance_screening_truth_indices(
@@ -1042,7 +1043,7 @@ def _write_master_plot(output_dir: Path) -> None:
     )
     if not (positive & final_status).any():
         return
-    plot_week8_n90_comparison(
+    plot_n90_comparison(
         table,
         output_dir / "week8_n90_comparison",
         logarithmic_y=True,
@@ -1110,7 +1111,7 @@ def run_point(
     domain_path: Path,
     domains: pd.DataFrame,
     output_dir: Path,
-    settings: AdaptiveWeek8Settings,
+    settings: AdaptiveScanSettings,
     workers: int,
     stop_after: str,
     skip_conditional_binning_check: bool,

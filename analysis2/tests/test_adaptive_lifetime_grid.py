@@ -3,10 +3,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from analysis2.adaptive_week8 import (
+from analysis2.adaptive_lifetime_grid import (
     AdaptiveLifetimeSettings,
     AdaptivePseudoexperimentSettings,
-    AdaptiveWeek8Settings,
+    AdaptiveScanSettings,
     audit_omitted_truths,
     binning_is_stable,
     distance_screening_truth_indices,
@@ -25,12 +25,12 @@ from analysis2.profiled_reduction import (
     build_conservative_seed_envelope,
     build_seed_worst_case_table,
 )
-from analysis2.workflows.adaptive_week8_scan import (
+from analysis2.workflows.lifetime_bank_builder import (
     parse_arguments,
     settings_from_arguments,
 )
-from analysis2.workflows.plot_week8_n90_comparison import (
-    plot_week8_n90_comparison,
+from analysis2.workflows.plot_n90_comparison import (
+    plot_n90_comparison,
 )
 from analysis2.workflows.validate_adaptive_lifetime_grid import (
     calibrate_dense_bank,
@@ -424,7 +424,7 @@ def test_threshold_diagnostics_and_stability_flags():
 
 
 def test_binning_stability_requires_same_connected_components():
-    settings = AdaptiveWeek8Settings()
+    settings = AdaptiveScanSettings()
     assert binning_is_stable(0.05, 0.049, (1, 0), (1, 0), settings)
     assert not binning_is_stable(0.05, 0.049, (1, 0), (0, 0), settings)
 
@@ -466,7 +466,7 @@ def test_adaptive_cli_and_blue_orange_plot(tmp_path: Path):
             "convergence_status": ["converged"] * 4,
         }
     )
-    pdf, png = plot_week8_n90_comparison(results, tmp_path / "comparison")
+    pdf, png = plot_n90_comparison(results, tmp_path / "comparison")
     assert pdf.is_file()
     assert png.is_file()
 
@@ -475,7 +475,7 @@ def test_resumable_controller_stops_at_first_stable_level_not_below_10k(
     tmp_path: Path,
     monkeypatch,
 ):
-    import analysis2.workflows.adaptive_week8_scan as controller
+    import analysis2.workflows.lifetime_bank_builder as controller
 
     bank = adaptive_toy_bank()
     distances = total_variation_matrix(bank)
@@ -544,7 +544,7 @@ def test_resumable_controller_stops_at_first_stable_level_not_below_10k(
         ),
     )
 
-    settings = AdaptiveWeek8Settings(
+    settings = AdaptiveScanSettings(
         pseudoexperiments=AdaptivePseudoexperimentSettings(
             full_domain_pilot_pseudoexperiments=2000,
             minimum_final_pseudoexperiments=10000,

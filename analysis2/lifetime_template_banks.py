@@ -36,7 +36,7 @@ MODEL_PREFIXES = {
 class LifetimeTemplateBank:
     """Two independently sampled lifetime grids sharing one energy binning.
 
-    ``*_interval_index`` identifies which connected allowed Week-8 lifetime
+    ``*_interval_index`` identifies which connected allowed lifetime
     interval each template belongs to. ``*_allowed_intervals_m`` stores the
     corresponding interval bounds. ``*_interval_m`` is retained as the full
     envelope for backwards-compatible plotting only; it must not be interpreted

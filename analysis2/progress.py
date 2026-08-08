@@ -43,7 +43,7 @@ class ProgressMeter:
 
 
 class CheckpointMonitor:
-    """Monitor truth/seed checkpoint files while a direct pilot call blocks."""
+    """Monitor truth/seed checkpoint files while a blocking analysis call runs."""
 
     def __init__(
         self,

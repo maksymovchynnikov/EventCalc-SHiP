@@ -1,4 +1,4 @@
-"""Adaptive planning and convergence utilities for the Week-8 SHiP scan.
+"""Adaptive planning and convergence utilities for the SHiP lifetime scan.
 
 The expensive EventCalc and profiled-likelihood kernels remain in their
 validated workflow modules.  This module contains only deterministic planning,
@@ -115,7 +115,7 @@ class AdaptivePseudoexperimentSettings:
         if self.full_domain_pilot_pseudoexperiments < 1:
             raise ValueError("Pilot PE count must be positive.")
         if self.minimum_final_pseudoexperiments < self.full_domain_pilot_pseudoexperiments:
-            raise ValueError("Minimum final PE count cannot be below the pilot.")
+            raise ValueError("Minimum final PE count cannot be below the initial scan.")
         if self.rangefinder_seeds < 1 or self.final_seeds < 1:
             raise ValueError("Seed counts must be positive.")
         if not self.pseudoexperiment_ladder:
@@ -123,7 +123,7 @@ class AdaptivePseudoexperimentSettings:
         previous = self.full_domain_pilot_pseudoexperiments
         for level in self.pseudoexperiment_ladder:
             if level <= previous:
-                raise ValueError("PE ladder levels must increase above the pilot.")
+                raise ValueError("PE ladder levels must increase above the initial scan.")
             previous = level
         if self.minimum_final_pseudoexperiments > self.pseudoexperiment_ladder[-1]:
             raise ValueError("Minimum final PE count exceeds the PE ladder maximum.")
@@ -154,7 +154,7 @@ class AdaptivePseudoexperimentSettings:
 
 
 @dataclass(frozen=True)
-class AdaptiveWeek8Settings:
+class AdaptiveScanSettings:
     """Complete settings serialized into every adaptive scan state."""
 
     lifetime: AdaptiveLifetimeSettings = AdaptiveLifetimeSettings()
@@ -256,7 +256,7 @@ def _mass_rows(domains: pd.DataFrame, mass_gev: float) -> pd.DataFrame:
         )
     ].copy()
     if rows.empty:
-        raise ValueError(f"No Week-8 lifetime domains for m_a={mass_gev:g} GeV.")
+        raise ValueError(f"No allowed lifetime domains for m_a={mass_gev:g} GeV.")
     return rows
 
 
@@ -747,7 +747,7 @@ def propose_lifetime_refinement(
 def should_run_fine_binning_check(
     bank: LifetimeTemplateBank,
     minimum_distance: float,
-    settings: AdaptiveWeek8Settings,
+    settings: AdaptiveScanSettings,
 ) -> bool:
     """Trigger the cached 400-bin rehistogram only for fragile banks."""
     return (
@@ -761,7 +761,7 @@ def binning_is_stable(
     fine_minimum_distance: float,
     baseline_minimum_intervals: tuple[int, int],
     fine_minimum_intervals: tuple[int, int],
-    settings: AdaptiveWeek8Settings,
+    settings: AdaptiveScanSettings,
 ) -> bool:
     scale = max(abs(float(baseline_minimum_distance)), np.finfo(float).eps)
     relative = abs(float(fine_minimum_distance) - float(baseline_minimum_distance)) / scale
@@ -791,7 +791,7 @@ def distance_screening_truth_indices(
     The set contains low-distance rows/columns, neighbours of the global
     minimum and every connected-domain endpoint.  It is deliberately used only
     for bracketing the event-count scale; final thresholds always receive a
-    full-domain pilot and omitted-truth audit.
+    initial full-domain scan and omitted-truth audit.
     """
     matrix = np.asarray(distances, dtype=float)
     if matrix.shape != (len(bank.photon_ctau_m), len(bank.su2_ctau_m)):
@@ -953,7 +953,7 @@ def final_event_grid_from_bracket(
     bracket: RangefinderBracket,
     settings: AdaptivePseudoexperimentSettings,
 ) -> np.ndarray:
-    """Create one cache-stable final grid before the full-domain pilot.
+    """Create one cache-stable final grid before the initial full-domain scan.
 
     A unit-spaced window surrounds the interpolated crossing while a sparse
     persistence tail extends well beyond the passing range.  Every later PE
@@ -1079,7 +1079,7 @@ def select_hard_truth_indices(
     event_counts: Sequence[int],
     settings: AdaptivePseudoexperimentSettings,
 ) -> tuple[dict[str, np.ndarray], pd.DataFrame]:
-    """Select high-statistics truths from the full-domain pilot.
+    """Select high-statistics truths from the initial full-domain scan.
 
     Selection is driven by closeness to the conservative envelope throughout
     the critical persistence window.  Distance-map minima, their neighbours and
@@ -1504,7 +1504,7 @@ def result_row(
     }
 
 
-def write_settings_json(settings: AdaptiveWeek8Settings, path: Path) -> None:
+def write_settings_json(settings: AdaptiveScanSettings, path: Path) -> None:
     import json
 
     path.parent.mkdir(parents=True, exist_ok=True)

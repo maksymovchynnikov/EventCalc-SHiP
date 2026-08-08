@@ -64,13 +64,13 @@ Activate the EventCalc environment and run from the repository root.
 ### Interactive interface
 
 ```bash
-python -m analysis2.workflows.alp_su2l_analysis --interactive
+python -m analysis2.workflows.analysis --interactive
 ```
 
 ### Reproduce the headline analysis
 
 ```bash
-python -m analysis2.workflows.alp_su2l_analysis \
+python -m analysis2.workflows.analysis \
   --masses 0.3 0.5 1.0 2.5 \
   --selections diphoton_ecal diphoton_ecal_e1gev \
   --observables energy_mean_z_r_perp \
@@ -168,7 +168,7 @@ python -m pytest analysis2/tests -q
 ```
 
 At the cleanup checkpoint used for the final production analysis, the suite gives
-`197 passed, 2 skipped`.
+`199 passed, 2 skipped`.
 
 ## EventCalc core
 

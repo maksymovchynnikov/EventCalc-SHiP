@@ -3,7 +3,7 @@
 This workflow compares two paired truth generators while keeping the candidate
 likelihood unchanged:
 
-1. conditional multivariate Gaussian truth, used by the fast feature pilot;
+1. conditional multivariate Gaussian truth, used by the fast feature analysis;
 2. direct weighted empirical resampling of the selected EventCalc events
    within exactly the same sampled energy bins.
 

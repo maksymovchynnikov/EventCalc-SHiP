@@ -16,7 +16,7 @@ from typing import Sequence
 import numpy as np
 import pandas as pd
 
-from analysis2.adaptive_week8 import (
+from analysis2.adaptive_lifetime_grid import (
     AdaptiveLifetimeSettings,
     DOMAIN_MODEL_LABELS,
     TRUTH_MODELS,

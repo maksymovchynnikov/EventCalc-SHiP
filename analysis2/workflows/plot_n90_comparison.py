@@ -1,4 +1,4 @@
-"""Plot adaptive Week-8 N90 points for the two diphoton selections."""
+"""Plot N90 points for the two diphoton selections."""
 
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ SELECTION_PRESENTATION = {
 }
 
 
-def plot_week8_n90_comparison(
+def plot_n90_comparison(
     results: pd.DataFrame,
     output_stem: Path,
     *,
@@ -131,7 +131,7 @@ def parse_arguments(argv: Sequence[str] | None = None):
 def main(argv: Sequence[str] | None = None) -> None:
     args = parse_arguments(argv)
     results = pd.read_csv(args.results_csv)
-    paths = plot_week8_n90_comparison(
+    paths = plot_n90_comparison(
         results,
         args.output_stem,
         logarithmic_y=not args.linear_y,

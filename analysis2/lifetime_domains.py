@@ -1,6 +1,6 @@
-"""Pure geometry and interpolation utilities for the Week-8 lifetime domains.
+"""Pure geometry and interpolation utilities for the allowed lifetime domains.
 
-The Week-8 domain at fixed ALP mass is the part of the geom-only
+The allowed domain at fixed ALP mass is the part of the geom-only
 ``N_events >= event_level`` sensitivity interval that is not covered by any
 existing exclusion polygon.  All polygon slicing is performed in the same
 log-mass/log-coupling coordinates used by the sensitivity plots.
@@ -348,7 +348,7 @@ def coupling_interval_to_ctau(interval: Interval, unit_coupling_ctau_m: float) -
     )
 
 # -----------------------------------------------------------------------------
-# Loading and sampling saved Week-8 lifetime domains
+# Loading and sampling saved allowed lifetime domains
 # -----------------------------------------------------------------------------
 
 from pathlib import Path
@@ -387,8 +387,8 @@ def load_allowed_ctau_domains(
 
     if not path.exists():
         raise FileNotFoundError(
-            f"Week-8 lifetime-domain table not found: {path}\n"
-            "Run `python -m analysis2.workflows.build_week8_ctau_domains` first."
+            f"Allowed lifetime-domain table not found: {path}\n"
+            "Build the allowed lifetime-domain table before loading it."
         )
 
     data = pd.read_csv(path)
@@ -431,10 +431,10 @@ def load_allowed_ctau_domains(
     physical_values = data[list(physical_columns)].to_numpy(dtype=float)
 
     if np.any(~np.isfinite(physical_values)):
-        raise ValueError("The Week-8 domain table contains non-finite values.")
+        raise ValueError("The allowed lifetime-domain table contains non-finite values.")
 
     if np.any(physical_values <= 0.0):
-        raise ValueError("All physical Week-8 domain values must be positive.")
+        raise ValueError("All physical lifetime-domain values must be positive.")
 
     interval_indices = data["interval_index"].to_numpy(dtype=float)
 
@@ -461,7 +461,7 @@ def load_allowed_ctau_domains(
     )
     if unknown_models:
         raise ValueError(
-            "Unknown model identifiers in the Week-8 domains: "
+            "Unknown model identifiers in the allowed lifetime domains: "
             + ", ".join(unknown_models)
         )
 
@@ -565,7 +565,7 @@ def load_allowed_ctau_domains(
     )
 
 
-def available_week8_masses(domains: pd.DataFrame) -> list[float]:
+def available_lifetime_domain_masses(domains: pd.DataFrame) -> list[float]:
     """Return masses with at least one allowed interval for both hypotheses."""
     model_masses = {
         model: {
@@ -585,7 +585,7 @@ def available_week8_masses(domains: pd.DataFrame) -> list[float]:
     return sorted(common)
 
 
-def build_week8_lifetime_grid(
+def build_lifetime_grid(
     domains: pd.DataFrame,
     *,
     model: str,
@@ -598,7 +598,7 @@ def build_week8_lifetime_grid(
     template.  No points are ever inserted into excluded gaps.
     """
     if model not in WEEK8_MODEL_NAMES:
-        raise ValueError(f"Unknown Week-8 model: {model}")
+        raise ValueError(f"Unknown lifetime-domain model: {model}")
 
     if points_per_interval < 2:
         raise ValueError("At least two lifetime points per interval are required.")
@@ -616,7 +616,7 @@ def build_week8_lifetime_grid(
 
     if selected.empty:
         raise ValueError(
-            f"No allowed Week-8 interval for {model}, "
+            f"No allowed lifetime interval for {model}, "
             f"m_a={mass_gev:g} GeV."
         )
 
@@ -661,7 +661,7 @@ def build_week8_lifetime_grid(
     lifetimes = result["ctau_m"].to_numpy(dtype=float)
 
     if np.any(~np.isfinite(lifetimes)) or np.any(lifetimes <= 0.0):
-        raise RuntimeError("Generated Week-8 lifetimes must be finite and positive.")
+        raise RuntimeError("Generated lifetimes must be finite and positive.")
 
     if np.any(np.diff(lifetimes) <= 0.0):
         raise RuntimeError(

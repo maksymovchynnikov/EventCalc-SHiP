@@ -1,4 +1,4 @@
-"""Deterministic seed resolution for frozen and appended Week-8 masses."""
+"""Deterministic seed resolution for frozen and appended analysis masses."""
 
 from __future__ import annotations
 
@@ -36,17 +36,17 @@ def available_masses_from_domain(domain_path: Path) -> tuple[float, ...]:
     path = Path(domain_path).expanduser().resolve()
     if not path.is_file():
         raise FileNotFoundError(
-            "The Week-8 domain table is required to resolve appended-mass "
+            "The allowed lifetime-domain table is required to resolve appended-mass "
             f"seeds: {path}"
         )
     frame = pd.read_csv(path)
     if "mass_GeV" not in frame.columns:
         raise ValueError(
-            f"Week-8 domain table lacks the mass_GeV column: {path}"
+            f"Allowed lifetime-domain table lacks the mass_GeV column: {path}"
         )
     masses = _unique_sorted(frame["mass_GeV"].to_numpy(dtype=float))
     if not masses:
-        raise ValueError(f"Week-8 domain table contains no masses: {path}")
+        raise ValueError(f"Allowed lifetime-domain table contains no masses: {path}")
     return masses
 
 
@@ -94,7 +94,7 @@ def mass_seed_index(
     if len(matches) != 1:
         raise ValueError(
             f"Mass {mass_gev:g} GeV is not uniquely represented in the "
-            "frozen-plus-Week-8 seed ordering."
+            "frozen-plus-appended seed ordering."
         )
     return int(matches[0])
 

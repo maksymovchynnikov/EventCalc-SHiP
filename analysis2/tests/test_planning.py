@@ -3,7 +3,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from analysis2.alp_su2l_planning import (
+from analysis2.planning import (
     AnalysisConfig,
     build_analysis_plan,
 )

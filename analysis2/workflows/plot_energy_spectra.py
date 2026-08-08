@@ -331,12 +331,19 @@ def _draw_figure(
                 bbox=dict(boxstyle="round,pad=0.25", facecolor="white", alpha=0.9, edgecolor="0.7"),
             )
 
-            # Clear mass title on top row
+            # Report titles contain only the mass and plotted observable.
             if row == 0:
                 axis.set_title(
-                    rf"Mass: $m_a={mass_gev:g}\,\mathrm{{GeV}}$"
-                    "\n"
-                    rf"Representative lifetime: $c\tau_a={ctau_m:.3g}\,\mathrm{{m}}$"
+                    rf"$m_a={mass_gev:g}\,\mathrm{{GeV}},\ E_a$"
+                )
+                axis.text(
+                    0.97,
+                    0.06,
+                    rf"$c\tau_a={ctau_m:.3g}\,\mathrm{{m}}$",
+                    transform=axis.transAxes,
+                    ha="right",
+                    va="bottom",
+                    fontsize=9,
                 )
 
             if row == 1:
