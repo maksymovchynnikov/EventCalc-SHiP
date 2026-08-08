@@ -64,13 +64,13 @@ Activate the EventCalc environment and run from the repository root.
 ### Interactive interface
 
 ```bash
-python -m analysis2.workflows.analysis --interactive
+python -m alp_discrimination.workflows.analysis --interactive
 ```
 
 ### Reproduce the headline analysis
 
 ```bash
-python -m analysis2.workflows.analysis \
+python -m alp_discrimination.workflows.analysis \
   --masses 0.3 0.5 1.0 2.5 \
   --selections diphoton_ecal diphoton_ecal_e1gev \
   --observables energy_mean_z_r_perp \
@@ -110,6 +110,8 @@ Primary results are written under
 
 ```text
 analysis2/outputs/production/alp_su2l_analysis/final_results/
+
+The `analysis2/outputs` and `analysis2/cache` directories are retained as the historical runtime-data namespace so validated checkpoints and caches remain reusable after the source-package rename.
 ```
 
 Internal checkpoint directories are kept for resumability. The compact
@@ -152,7 +154,7 @@ in the accepted truth-level kinematics.
 The analysis is intentionally kept small at the public level:
 
 ```text
-analysis2/
+alp_discrimination/
 ├── conditional_features.py     feature moments and likelihood ingredients
 ├── lifetime_template_banks.py  lifetime-dependent accepted templates
 ├── progress.py                 progress and ETA reporting
@@ -164,7 +166,7 @@ analysis2/
 ## Tests
 
 ```bash
-python -m pytest analysis2/tests -q
+python -m pytest alp_discrimination/tests -q
 ```
 
 At the cleanup checkpoint used for the final production analysis, the suite gives
