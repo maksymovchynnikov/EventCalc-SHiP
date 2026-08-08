@@ -307,3 +307,411 @@ def test_build_or_resume_bank_calls_adaptive_api(
     assert captured["profile"] == "production"
     assert captured["workers"] == 2
     assert captured["stop_after"] == "bank"
+
+
+def test_adaptive_bank_status_mapping():
+    assert (
+        workflow.registry_status_from_adaptive_status(
+            "lifetime_grid_converged"
+        )
+        == "production"
+    )
+    assert (
+        workflow.registry_status_from_adaptive_status(
+            "fine_binning_converged"
+        )
+        == "production"
+    )
+
+    assert (
+        workflow.registry_status_from_adaptive_status(
+            "lifetime_grid_size_limit"
+        )
+        == "incomplete"
+    )
+    assert (
+        workflow.registry_status_from_adaptive_status(
+            "lifetime_grid_round_limit"
+        )
+        == "incomplete"
+    )
+    assert (
+        workflow.registry_status_from_adaptive_status(
+            "lifetime_grid_distance_unstable"
+        )
+        == "incomplete"
+    )
+    assert (
+        workflow.registry_status_from_adaptive_status(
+            "binning_refinement_limit"
+        )
+        == "incomplete"
+    )
+
+
+def test_persist_generated_bank_record(tmp_path):
+    manifest = tmp_path / "manifest.csv"
+
+    pd.DataFrame(
+        columns=[
+            "mass_GeV",
+            "selection_name",
+            "status",
+            "bank_path",
+            "note",
+        ]
+    ).to_csv(manifest, index=False)
+
+    bank = (
+        tmp_path
+        / "banks"
+        / "template_bank_ma_0p5.npz"
+    )
+    bank.parent.mkdir()
+    bank.write_bytes(b"test")
+
+    status = workflow.persist_generated_bank_record(
+        manifest_path=manifest,
+        repo=tmp_path,
+        mass_gev=0.5,
+        selection_name="diphoton_ecal_e1gev",
+        bank_path=bank,
+        adaptive_status="fine_binning_converged",
+    )
+
+    assert status == "production"
+
+    table = pd.read_csv(manifest)
+    assert len(table) == 1
+    assert table.iloc[0]["mass_GeV"] == 0.5
+    assert (
+        table.iloc[0]["selection_name"]
+        == "diphoton_ecal_e1gev"
+    )
+    assert table.iloc[0]["status"] == "production"
+    assert (
+        table.iloc[0]["bank_path"]
+        == "banks/template_bank_ma_0p5.npz"
+    )
+    assert "fine_binning_converged" in table.iloc[0]["note"]
+
+
+def test_nonconverged_generated_bank_is_persisted_incomplete(
+    tmp_path,
+):
+    manifest = tmp_path / "manifest.csv"
+
+    pd.DataFrame(
+        columns=[
+            "mass_GeV",
+            "selection_name",
+            "status",
+            "bank_path",
+            "note",
+        ]
+    ).to_csv(manifest, index=False)
+
+    bank = tmp_path / "bank.npz"
+    bank.write_bytes(b"test")
+
+    status = workflow.persist_generated_bank_record(
+        manifest_path=manifest,
+        repo=tmp_path,
+        mass_gev=2.5,
+        selection_name="diphoton_ecal_e1gev",
+        bank_path=bank,
+        adaptive_status="lifetime_grid_size_limit",
+    )
+
+    assert status == "incomplete"
+
+    table = pd.read_csv(manifest)
+    assert table.iloc[0]["status"] == "incomplete"
+
+
+def test_stop_after_bank_does_not_run_conditional_features(
+    tmp_path,
+    monkeypatch,
+):
+    bank_path = tmp_path / "generated_bank.npz"
+    bank_path.write_bytes(b"test")
+
+    manifest_path = tmp_path / "manifest.csv"
+    pd.DataFrame(
+        columns=[
+            "mass_GeV",
+            "selection_name",
+            "status",
+            "bank_path",
+            "note",
+        ]
+    ).to_csv(manifest_path, index=False)
+
+    domain_path = tmp_path / "domains.csv"
+    domain_path.write_text(
+        "model,mass_GeV,interval_index,ctau_min_m,ctau_max_m\n"
+        "ALP-photon-combined,0.5,0,1,2\n"
+        "ALP-SU2L,0.5,0,1,2\n"
+    )
+
+    def fake_build(**kwargs):
+        return bank_path, "fine_binning_converged"
+
+    monkeypatch.setattr(
+        workflow,
+        "build_or_resume_bank",
+        fake_build,
+    )
+
+    def forbidden_conditional_run(**kwargs):
+        raise AssertionError(
+            "Conditional-feature runner must not be called."
+        )
+
+    monkeypatch.setattr(
+        workflow,
+        "run_conditional_feature_point",
+        forbidden_conditional_run,
+    )
+
+    output_dir = tmp_path / "output"
+
+    workflow.main(
+        [
+            "--masses",
+            "0.5",
+            "--selections",
+            "diphoton_ecal_e1gev",
+            "--bank-manifest",
+            str(manifest_path),
+            "--domain-path",
+            str(domain_path),
+            "--output-dir",
+            str(output_dir),
+            "--run-mode",
+            "automatic",
+            "--profile",
+            "production",
+            "--stop-after",
+            "bank",
+        ]
+    )
+
+    persisted = pd.read_csv(manifest_path)
+
+    assert len(persisted) == 1
+    assert persisted.iloc[0]["status"] == "production"
+
+    plan = pd.read_csv(
+        output_dir / "latest_run_plan.csv"
+    )
+    assert plan.iloc[0]["bank_action"] == "reuse"
+    assert plan.iloc[0]["bank_state"] == "production"
+    assert (
+        plan.iloc[0]["adaptive_bank_status"]
+        == "fine_binning_converged"
+    )
+
+
+def test_adaptive_bank_status_mapping():
+    assert (
+        workflow.registry_status_from_adaptive_status(
+            "lifetime_grid_converged"
+        )
+        == "production"
+    )
+    assert (
+        workflow.registry_status_from_adaptive_status(
+            "fine_binning_converged"
+        )
+        == "production"
+    )
+
+    assert (
+        workflow.registry_status_from_adaptive_status(
+            "lifetime_grid_size_limit"
+        )
+        == "incomplete"
+    )
+    assert (
+        workflow.registry_status_from_adaptive_status(
+            "lifetime_grid_round_limit"
+        )
+        == "incomplete"
+    )
+    assert (
+        workflow.registry_status_from_adaptive_status(
+            "lifetime_grid_distance_unstable"
+        )
+        == "incomplete"
+    )
+    assert (
+        workflow.registry_status_from_adaptive_status(
+            "binning_refinement_limit"
+        )
+        == "incomplete"
+    )
+
+
+def test_persist_generated_bank_record(tmp_path):
+    manifest = tmp_path / "manifest.csv"
+
+    pd.DataFrame(
+        columns=[
+            "mass_GeV",
+            "selection_name",
+            "status",
+            "bank_path",
+            "note",
+        ]
+    ).to_csv(manifest, index=False)
+
+    bank = (
+        tmp_path
+        / "banks"
+        / "template_bank_ma_0p5.npz"
+    )
+    bank.parent.mkdir()
+    bank.write_bytes(b"test")
+
+    status = workflow.persist_generated_bank_record(
+        manifest_path=manifest,
+        repo=tmp_path,
+        mass_gev=0.5,
+        selection_name="diphoton_ecal_e1gev",
+        bank_path=bank,
+        adaptive_status="fine_binning_converged",
+    )
+
+    assert status == "production"
+
+    table = pd.read_csv(manifest)
+    assert len(table) == 1
+    assert table.iloc[0]["mass_GeV"] == 0.5
+    assert (
+        table.iloc[0]["selection_name"]
+        == "diphoton_ecal_e1gev"
+    )
+    assert table.iloc[0]["status"] == "production"
+    assert (
+        table.iloc[0]["bank_path"]
+        == "banks/template_bank_ma_0p5.npz"
+    )
+    assert "fine_binning_converged" in table.iloc[0]["note"]
+
+
+def test_nonconverged_generated_bank_is_persisted_incomplete(
+    tmp_path,
+):
+    manifest = tmp_path / "manifest.csv"
+
+    pd.DataFrame(
+        columns=[
+            "mass_GeV",
+            "selection_name",
+            "status",
+            "bank_path",
+            "note",
+        ]
+    ).to_csv(manifest, index=False)
+
+    bank = tmp_path / "bank.npz"
+    bank.write_bytes(b"test")
+
+    status = workflow.persist_generated_bank_record(
+        manifest_path=manifest,
+        repo=tmp_path,
+        mass_gev=2.5,
+        selection_name="diphoton_ecal_e1gev",
+        bank_path=bank,
+        adaptive_status="lifetime_grid_size_limit",
+    )
+
+    assert status == "incomplete"
+
+    table = pd.read_csv(manifest)
+    assert table.iloc[0]["status"] == "incomplete"
+
+
+def test_stop_after_bank_does_not_run_conditional_features(
+    tmp_path,
+    monkeypatch,
+):
+    bank_path = tmp_path / "generated_bank.npz"
+    bank_path.write_bytes(b"test")
+
+    manifest_path = tmp_path / "manifest.csv"
+    pd.DataFrame(
+        columns=[
+            "mass_GeV",
+            "selection_name",
+            "status",
+            "bank_path",
+            "note",
+        ]
+    ).to_csv(manifest_path, index=False)
+
+    domain_path = tmp_path / "domains.csv"
+    domain_path.write_text(
+        "model,mass_GeV,interval_index,ctau_min_m,ctau_max_m\n"
+        "ALP-photon-combined,0.5,0,1,2\n"
+        "ALP-SU2L,0.5,0,1,2\n"
+    )
+
+    def fake_build(**kwargs):
+        return bank_path, "fine_binning_converged"
+
+    monkeypatch.setattr(
+        workflow,
+        "build_or_resume_bank",
+        fake_build,
+    )
+
+    def forbidden_conditional_run(**kwargs):
+        raise AssertionError(
+            "Conditional-feature runner must not be called."
+        )
+
+    monkeypatch.setattr(
+        workflow,
+        "run_conditional_feature_point",
+        forbidden_conditional_run,
+    )
+
+    output_dir = tmp_path / "output"
+
+    workflow.main(
+        [
+            "--masses",
+            "0.5",
+            "--selections",
+            "diphoton_ecal_e1gev",
+            "--bank-manifest",
+            str(manifest_path),
+            "--domain-path",
+            str(domain_path),
+            "--output-dir",
+            str(output_dir),
+            "--run-mode",
+            "automatic",
+            "--profile",
+            "production",
+            "--stop-after",
+            "bank",
+        ]
+    )
+
+    persisted = pd.read_csv(manifest_path)
+
+    assert len(persisted) == 1
+    assert persisted.iloc[0]["status"] == "production"
+
+    plan = pd.read_csv(
+        output_dir / "latest_run_plan.csv"
+    )
+    assert plan.iloc[0]["bank_action"] == "reuse"
+    assert plan.iloc[0]["bank_state"] == "production"
+    assert (
+        plan.iloc[0]["adaptive_bank_status"]
+        == "fine_binning_converged"
+    )
