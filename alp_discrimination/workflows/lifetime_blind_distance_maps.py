@@ -13,17 +13,17 @@ import pandas as pd
 
 from alp_discrimination.cache import CacheStore, file_fingerprint
 from alp_discrimination.config import AnalysisConfig, get_config
-from alp_discrimination.distance_statistics import (
+from alp_discrimination.statistics.distances import (
     build_distance_table,
     minimum_pair_bin_table,
     summarize_distance_matrix,
     total_variation_matrix,
 )
-from alp_discrimination.lifetime_blind_plotting import (
+from alp_discrimination.plotting.lifetime import (
     plot_distance_map,
     plot_minimum_pair_spectra,
 )
-from alp_discrimination.lifetime_template_banks import LifetimeTemplateBank, load_template_bank
+from alp_discrimination.templates.lifetime_banks import LifetimeTemplateBank, load_template_bank
 from alp_discrimination.paths import portable_path, profile_output_dir
 from alp_discrimination.workflows import (
     add_profile_cache_arguments,

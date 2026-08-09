@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from alp_discrimination.plot_style import PLOT_CONFIG, style_axis, use_report_style
+from alp_discrimination.plotting.style import PLOT_CONFIG, style_axis, use_report_style
 
 
 FINAL_RESULT_STATUSES = {"converged", "imported_validated"}

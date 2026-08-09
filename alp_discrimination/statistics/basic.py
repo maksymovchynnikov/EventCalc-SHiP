@@ -7,6 +7,9 @@ from dataclasses import dataclass
 import numpy as np
 
 
+MINIMUM_OBSERVED_EVENTS = 1
+
+
 def validate_probabilities(probabilities: np.ndarray, *, strictly_positive: bool = False) -> np.ndarray:
     values = np.asarray(probabilities, dtype=float)
     if values.ndim != 1 or not len(values) or not np.all(np.isfinite(values)):

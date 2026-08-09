@@ -13,16 +13,16 @@ import pandas as pd
 
 from alp_discrimination.cache import CacheStore, file_fingerprint
 from alp_discrimination.config import AnalysisConfig, get_config
-from alp_discrimination.eventcalc_proposals import EVENTCALC_FULL_SUPPORT_CTAU_M
-from alp_discrimination.lifetime_template_banks import (
+from alp_discrimination.eventcalc.proposals import EVENTCALC_FULL_SUPPORT_CTAU_M
+from alp_discrimination.templates.lifetime_banks import (
     LifetimeTemplateBank,
     build_lifetime_template_bank,
     load_template_bank,
     save_bank_artifacts,
 )
-from alp_discrimination.models import MODELS
+from alp_discrimination.physics.models import MODELS
 from alp_discrimination.paths import portable_path, profile_output_dir
-from alp_discrimination.lifetime_domains import (
+from alp_discrimination.physics.lifetime_domains import (
     available_lifetime_domain_masses,
     build_lifetime_grid,
     load_allowed_ctau_domains,
@@ -35,7 +35,7 @@ from alp_discrimination.workflows import (
 )
 
 if TYPE_CHECKING:
-    from alp_discrimination.eventcalc_adapter import EventCalcAdapter
+    from alp_discrimination.eventcalc.adapter import EventCalcAdapter
 
 
 WORKFLOW_NAME = "lifetime_blind_discrimination"
@@ -817,7 +817,7 @@ def main() -> None:
     args = parse_arguments()
     config = apply_cli_overrides(get_config(args.profile), args)
     cache = CacheStore(config.name, enabled=not args.no_cache)
-    from alp_discrimination.eventcalc_adapter import EventCalcAdapter
+    from alp_discrimination.eventcalc.adapter import EventCalcAdapter
 
     adapter = EventCalcAdapter(config, cache=cache, force=args.force)
     domain_path = args.domain_path or (

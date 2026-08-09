@@ -135,3 +135,9 @@ def test_legacy_stop_stage_aliases_remain_compatible():
     assert workflow.parse_stop_after("rangefinder") == "rangefinder"
     assert workflow.parse_stop_after("full_domain") == "full_domain"
     assert workflow.parse_stop_after("selected") == "selected"
+
+
+def test_single_event_validation_grids_are_supported():
+    available = [1, 2, 3, 4]
+    assert workflow.selection_counts(1, available) == [1, 2]
+    assert workflow.empirical_counts(1, available) == [1, 2, 3]

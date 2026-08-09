@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from alp_discrimination.templates import TemplateBank, build_probability_templates, common_adaptive_energy_edges
+from alp_discrimination.templates.probability import TemplateBank, build_probability_templates, common_adaptive_energy_edges
 from alp_discrimination.tests.helpers import spectrum
 
 

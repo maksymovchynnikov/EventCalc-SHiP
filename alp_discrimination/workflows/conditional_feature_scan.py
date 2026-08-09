@@ -28,7 +28,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from alp_discrimination.conditional_features import (
+from alp_discrimination.templates.conditional_features import (
     FEATURE_LABELS,
     FEATURE_SUBSETS,
     build_conditional_feature_moments,
@@ -39,8 +39,8 @@ from alp_discrimination.conditional_features import (
     stable_feature_rng,
     validate_conditional_feature_moments,
 )
-from alp_discrimination.lifetime_template_banks import load_template_bank
-from alp_discrimination.profiled_statistics import stable_truth_rng
+from alp_discrimination.templates.lifetime_banks import load_template_bank
+from alp_discrimination.statistics.profiled import stable_truth_rng
 from alp_discrimination.workflows import float_token
 
 

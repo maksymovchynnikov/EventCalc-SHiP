@@ -12,13 +12,13 @@ from alp_discrimination.constraints.plotting import (
     LABEL_CONFIG_PATH, PHOTON_SPECS, SU2_SPECS, draw_constraints, load_label_config,
 )
 from alp_discrimination.paths import profile_output_dir
-from alp_discrimination.plot_style import (
+from alp_discrimination.plotting.style import (
     EVENT_DENSITY_OVERLAY_LAYOUT,
     PLOT_CONFIG,
     style_axis,
     use_report_style,
 )
-from alp_discrimination.plotting import draw_event_contours
+from alp_discrimination.plotting.common import draw_event_contours
 from alp_discrimination.workflows import require_columns
 from alp_discrimination.constraints.bc9 import draw_bc9_constraints
 

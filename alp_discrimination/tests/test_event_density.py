@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 import numpy as np
 import pandas as pd
 
-from alp_discrimination.event_density import (
+from alp_discrimination.physics.event_density import (
     build_boundary_table, endpoint_refinement_masses, find_level_crossings,
 )
 from alp_discrimination.config import SMOKE

@@ -19,10 +19,10 @@ import numpy as np
 import pandas as pd
 
 from alp_discrimination.config import AnalysisConfig, lower_ctau_m
-from alp_discrimination.lifetime_blind_plotting import plot_lifetime_scan
-from alp_discrimination.lifetimes import geometric_coarse_grid, threshold_brackets
-from alp_discrimination.models import MODELS, ModelDefinition
-from alp_discrimination.observable_domains import (
+from alp_discrimination.plotting.lifetime import plot_lifetime_scan
+from alp_discrimination.physics.lifetimes import geometric_coarse_grid, threshold_brackets
+from alp_discrimination.physics.models import MODELS, ModelDefinition
+from alp_discrimination.physics.observable_domains import (
     ObservableLifetimeDomain,
     collect_observable_domains,
     domain_table,
@@ -37,7 +37,7 @@ from alp_discrimination.workflows import (
 )
 
 if TYPE_CHECKING:
-    from alp_discrimination.eventcalc_adapter import EventCalcAdapter
+    from alp_discrimination.eventcalc.adapter import EventCalcAdapter
 
 
 MAXIMUM_ALLOWED_RELATIVE_INCREASE = 2.0e-3

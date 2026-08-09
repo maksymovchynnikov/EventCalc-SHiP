@@ -14,9 +14,9 @@ from funcs.initLLP import LLP
 from funcs.kinematics import Grids
 from funcs.ship_setup import theta_max_dec_vol, x_max, y_max, z_max, z_min
 
-from .cache import CacheStore, file_fingerprint
-from .config import AnalysisConfig, SamplingSettings, lower_ctau_m
-from .models import ModelDefinition, ProductionSource
+from alp_discrimination.cache import CacheStore, file_fingerprint
+from alp_discrimination.config import AnalysisConfig, SamplingSettings, lower_ctau_m
+from alp_discrimination.physics.models import ModelDefinition, ProductionSource
 
 
 ADAPTER_VERSION = 4

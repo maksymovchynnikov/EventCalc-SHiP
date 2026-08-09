@@ -12,7 +12,7 @@ import numpy as np
 from alp_discrimination.config import PROFILES
 from alp_discrimination.constraints.convert import COUPLING_CONVERSION_FACTOR
 from alp_discrimination.paths import profile_output_dir
-from alp_discrimination.plot_style import style_axis, use_report_style
+from alp_discrimination.plotting.style import style_axis, use_report_style
 
 LABEL_CONFIG_PATH = Path(__file__).with_name("label_positions.json")
 LABEL_CONTEXTS = ("constraint_only", "event_density_overlay")

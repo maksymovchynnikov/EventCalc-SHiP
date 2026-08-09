@@ -4,7 +4,7 @@ import unittest
 import numpy as np
 
 from alp_discrimination.paths import PACKAGE_ROOT
-from alp_discrimination.reference_curves import (
+from alp_discrimination.plotting.reference_curves import (
     REFERENCE_FILENAMES, load_reference, split_reference_branches,
 )
 
@@ -17,7 +17,7 @@ class ReferenceCurveTests(unittest.TestCase):
         np.testing.assert_allclose(branches["upper"]["coupling_GeV_inv"], [10, 8, 4])
 
     def test_bundled_reference_curves_load_and_split(self):
-        reference_dir = PACKAGE_ROOT / "reference_curves"
+        reference_dir = PACKAGE_ROOT / "reference_data" / "photon_sensitivity"
         references = [
             load_reference(reference_dir / filename, name)
             for name, filename in REFERENCE_FILENAMES.items()

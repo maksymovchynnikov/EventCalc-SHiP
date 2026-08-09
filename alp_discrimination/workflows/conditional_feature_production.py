@@ -10,17 +10,18 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from alp_discrimination.conditional_features import FEATURE_LABELS, load_conditional_feature_moments, validate_conditional_feature_moments
-from alp_discrimination.lifetime_template_banks import load_template_bank
+from alp_discrimination.templates.conditional_features import FEATURE_LABELS, load_conditional_feature_moments, validate_conditional_feature_moments
+from alp_discrimination.templates.lifetime_banks import load_template_bank
 from alp_discrimination.workflows import float_token
 from alp_discrimination.workflows.conditional_feature_scan import persistent_threshold, run_conditional_feature_point
 from alp_discrimination.progress import CheckpointMonitor
+from alp_discrimination.statistics.basic import MINIMUM_OBSERVED_EVENTS
 
 OBSERVABLES = ("energy","energy_mean_z","energy_mean_r_perp","energy_mean_z_r_perp")
 SCREEN_SEEDS = (73241, 83244)
 PROD_SEEDS = (73241, 83244, 93247, 103250, 113253)
 SPARSE_GRIDS = (
-    (2,3,4,5,6,8,10,15,20,30),
+    (1,2,3,4,5,6,8,10,15,20,30),
     (20,30,45,65,90,125,175,250,350),
     (250,350,500,700,1000,1400),
 )
@@ -66,7 +67,7 @@ def ensure_moments(bank_path, domain_path, root, workers, chunk):
     run_conditional_feature_point(
         bank_path=bank_path, output_dir=root, domain_path=domain_path,
         pseudoexperiments=1, seeds=(SCREEN_SEEDS[0],), workers=workers,
-        chunk_size=chunk, event_counts=(2,), observables=("energy_mean_z_r_perp",),
+        chunk_size=chunk, event_counts=(MINIMUM_OBSERVED_EVENTS,), observables=("energy_mean_z_r_perp",),
         truth_grid="screening", moments_only=True,
     )
     validate_conditional_feature_moments(load_conditional_feature_moments(mp), bank)
@@ -133,33 +134,39 @@ def bracket(curve):
         return None, int(ordered["number_of_events"].max()), None
     counts = ordered["number_of_events"].to_numpy(dtype=int)
     lower = counts[counts < threshold]
-    return int(threshold), int(lower[-1]) if len(lower) else max(1, threshold-1), int(threshold)
+    return int(threshold), int(lower[-1]) if len(lower) else MINIMUM_OBSERVED_EVENTS - 1, int(threshold)
 
 def refinement_grid(lower, upper):
     width = int(upper)-int(lower)
     if width <= 0:
         raise ValueError("Invalid bracket")
     if width <= 24:
-        core = list(range(max(2,int(lower)), int(upper)+1))
+        core = list(range(max(MINIMUM_OBSERVED_EVENTS,int(lower)), int(upper)+1))
     else:
         step = max(2, int(ceil(width/12)))
-        core = list(range(max(2,int(lower)), int(upper)+1, step))
+        core = list(range(max(MINIMUM_OBSERVED_EVENTS,int(lower)), int(upper)+1, step))
         if int(upper) not in core:
             core.append(int(upper))
     tail = [int(upper)+max(3,ceil(.05*upper)), int(upper)+max(6,ceil(.10*upper))]
-    return tuple(sorted(set(int(x) for x in core+tail if x>=2)))
+    return tuple(sorted(set(int(x) for x in core+tail if x>=MINIMUM_OBSERVED_EVENTS)))
 
 def full_grid(n):
     n = int(n)
-    if n < 2:
-        raise ValueError("Production scan starts at N=2")
-    values = list(range(max(2,n-8), n+16))
-    values += [max(2,n-20), max(2,n-12), n+20, n+30, ceil(1.25*n), ceil(1.50*n)]
+    if n < MINIMUM_OBSERVED_EVENTS:
+        raise ValueError("Observed event counts must be positive")
+    # Preserve the validated N>=2 grid away from the low-count edge. When the
+    # screening crossing is close to the edge, include N=1 explicitly.
+    floor_count = MINIMUM_OBSERVED_EVENTS if n <= 3 else 2
+    values = list(range(max(floor_count,n-8), n+16))
+    values += [max(floor_count,n-20), max(floor_count,n-12), n+20, n+30, ceil(1.25*n), ceil(1.50*n)]
     return tuple(sorted(set(int(x) for x in values)))
 
 def selection_grid(n, available):
     available = set(int(x) for x in available)
-    result = tuple(x for x in (n-1,n,n+1) if x>=2 and x in available)
+    result = tuple(
+        x for x in (n-1,n,n+1)
+        if x>=MINIMUM_OBSERVED_EVENTS and x in available
+    )
     if n not in result:
         raise ValueError("Candidate threshold missing from final grid")
     return result
@@ -168,6 +175,17 @@ def rangefinder(bank_path, domain_path, root, mp, qp, observable, pes, workers, 
     bank = load_template_bank(bank_path)
     mass = float(bank.mass_gev)
     base = root/"rangefinder"/observable
+    result_path = base/"rangefinder_result.json"
+    if result_path.is_file() and resume:
+        saved = json.loads(result_path.read_text())
+        return RangeResult(
+            observable=str(saved["observable"]),
+            candidate_threshold=int(saved["candidate_threshold"]),
+            lower=int(saved["lower"]),
+            upper=int(saved["upper"]),
+            full_grid=tuple(int(x) for x in saved["full_grid"]),
+            selection_grid=tuple(int(x) for x in saved["selection_grid"]),
+        )
     lower = upper = None
     for i, grid in enumerate(SPARSE_GRIDS):
         stage = base/f"sparse_{i:02d}"
@@ -195,20 +213,41 @@ def rangefinder(bank_path, domain_path, root, mp, qp, observable, pes, workers, 
             raise RuntimeError("Too many refinement rounds")
     result = RangeResult(observable,int(upper),int(lower),int(upper),full_grid(upper),selection_grid(upper,full_grid(upper)))
     base.mkdir(parents=True,exist_ok=True)
-    (base/"rangefinder_result.json").write_text(json.dumps(result.as_dict(),indent=2)+"\n")
+    result_path.write_text(json.dumps(result.as_dict(),indent=2)+"\n")
     return result
 
 def full_domain(bank_path,domain_path,root,mp,qp,rr,pes,workers,chunk,resume):
     bank = load_template_bank(bank_path)
+
+    def evaluate(stage, counts):
+        run_scan(
+            bank_path,domain_path,stage,mp,qp,rr.observable,counts,pes,
+            PROD_SEEDS,"all",workers,chunk,resume,
+        )
+        curve = read_curve(stage,float(bank.mass_gev),rr.observable)
+        threshold = persistent_threshold(curve)
+        if threshold is None:
+            raise RuntimeError(f"Full-domain curve does not cross for {rr.observable}")
+        tested = set(curve["number_of_events"].astype(int))
+        if int(threshold) == max(tested):
+            raise RuntimeError(
+                f"Full-domain N90 at upper grid edge for {rr.observable}: {threshold}"
+            )
+        return curve,int(threshold),tested
+
     stage = root/"full_domain"/rr.observable
-    run_scan(bank_path,domain_path,stage,mp,qp,rr.observable,rr.full_grid,pes,PROD_SEEDS,"all",workers,chunk,resume)
-    curve = read_curve(stage,float(bank.mass_gev),rr.observable)
-    threshold = persistent_threshold(curve)
-    if threshold is None:
-        raise RuntimeError(f"Full-domain curve does not cross for {rr.observable}")
-    counts = set(curve["number_of_events"].astype(int))
-    if int(threshold) in (min(counts),max(counts)):
-        raise RuntimeError(f"Full-domain N90 at grid edge for {rr.observable}: {threshold}")
+    curve,threshold,counts = evaluate(stage,rr.full_grid)
+    if threshold == min(counts) and threshold > MINIMUM_OBSERVED_EVENTS:
+        # Existing validated checkpoints commonly start at N=2. Preserve them
+        # and run one versioned all-truth extension including N=1 instead of
+        # overwriting a completed production result.
+        extended = tuple(sorted(set(rr.full_grid) | {MINIMUM_OBSERVED_EVENTS}))
+        stage = root/"full_domain_n1"/rr.observable
+        curve,threshold,counts = evaluate(stage,extended)
+    if threshold == min(counts) and threshold > MINIMUM_OBSERVED_EVENTS:
+        raise RuntimeError(
+            f"Full-domain N90 remains at an unresolved lower grid edge for {rr.observable}: {threshold}"
+        )
     return stage,int(threshold)
 
 def selected_audit(bank_path,mp,full_dir,root,observable,threshold,counts,pes,workers,chunk,resume):
@@ -296,7 +335,9 @@ def main(argv=None):
     rows=[]
     for obs,(fd,thr2k) in full.items():
         print(f"\n=== HIGH-STATISTICS VALIDATION {obs} ===", flush=True)
-        out,s=selected_audit(bank_path,mp,fd,root,obs,thr2k,ranges[obs].full_grid,args.selected_pseudoexperiments,args.workers,args.chunk_size,args.resume)
+        active_curve = read_curve(fd,float(bank.mass_gev),obs)
+        active_counts = tuple(sorted(set(active_curve["number_of_events"].astype(int))))
+        out,s=selected_audit(bank_path,mp,fd,root,obs,thr2k,active_counts,args.selected_pseudoexperiments,args.workers,args.chunk_size,args.resume)
         thr5=s["persistent_thresholds"]["selected_5k"]
         rows.append({
             "mass_GeV":float(bank.mass_gev),"selection_name":str(bank.selection_name),

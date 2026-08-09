@@ -5,7 +5,7 @@ from pathlib import Path
 import pandas as pd
 
 from alp_discrimination.config import get_config
-from alp_discrimination.mass_seed_resolution import (
+from alp_discrimination.eventcalc.seed_resolution import (
     available_masses_from_domain,
     mass_seed_index,
     model_seed_for_bank,

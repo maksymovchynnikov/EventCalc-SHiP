@@ -8,9 +8,9 @@ import numpy as np
 import pandas as pd
 
 from alp_discrimination.config import QUICK
-from alp_discrimination.lifetime_template_banks import load_template_bank
-from alp_discrimination.spectra import WeightedSpectrum
-from alp_discrimination.eventcalc_proposals import EVENTCALC_FULL_SUPPORT_CTAU_M
+from alp_discrimination.templates.lifetime_banks import load_template_bank
+from alp_discrimination.physics.spectra import WeightedSpectrum
+from alp_discrimination.eventcalc.proposals import EVENTCALC_FULL_SUPPORT_CTAU_M
 from alp_discrimination.paths import profile_output_dir
 from alp_discrimination.workflows.lifetime_blind_discrimination import (
     _mass_seed_indices,

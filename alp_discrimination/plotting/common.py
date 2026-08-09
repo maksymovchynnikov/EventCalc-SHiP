@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from .plot_style import PLOT_CONFIG, style_axis, use_report_style
-from .spectra import HistogramSpectrum
+from alp_discrimination.plotting.style import PLOT_CONFIG, style_axis, use_report_style
+from alp_discrimination.physics.spectra import HistogramSpectrum
 
 
 def plot_ctau_rates(data: pd.DataFrame, threshold: float, output_path: Path) -> Path:

@@ -15,8 +15,8 @@ from matplotlib.lines import Line2D
 import numpy as np
 import pandas as pd
 
-from .lifetime_template_banks import LifetimeTemplateBank
-from .plot_style import PLOT_CONFIG, style_axis, use_report_style
+from alp_discrimination.templates.lifetime_banks import LifetimeTemplateBank
+from alp_discrimination.plotting.style import PLOT_CONFIG, style_axis, use_report_style
 
 
 def _save_pdf_png(figure: plt.Figure, output_stem: Path) -> tuple[Path, Path]:

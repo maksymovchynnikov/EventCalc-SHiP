@@ -17,8 +17,9 @@ import numpy as np
 import pandas as pd
 from scipy.stats import norm
 
-from alp_discrimination.lifetime_template_banks import LifetimeTemplateBank
-from alp_discrimination.profiled_reduction import minimum_persistent_events
+from alp_discrimination.templates.lifetime_banks import LifetimeTemplateBank
+from alp_discrimination.statistics.basic import MINIMUM_OBSERVED_EVENTS
+from alp_discrimination.statistics.reduction import minimum_persistent_events
 
 
 TRUTH_MODELS = ("photon", "su2")
@@ -99,7 +100,7 @@ class AdaptivePseudoexperimentSettings:
     required_stable_transitions: int = 2
     audit_global_alpha: float = 0.01
     rangefinder_scale_constant: float = 0.30
-    rangefinder_minimum_events: int = 2
+    rangefinder_minimum_events: int = MINIMUM_OBSERVED_EVENTS
     rangefinder_maximum_events: int = 20000
     unit_window_minimum_half_width: int = 30
     unit_window_bracket_fraction: float = 0.40
@@ -928,8 +929,8 @@ def rangefinder_bracket(
         )
     passing_index = int(np.flatnonzero(events == threshold)[0])
     if passing_index == 0:
-        lower = max(settings.rangefinder_minimum_events, int(floor(threshold / 2)))
-        lower_accuracy = 0.0
+        lower = settings.rangefinder_minimum_events - 1
+        lower_accuracy = 0.5 if lower == 0 else 0.0
     else:
         lower = int(events[passing_index - 1])
         lower_accuracy = float(accuracy[passing_index - 1])

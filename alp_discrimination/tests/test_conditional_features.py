@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from alp_discrimination.conditional_features import (
+from alp_discrimination.templates.conditional_features import (
     FEATURE_LABELS,
     FEATURE_SUBSETS,
     R_SCALE_M,

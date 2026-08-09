@@ -27,14 +27,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from alp_discrimination.adaptive_lifetime_grid import AdaptiveScanSettings
+from alp_discrimination.statistics.adaptive_grid import AdaptiveScanSettings
+from alp_discrimination.statistics.basic import MINIMUM_OBSERVED_EVENTS
 from alp_discrimination.planning import (
     AnalysisConfig,
     build_analysis_plan,
     write_run_configuration,
 )
-from alp_discrimination.conditional_features import FEATURE_LABELS, FEATURE_SUBSETS
-from alp_discrimination.lifetime_template_banks import load_template_bank
+from alp_discrimination.templates.conditional_features import FEATURE_LABELS, FEATURE_SUBSETS
+from alp_discrimination.templates.lifetime_banks import load_template_bank
 from alp_discrimination.paths import OUTPUT_ROOT
 from alp_discrimination.workflows import float_token
 from alp_discrimination.workflows.lifetime_bank_builder import (
@@ -575,7 +576,7 @@ def selection_counts(threshold: int, event_counts: Sequence[int]) -> list[int]:
     available = set(int(x) for x in event_counts)
     values = [
         x for x in (int(threshold) - 1, int(threshold), int(threshold) + 1)
-        if x >= 2 and x in available
+        if x >= MINIMUM_OBSERVED_EVENTS and x in available
     ]
     if int(threshold) not in values:
         raise ValueError("Selected threshold is absent from the event grid.")
@@ -588,7 +589,7 @@ def empirical_counts(threshold: int, event_counts: Sequence[int]) -> list[int]:
         {
             x
             for x in (
-                max(2, int(threshold) - 1),
+                max(MINIMUM_OBSERVED_EVENTS, int(threshold) - 1),
                 int(threshold),
                 int(threshold) + 1,
                 int(threshold) + 2,
@@ -621,14 +622,19 @@ def run_selected_10k(
         .read_text()
     )
     threshold = int(selected_5k_summary["persistent_thresholds"]["selected_5k"])
-    event_counts = range_result(point, observable)["full_grid"]
+    event_counts = [int(x) for x in selected_5k_summary["event_counts"]]
 
+    full_domain_dir = Path(
+        selected_5k_summary.get(
+            "full_domain_dir", point / "full_domain" / observable
+        )
+    )
     command = [
         sys.executable,
         "-m",
         "alp_discrimination.workflows.conditional_feature_selected",
         "--full-domain-dir",
-        str(point / "full_domain" / observable),
+        str(full_domain_dir),
         "--bank-path",
         str(bank_path),
         "--moments-path",
@@ -696,7 +702,10 @@ def run_empirical_validation(
             check=True,
         )
 
-    event_counts = range_result(point, observable)["full_grid"]
+    selected_summary = json.loads(
+        selected_summary_path(selected_dir, float(bank.mass_gev)).read_text()
+    )
+    event_counts = [int(x) for x in selected_summary["event_counts"]]
     subprocess.run(
         [
             sys.executable,
@@ -833,10 +842,13 @@ def finalize_point(
                 }
             )
 
+        active_full_domain = Path(
+            summary.get(
+                "full_domain_dir", point / "full_domain" / observable
+            )
+        )
         full_curve = pd.read_csv(
-            point
-            / "full_domain"
-            / observable
+            active_full_domain
             / f"conditional_feature_pilot_thresholds_ma_{float_token(bank.mass_gev)}.csv"
         )
         full_row = full_curve[
@@ -885,9 +897,7 @@ def finalize_point(
             )
 
         distance_file = (
-            point
-            / "full_domain"
-            / observable
+            active_full_domain
             / f"conditional_feature_distance_minima_ma_{float_token(bank.mass_gev)}.csv"
         )
         if distance_file.is_file():

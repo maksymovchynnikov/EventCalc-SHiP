@@ -21,7 +21,7 @@ from typing import Mapping, Sequence
 import numpy as np
 import pandas as pd
 
-from alp_discrimination.adaptive_lifetime_grid import (
+from alp_discrimination.statistics.adaptive_grid import (
     AdaptiveLifetimeSettings,
     AdaptivePseudoexperimentSettings,
     AdaptiveScanSettings,
@@ -51,9 +51,9 @@ from alp_discrimination.adaptive_lifetime_grid import (
 )
 from alp_discrimination.cache import CacheStore, atomic_output_path, canonical_json
 from alp_discrimination.config import AnalysisConfig, get_config
-from alp_discrimination.lifetime_template_banks import LifetimeTemplateBank, load_template_bank
+from alp_discrimination.templates.lifetime_banks import LifetimeTemplateBank, load_template_bank
 from alp_discrimination.paths import OUTPUT_ROOT, portable_path
-from alp_discrimination.profiled_reduction import minimum_persistent_events
+from alp_discrimination.statistics.reduction import minimum_persistent_events
 from alp_discrimination.workflows import float_token, write_dataframe
 from alp_discrimination.workflows.plot_n90_comparison import (
     plot_n90_comparison,
@@ -409,7 +409,7 @@ def _build_bank_stage(
         / f"template_bank_ma_{float_token(mass_gev)}.npz"
     )
     if not completed:
-        from alp_discrimination.eventcalc_adapter import EventCalcAdapter
+        from alp_discrimination.eventcalc.adapter import EventCalcAdapter
         from alp_discrimination.workflows.lifetime_blind_discrimination import (
             run_template_bank_workflow,
         )

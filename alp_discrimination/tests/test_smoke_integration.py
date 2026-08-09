@@ -7,10 +7,10 @@ import numpy as np
 
 from alp_discrimination.cache import CacheStore
 from alp_discrimination.config import SMOKE, spectrum_model_seed
-from alp_discrimination.eventcalc_adapter import EventCalcAdapter
-from alp_discrimination.models import MODELS
-from alp_discrimination.statistics import simulate_shape_discrimination
-from alp_discrimination.templates import cached_probability_templates
+from alp_discrimination.eventcalc.adapter import EventCalcAdapter
+from alp_discrimination.physics.models import MODELS
+from alp_discrimination.statistics.basic import simulate_shape_discrimination
+from alp_discrimination.templates.probability import cached_probability_templates
 
 
 @unittest.skipUnless(os.environ.get("EVENTCALC_RUN_SMOKE") == "1", "set EVENTCALC_RUN_SMOKE=1")

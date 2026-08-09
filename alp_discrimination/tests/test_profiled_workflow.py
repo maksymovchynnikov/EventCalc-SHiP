@@ -9,12 +9,12 @@ import pandas as pd
 
 from alp_discrimination.cache import CacheStore
 from alp_discrimination.config import PRODUCTION, QUICK
-from alp_discrimination.lifetime_template_banks import (
+from alp_discrimination.templates.lifetime_banks import (
     LifetimeTemplateBank,
     load_template_bank,
     save_bank_artifacts,
 )
-from alp_discrimination.profiled_statistics import (
+from alp_discrimination.statistics.profiled import (
     PROFILED_ACCURACY_COLUMNS,
     run_profiled_seed,
 )

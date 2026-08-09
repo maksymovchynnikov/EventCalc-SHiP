@@ -14,7 +14,7 @@ from typing import Callable, Iterator, Mapping
 
 import numpy as np
 
-from .paths import REPOSITORY_ROOT, portable_path, profile_cache_dir
+from alp_discrimination.paths import REPOSITORY_ROOT, portable_path, profile_cache_dir
 
 CACHE_FORMAT_VERSION = 1
 

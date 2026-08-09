@@ -4,8 +4,8 @@ from unittest.mock import patch
 import numpy as np
 
 from alp_discrimination.cache import cache_key
-from alp_discrimination.eventcalc_adapter import MotherSample
-from alp_discrimination.selections import (
+from alp_discrimination.eventcalc.adapter import MotherSample
+from alp_discrimination.eventcalc.selections import (
     DIPHOTON_ECAL_ALGORITHM_VERSION,
     DiphotonECALResult,
     DiphotonECALEnergySelection,

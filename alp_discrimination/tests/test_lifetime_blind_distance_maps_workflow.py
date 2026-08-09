@@ -8,8 +8,8 @@ import numpy as np
 
 from alp_discrimination.cache import CacheStore
 from alp_discrimination.config import QUICK
-from alp_discrimination.lifetime_blind_plotting import distance_map_interval_blocks
-from alp_discrimination.lifetime_template_banks import LifetimeTemplateBank
+from alp_discrimination.plotting.lifetime import distance_map_interval_blocks
+from alp_discrimination.templates.lifetime_banks import LifetimeTemplateBank
 from alp_discrimination.workflows.lifetime_blind_distance_maps import (
     cached_distance_matrix,
     discover_template_bank_masses,

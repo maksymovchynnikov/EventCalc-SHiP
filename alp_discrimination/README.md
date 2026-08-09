@@ -1,73 +1,63 @@
 # ALP model discrimination at SHiP
 
-This branch extends EventCalc-SHiP with an $SU(2)_L$-coupled axion-like particle
-(ALP) benchmark and a reusable analysis for distinguishing it from the existing
+This package extends EventCalc-SHiP with an $SU(2)_L$-coupled axion-like particle
+(ALP) benchmark and a reproducible analysis for distinguishing it from the
 photophilic ALP benchmark at SHiP.
 
-The physics question is simple:
-
-> If an ALP signal is observed with known mass $m_a$, how many accepted
-> $a\to\gamma\gamma$ decays are required to identify which coupling scenario
-> produced it?
-
-The ALP lifetime is not assumed to be known. It is profiled independently under
-the two model hypotheses, so the result is conservative against lifetime-induced
-changes of the accepted kinematics.
+The question is: if an ALP signal is observed at known mass $m_a$, how many
+accepted $a\to\gamma\gamma$ decays are required to identify the coupling
+scenario? The ALP lifetime is not assumed known and is profiled independently
+under both hypotheses.
 
 ## Physics setup
 
-Two benchmarks are compared:
+The two benchmark hypotheses are:
 
-- **Photophilic ALP** — primary and electromagnetic-cascade production.
-- **$SU(2)_L$ ALP** — dominated by rare $B\to X_s a$ decays, with the
-  $b\to d a$ contribution retained where relevant.
+- **Photophilic ALP**: primary plus electromagnetic-cascade production.
+- **$SU(2)_L$ ALP**: dominated by rare $B\to X_s a$ production, with the
+  implemented subleading contribution retained by EventCalc.
 
-Both benchmarks are studied through $a\to\gamma\gamma$. EventCalc supplies the
-production spectra, decay probability and SHiP decay-volume geometry. The
-additional diphoton selection requires both photons to intersect the ECAL plane;
-a second selection also requires $E_\gamma\geq1$ GeV for each photon.
+Both are studied through $a\to\gamma\gamma$. EventCalc supplies production,
+decay probability and SHiP decay-volume kinematics. The detector-level selection
+requires both photons to intersect the simplified ECAL plane; the second
+selection additionally requires $E_\gamma\geq1$ GeV for each photon.
 
-Absolute event rates are used to determine the **allowed lifetime domains**.
-They are not included in the discrimination likelihood, which is shape-only and
-conditioned on the observed number of accepted events $N$.
+Absolute rates determine the allowed lifetime domains. They are not included in
+the discrimination likelihood, which is shape-only and conditioned on the
+observed number of accepted events $N$.
 
 ## Discrimination method
 
-For each model and lifetime the accepted EventCalc sample defines an energy
-probability distribution. The analysis can additionally use the conditional
-decay-position information
-
-$$
-\langle z_d\rangle,\qquad
-\langle r_\perp\rangle,\qquad
-r_\perp=\sqrt{x_d^2+y_d^2}.
-$$
-
-The standard observable sets are:
+For each model and lifetime, accepted EventCalc events define an ALP-energy
+distribution and conditional decay-position moments. The supported observable
+sets are:
 
 - `energy`
 - `energy_mean_z`
 - `energy_mean_r_perp`
 - `energy_mean_z_r_perp`
 
-The accuracy at fixed $N$ is the worst case over truth model, allowed lifetime
-and random seed. The reported threshold is
+with $r_\perp=\sqrt{x_d^2+y_d^2}$. At fixed $N$, the likelihood profiles the
+lifetime independently under each model. The reported accuracy is conservative
+over truth model, allowed truth lifetime and random seed. The threshold is
 
 $$
 N_{90}=\min\{N\mid A_{N'}\geq0.90\;\text{for every tested }N'\geq N\}.
 $$
 
+The implementation supports every physical event count $N\geq1$. In particular,
+a crossing at $N=2$ is not accepted as a lower-grid boundary: the full-domain
+scan is extended to $N=1$ before the threshold is finalized.
+
 ## Run the analysis
 
-Activate the EventCalc environment and run from the repository root.
-
-### Interactive interface
+From the EventCalc-SHiP repository root:
 
 ```bash
 python -m alp_discrimination.workflows.analysis --interactive
 ```
 
-### Reproduce the headline analysis
+For a non-interactive production run:
 
 ```bash
 python -m alp_discrimination.workflows.analysis \
@@ -81,89 +71,73 @@ python -m alp_discrimination.workflows.analysis \
   --stop-after final
 ```
 
-## Validation
+`reuse_only` is the safe default for expensive work: registered validated or
+production banks are reused and unavailable points are skipped rather than built
+implicitly.
 
-A final result passes the following sequence:
+## Validation chain
 
-1. **Threshold scan** — locate the relevant event-count region.
-2. **Lifetime scan** — evaluate every allowed truth lifetime with 2000
+A project-final spatial result passes four stages:
+
+1. **Threshold scan**: locate the relevant event-count region.
+2. **Lifetime scan**: evaluate every allowed truth lifetime with 2000
    pseudoexperiments and five seeds.
-3. **High-statistics validation** — repeat the difficult truths with 5000
-   pseudoexperiments and audit omitted lifetimes. A 10k extension is used only
-   when the 5k crossing is statistically marginal.
-4. **Empirical validation** — for spatial observables, resample complete weighted
-   EventCalc events and verify that the Gaussian conditional approximation does
-   not change $N_{90}$.
+3. **High-statistics validation**: repeat difficult truths with 5000
+   pseudoexperiments and audit omitted lifetimes; 10k is used only when needed.
+4. **Empirical validation**: resample complete weighted EventCalc events and
+   verify that the Gaussian conditional approximation does not change $N_{90}$.
 
-The fully validated $m_a=0.3$ GeV ECAL-only joint result is currently
+The distance measures used for lifetime maps are diagnostics; the project test
+statistic is the profiled likelihood evaluated in pseudoexperiments.
 
-$$
-N_{90}=4,
-$$
+## Package structure
 
-with the same threshold in the all-lifetime 2k scan, the selected 5k validation
-and direct EventCalc-row resampling.
+```text
+alp_discrimination/
+├── physics/       models, spectra, lifetime and event-rate domains
+├── eventcalc/     EventCalc adapters, proposals and diphoton selections
+├── templates/     probability/lifetime banks and conditional feature moments
+├── statistics/    likelihoods, reductions, distances and adaptive scan logic
+├── plotting/      shared plotting and report-facing figures
+├── constraints/   exclusion-curve conversion and plotting helpers
+├── reference_data/ bundled photon-sensitivity reference curves
+├── workflows/     command-line orchestration and production stages
+└── tests/         unit, regression and integration tests
+```
 
-## Outputs
+Package-level infrastructure (`config.py`, `cache.py`, `paths.py`, `planning.py`
+and `progress.py`) remains at the top level.
 
-Primary results are written under
+## Outputs and checkpoint compatibility
+
+Final products are written under
 
 ```text
 analysis2/outputs/production/alp_su2l_analysis/final_results/
 ```
 
-The `analysis2/outputs` and `analysis2/cache` directories are retained as the
-historical runtime-data namespace so validated checkpoints and caches remain
-reusable after the source-package rename.
+The `analysis2/cache` and `analysis2/outputs` names are intentionally retained as
+the historical **runtime-data namespace**. Moving the source package does not
+rename these directories, so expensive banks and checkpoints remain reusable.
+Legacy checkpoint filenames containing `pilot` or `lifetime_blind` are likewise
+retained where changing them would break resume compatibility.
 
-Internal checkpoint directories are kept for resumability. The compact
-report-facing products are exported separately to
-
-```text
-final_results/report/
-├── plots/
-├── tables/
-└── data/
-```
-
-The report products include:
-
-- correct-classification probability versus observed decays $N$;
-- validation comparison between the all-lifetime and high-statistics scans;
-- report-style lifetime-distance maps with excluded regions shown in grey;
-- observable-comparison plots;
-- $N_{90}$ versus ALP mass;
-- compact CSV tables and the numerical arrays underlying the distance maps.
+Report-facing products are exported to `final_results/report/{plots,tables,data}`.
 
 ## Numerical bank quality
 
-Lifetime-template banks are labelled explicitly in the final summaries.
-`production_noise_floor_limited` means that the location and value of the global
-distance minimum are stable, while further lifetime-grid refinement is limited
-by numerical/template-statistical noise. It does **not** mean that the physical
-minimum is unstable.
+`production_noise_floor_limited` means that the global distance minimum is
+stable, while additional local lifetime-grid refinement is limited by numerical
+or template-statistical noise. It does not mean that the physical minimum is
+unstable.
 
 ## Limitations
 
-The discrimination study uses idealised simulated decay coordinates. It does
-not yet include realistic diphoton vertex resolution, photon-separation or
-reconstruction efficiencies, backgrounds, or detector systematic uncertainties.
-The spatial result should therefore be interpreted as the information available
-in the accepted truth-level kinematics.
-
-## Code structure
-
-The public analysis interface is organised as:
-
-```text
-alp_discrimination/
-├── conditional_features.py     feature moments and likelihood ingredients
-├── lifetime_template_banks.py  lifetime-dependent accepted templates
-├── progress.py                 progress and ETA reporting
-├── report_plots.py             report-facing figures
-└── workflows/
-    └── analysis.py             single user-facing analysis entry point
-```
+The discrimination study uses idealised truth-level decay coordinates. It does
+not include realistic diphoton vertex resolution, photon separation, full
+reconstruction efficiency, backgrounds or detector systematics. Spatial results
+therefore quantify the information available in the accepted simulated
+kinematics, not a complete experimental sensitivity.
 
 ## Tests
 
@@ -171,10 +145,11 @@ alp_discrimination/
 python -m pytest alp_discrimination/tests -q
 ```
 
-The full package test suite should be run after structural changes before starting new production points.
+Run the full suite and the saved golden-result regression after structural or
+statistical changes and before starting new production points.
 
 ## EventCalc core
 
-The underlying EventCalc-SHiP sampler and detector geometry are inherited from
-the main EventCalc-SHiP project. See `DETAILS.md` for the general LLP sampling,
-decay and event-rate implementation.
+The underlying EventCalc-SHiP sampler and geometry implementation are inherited
+from the main EventCalc-SHiP project. See the repository-level documentation for
+the general LLP sampling, decay and event-rate implementation.

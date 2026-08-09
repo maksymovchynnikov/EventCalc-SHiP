@@ -12,16 +12,16 @@ from funcs.initLLP import LLP
 from funcs.ship_setup import theta_max_dec_vol
 from alp_discrimination.cache import CacheStore, cache_key
 from alp_discrimination.config import PRODUCTION, SMOKE, lower_ctau_m
-from alp_discrimination.eventcalc_adapter import (
+from alp_discrimination.eventcalc.adapter import (
     EventCalcAdapter,
     KinematicProposal,
     MotherSample,
     generate_mother_sample,
     legacy_numpy_seed,
 )
-from alp_discrimination.eventcalc_proposals import _proposal_identity
-from alp_discrimination.models import MODELS
-from alp_discrimination.selections import (
+from alp_discrimination.eventcalc.proposals import _proposal_identity
+from alp_discrimination.physics.models import MODELS
+from alp_discrimination.eventcalc.selections import (
     DiphotonECALEnergySelection,
     DiphotonECALSelection,
     SelectionContext,
@@ -292,7 +292,7 @@ class EventCalcAdapterTests(unittest.TestCase):
         )
 
         with patch(
-            "alp_discrimination.eventcalc_adapter.generate_mother_sample",
+            "alp_discrimination.eventcalc.adapter.generate_mother_sample",
             return_value=mothers,
         ):
             geometry_adapter.evaluate_spectrum(proposal, 10.0, 124)
@@ -474,7 +474,7 @@ class EventCalcAdapterTests(unittest.TestCase):
         model_id = "alp_photon_combined"
         model_seed = config.seed_policy.model_seed(0.3, model_id, seed_offset=7)
         with patch(
-            "alp_discrimination.eventcalc_adapter.combine_absolute_source_spectra",
+            "alp_discrimination.eventcalc.adapter.combine_absolute_source_spectra",
             return_value=combined,
         ):
             adapter.evaluate_model(
@@ -532,7 +532,7 @@ class EventCalcAdapterTests(unittest.TestCase):
         )
 
         with patch(
-            "alp_discrimination.eventcalc_adapter.combine_absolute_source_spectra",
+            "alp_discrimination.eventcalc.adapter.combine_absolute_source_spectra",
             return_value=combined,
         ):
             adapter.evaluate_model(

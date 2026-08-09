@@ -9,9 +9,9 @@ from typing import Mapping
 import numpy as np
 import pandas as pd
 
-from .cache import CacheStore
-from .spectra import WeightedSpectrum, histogram_moments, validate_energy_edges
-from .statistics import validate_probabilities
+from alp_discrimination.cache import CacheStore
+from alp_discrimination.physics.spectra import WeightedSpectrum, histogram_moments, validate_energy_edges
+from alp_discrimination.statistics.basic import validate_probabilities
 
 
 def first_problem_bin(

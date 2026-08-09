@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from alp_discrimination.lifetimes import (
+from alp_discrimination.physics.lifetimes import (
     LifetimeInterval, dense_log_grid, interior_lifetime_points, intersect_intervals,
     lifetime_point_records, logarithmic_fraction,
 )

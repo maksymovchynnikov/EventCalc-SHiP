@@ -7,7 +7,7 @@ from typing import ClassVar, Protocol
 
 import numpy as np
 
-from .ecal_selection import (
+from alp_discrimination.eventcalc.ecal_selection import (
     DEFAULT_ECAL,
     DEFAULT_ECAL_SEED_OFFSET,
     DIPHOTON_ECAL_ALGORITHM,

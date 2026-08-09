@@ -1,6 +1,6 @@
 import numpy as np
 
-from alp_discrimination.report_plots import (
+from alp_discrimination.plotting.report import (
     observable_token,
     pairwise_total_variation,
     selection_token,

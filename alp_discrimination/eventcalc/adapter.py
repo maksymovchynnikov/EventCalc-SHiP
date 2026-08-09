@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import numpy as np
 
-from .cache import CacheStore
-from .config import (
+from alp_discrimination.cache import CacheStore
+from alp_discrimination.config import (
     AnalysisConfig,
     SamplingSettings,
     ctau_source_seed,
     lower_ctau_m,
     spectrum_source_seed,
 )
-from .eventcalc_proposals import (
+from alp_discrimination.eventcalc.proposals import (
     ADAPTER_VERSION,
     KinematicProposal,
     MotherSample,
@@ -25,8 +25,8 @@ from .eventcalc_proposals import (
     generate_mother_sample,
     legacy_numpy_seed,
 )
-from .models import ModelDefinition, ProductionSource, get_model
-from .selections import (
+from alp_discrimination.physics.models import ModelDefinition, ProductionSource, get_model
+from alp_discrimination.eventcalc.selections import (
     DEFAULT_ECAL,
     DEFAULT_ECAL_SEED_OFFSET,
     ECALGeometry,
@@ -35,7 +35,7 @@ from .selections import (
     SelectionContext,
     selection_for_name,
 )
-from .spectra import WeightedSpectrum, combine_absolute_source_spectra
+from alp_discrimination.physics.spectra import WeightedSpectrum, combine_absolute_source_spectra
 
 
 def _selection_from_config(config: AnalysisConfig) -> Selection:

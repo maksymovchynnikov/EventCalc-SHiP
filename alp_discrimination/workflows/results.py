@@ -8,8 +8,8 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from alp_discrimination.conditional_features import FEATURE_LABELS
-from alp_discrimination.report_plots import (
+from alp_discrimination.templates.conditional_features import FEATURE_LABELS
+from alp_discrimination.plotting.report import (
     plot_classification_accuracy,
     plot_distance_diagnostics,
     plot_n90_vs_mass as plot_report_n90_vs_mass,

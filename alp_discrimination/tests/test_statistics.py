@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from alp_discrimination.statistics import (
+from alp_discrimination.statistics.basic import (
     conditional_classification_accuracy, minimum_events_for_accuracy,
     same_lifetime_log_likelihood_ratio, simulate_shape_discrimination,
     total_variation_distance,

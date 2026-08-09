@@ -12,8 +12,8 @@ import pandas as pd
 
 from alp_discrimination.cache import CacheStore, canonical_json, file_fingerprint
 from alp_discrimination.config import AnalysisConfig
-from alp_discrimination.lifetime_template_banks import LifetimeTemplateBank
-from alp_discrimination.profiled_statistics import (
+from alp_discrimination.templates.lifetime_banks import LifetimeTemplateBank
+from alp_discrimination.statistics.profiled import (
     PROFILED_ACCURACY_COLUMNS,
     combine_profiled_truth_tables,
     lifetime_grid_indices,

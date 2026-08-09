@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from alp_discrimination.adaptive_lifetime_grid import (
+from alp_discrimination.statistics.adaptive_grid import (
     AdaptiveLifetimeSettings,
     AdaptivePseudoexperimentSettings,
     AdaptiveScanSettings,
@@ -20,8 +20,8 @@ from alp_discrimination.adaptive_lifetime_grid import (
     threshold_history_is_stable,
     total_variation_matrix,
 )
-from alp_discrimination.lifetime_template_banks import LifetimeTemplateBank
-from alp_discrimination.profiled_reduction import (
+from alp_discrimination.templates.lifetime_banks import LifetimeTemplateBank
+from alp_discrimination.statistics.reduction import (
     build_conservative_seed_envelope,
     build_seed_worst_case_table,
 )
@@ -308,6 +308,22 @@ def test_distance_screening_includes_minimum_neighbours_and_interval_endpoints()
             assert int(indices[0]) in selected[model]
             assert int(indices[-1]) in selected[model]
 
+
+
+def test_rangefinder_supports_single_observed_event():
+    settings = AdaptivePseudoexperimentSettings()
+    assert settings.rangefinder_minimum_events == 1
+    curve = pd.DataFrame(
+        {
+            "number_of_events": [1, 2, 3],
+            "worst_case_correct_fraction": [0.91, 0.94, 0.97],
+        }
+    )
+    bracket = rangefinder_bracket(curve, settings)
+    assert bracket.lower_failing_events == 0
+    assert bracket.upper_passing_events == 1
+    grid = final_event_grid_from_bracket(bracket, settings)
+    assert grid[0] == 1
 
 def test_rangefinder_builds_a_single_cache_stable_unit_window_and_tail():
     curve = pd.DataFrame(

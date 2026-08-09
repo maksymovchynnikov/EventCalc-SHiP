@@ -29,7 +29,7 @@ import pandas as pd
 from scipy.special import ndtr
 
 from alp_discrimination.cache import CacheStore
-from alp_discrimination.conditional_features import (
+from alp_discrimination.templates.conditional_features import (
     FEATURE_LABELS,
     FEATURE_SUBSETS,
     combine_source_feature_samples,
@@ -40,11 +40,11 @@ from alp_discrimination.conditional_features import (
     validate_conditional_feature_moments,
 )
 from alp_discrimination.config import get_config
-from alp_discrimination.eventcalc_adapter import EventCalcAdapter
-from alp_discrimination.lifetime_template_banks import load_template_bank
-from alp_discrimination.mass_seed_resolution import model_seed_for_bank
-from alp_discrimination.models import get_model
-from alp_discrimination.profiled_statistics import stable_truth_rng
+from alp_discrimination.eventcalc.adapter import EventCalcAdapter
+from alp_discrimination.templates.lifetime_banks import load_template_bank
+from alp_discrimination.eventcalc.seed_resolution import model_seed_for_bank
+from alp_discrimination.physics.models import get_model
+from alp_discrimination.statistics.profiled import stable_truth_rng
 from alp_discrimination.progress import ProgressMeter
 from alp_discrimination.workflows import float_token
 

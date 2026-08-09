@@ -14,10 +14,10 @@ from typing import Mapping
 import numpy as np
 import pandas as pd
 
-from .cache import atomic_output_path
-from .spectra import WeightedSpectrum, validate_energy_edges
-from .statistics import validate_probabilities
-from .templates import (
+from alp_discrimination.cache import atomic_output_path
+from alp_discrimination.physics.spectra import WeightedSpectrum, validate_energy_edges
+from alp_discrimination.statistics.basic import validate_probabilities
+from alp_discrimination.templates.probability import (
     common_adaptive_energy_edges,
     first_problem_bin,
     jeffreys_regularized_probabilities,

@@ -12,13 +12,13 @@ import pandas as pd
 
 from alp_discrimination.cache import cache_key, canonical_json
 from alp_discrimination.config import event_density_seed
-from alp_discrimination.event_density import (
+from alp_discrimination.physics.event_density import (
     SOURCE_SCANS, add_interpolated_closing_points, build_boundary_table,
     combine_photon_sources, endpoint_refinement_masses, stable_float_key,
 )
-from alp_discrimination.models import get_model
+from alp_discrimination.physics.models import get_model
 from alp_discrimination.paths import profile_output_dir
-from alp_discrimination.plotting import plot_event_rate_curves
+from alp_discrimination.plotting.common import plot_event_rate_curves
 from alp_discrimination.workflows import (
     add_profile_cache_arguments, config_and_adapter, write_dataframe, write_manifest,
 )

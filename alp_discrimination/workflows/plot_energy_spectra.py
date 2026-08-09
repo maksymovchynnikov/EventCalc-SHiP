@@ -15,12 +15,12 @@ import pandas as pd
 
 from alp_discrimination.cache import CacheStore
 from alp_discrimination.config import PROFILES, AnalysisConfig, get_config
-from alp_discrimination.eventcalc_adapter import EventCalcAdapter
-from alp_discrimination.models import ALP_PHOTON_COMBINED, ALP_SU2L, MODELS
+from alp_discrimination.eventcalc.adapter import EventCalcAdapter
+from alp_discrimination.physics.models import ALP_PHOTON_COMBINED, ALP_SU2L, MODELS
 from alp_discrimination.paths import profile_output_dir
-from alp_discrimination.plot_style import PLOT_CONFIG, style_axis, use_report_style
-from alp_discrimination.selections import MotherLevelSelection
-from alp_discrimination.spectra import HistogramSpectrum, WeightedSpectrum, normalized_weighted_spectrum
+from alp_discrimination.plotting.style import PLOT_CONFIG, style_axis, use_report_style
+from alp_discrimination.eventcalc.selections import MotherLevelSelection
+from alp_discrimination.physics.spectra import HistogramSpectrum, WeightedSpectrum, normalized_weighted_spectrum
 from alp_discrimination.workflows import write_dataframe, write_manifest
 
 

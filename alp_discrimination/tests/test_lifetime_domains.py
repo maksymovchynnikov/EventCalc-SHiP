@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 import numpy as np
 import pandas as pd
 
-from alp_discrimination.lifetime_domains import (
+from alp_discrimination.physics.lifetime_domains import (
     Interval,
     allowed_coupling_intervals,
     coupling_interval_to_ctau,
@@ -18,7 +18,7 @@ from alp_discrimination.lifetime_domains import (
 # Saved-domain loading and disconnected lifetime-grid tests
 # -----------------------------------------------------------------------------
 
-from alp_discrimination.lifetime_domains import (
+from alp_discrimination.physics.lifetime_domains import (
     available_lifetime_domain_masses,
     build_lifetime_grid,
     load_allowed_ctau_domains,

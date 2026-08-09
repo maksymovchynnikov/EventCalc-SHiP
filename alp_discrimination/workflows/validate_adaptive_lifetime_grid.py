@@ -16,7 +16,7 @@ from typing import Sequence
 import numpy as np
 import pandas as pd
 
-from alp_discrimination.adaptive_lifetime_grid import (
+from alp_discrimination.statistics.adaptive_grid import (
     AdaptiveLifetimeSettings,
     DOMAIN_MODEL_LABELS,
     TRUTH_MODELS,
@@ -25,7 +25,7 @@ from alp_discrimination.adaptive_lifetime_grid import (
     propose_lifetime_refinement,
     total_variation_matrix,
 )
-from alp_discrimination.lifetime_template_banks import LifetimeTemplateBank, load_template_bank
+from alp_discrimination.templates.lifetime_banks import LifetimeTemplateBank, load_template_bank
 from alp_discrimination.workflows import write_dataframe
 
 

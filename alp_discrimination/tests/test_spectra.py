@@ -3,7 +3,7 @@ from dataclasses import replace
 
 import numpy as np
 
-from alp_discrimination.spectra import (
+from alp_discrimination.physics.spectra import (
     WeightedSpectrum, combine_absolute_source_spectra, effective_sample_size,
     normalized_weighted_spectrum,
 )

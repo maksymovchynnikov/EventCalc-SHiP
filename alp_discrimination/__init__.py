@@ -1,4 +1,4 @@
-"""Reusable mother-level ALP analysis for EventCalc-SHiP."""
+"""Lifetime-profiled ALP model discrimination for EventCalc-SHiP."""
 
 from .config import PROFILES, AnalysisConfig, get_config
 

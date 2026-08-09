@@ -4,21 +4,21 @@ from unittest.mock import patch
 import numpy as np
 import pandas as pd
 
-import alp_discrimination.profiled_statistics as profiled_statistics
+import alp_discrimination.statistics.profiled as profiled_statistics
 
-from alp_discrimination.distance_statistics import (
+from alp_discrimination.statistics.distances import (
     DISTANCE_TABLE_COLUMNS,
     build_distance_table,
     total_variation_matrix,
 )
-from alp_discrimination.profiled_reduction import (
+from alp_discrimination.statistics.reduction import (
     CONSERVATIVE_ENVELOPE_COLUMNS,
     SEED_WORST_CASE_COLUMNS,
     build_conservative_seed_envelope,
     build_seed_worst_case_table,
     minimum_persistent_events,
 )
-from alp_discrimination.profiled_statistics import (
+from alp_discrimination.statistics.profiled import (
     PROFILED_ACCURACY_COLUMNS,
     combine_profiled_truth_tables,
     profile_log_likelihoods,

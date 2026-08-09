@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from alp_discrimination.config import PRODUCTION
-from alp_discrimination.observable_domains import collect_observable_domains
+from alp_discrimination.physics.observable_domains import collect_observable_domains
 from alp_discrimination.paths import REPOSITORY_ROOT, profile_output_dir
 from alp_discrimination.workflows.scan_ctau_ranges import (
     STAGE_NAME,

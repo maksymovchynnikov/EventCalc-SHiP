@@ -14,7 +14,7 @@ This workflow starts from a completed full-domain conditional-feature screen
    same-interval neighbours) to 5k, up to a small number of rounds.
 
 The likelihood and truth generator are the same conditional-Gaussian feature
-implementation used by alp_discrimination.workflows.conditional_feature_scan.  The
+implementation used by alp_discrimination.workflows.conditional_feature_scan. The
 result remains subject to empirical conditional-resampling and an independent
 EventCalc/template-stream check before publication use.
 """
@@ -136,7 +136,7 @@ def load_moments_light(path: Path, bank) -> dict[str, np.ndarray]:
 
 
 DEFAULT_SEEDS = [73241, 83244, 93247, 103250, 113253]
-DEFAULT_EVENT_COUNTS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 18, 20, 25, 30]
+DEFAULT_EVENT_COUNTS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 18, 20, 25, 30]
 
 
 def parse_args() -> argparse.Namespace:
@@ -839,7 +839,7 @@ def main() -> None:
         print(f"Selected-truth table: {selected_path}", flush=True)
         return
 
-    # Delay the full EventCalc/analysis2 import until simulation is required.
+    # Delay the full EventCalc import until simulation is required.
     # This also keeps --prepare-only useful for lightweight audits.
     global feature_scan
     from alp_discrimination.workflows import conditional_feature_scan as feature_scan

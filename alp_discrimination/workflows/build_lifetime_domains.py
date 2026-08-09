@@ -13,8 +13,8 @@ from alp_discrimination.config import PRODUCTION_MASSES_GEV, PROFILES, get_confi
 from alp_discrimination.constraints.bc9 import load_bc9_constraints
 from alp_discrimination.constraints.plotting import SU2_SPECS, load_constraint
 from alp_discrimination.paths import profile_output_dir
-from alp_discrimination.plot_style import style_axis, use_report_style
-from alp_discrimination.lifetime_domains import (
+from alp_discrimination.plotting.style import style_axis, use_report_style
+from alp_discrimination.physics.lifetime_domains import (
     Interval,
     allowed_coupling_intervals,
     coupling_interval_to_ctau,

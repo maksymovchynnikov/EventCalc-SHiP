@@ -24,9 +24,9 @@ from alp_discrimination.constraints.plotting import (
     load_label_config,
 )
 from alp_discrimination.paths import PACKAGE_ROOT, profile_output_dir
-from alp_discrimination.plot_style import EVENT_DENSITY_OVERLAY_LAYOUT, PLOT_CONFIG
-from alp_discrimination.plotting import draw_event_contours
-from alp_discrimination.reference_curves import (
+from alp_discrimination.plotting.style import EVENT_DENSITY_OVERLAY_LAYOUT, PLOT_CONFIG
+from alp_discrimination.plotting.common import draw_event_contours
+from alp_discrimination.plotting.reference_curves import (
     REFERENCE_FILENAMES,
     SensitivityReference,
     load_eventcalc_branches,
@@ -157,7 +157,7 @@ def load_saved_eventcalc_boundaries(
 
 def load_photon_references() -> list[SensitivityReference]:
     references = [
-        load_reference(PACKAGE_ROOT / "reference_curves" / filename, name)
+        load_reference(PACKAGE_ROOT / "reference_data" / "photon_sensitivity" / filename, name)
         for name, filename in REFERENCE_FILENAMES.items()
     ]
     names = {reference.name for reference in references}

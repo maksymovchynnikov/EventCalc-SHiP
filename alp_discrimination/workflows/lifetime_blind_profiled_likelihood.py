@@ -15,14 +15,14 @@ import pandas as pd
 
 from alp_discrimination.cache import CacheStore, file_fingerprint
 from alp_discrimination.config import AnalysisConfig, get_config
-from alp_discrimination.lifetime_template_banks import LifetimeTemplateBank, load_template_bank
+from alp_discrimination.templates.lifetime_banks import LifetimeTemplateBank, load_template_bank
 from alp_discrimination.paths import portable_path, profile_output_dir
-from alp_discrimination.profiled_reduction import (
+from alp_discrimination.statistics.reduction import (
     build_conservative_seed_envelope,
     build_seed_worst_case_table,
     minimum_persistent_events,
 )
-from alp_discrimination.profiled_statistics import lifetime_grid_indices
+from alp_discrimination.statistics.profiled import lifetime_grid_indices
 from alp_discrimination.workflows import (
     add_profile_cache_arguments,
     float_token,
@@ -847,7 +847,7 @@ def run_workflow(
             write_dataframe(table, path)
             artifacts.append(path)
         if make_plots:
-            from alp_discrimination.lifetime_blind_plotting import plot_profiled_accuracy
+            from alp_discrimination.plotting.lifetime import plot_profiled_accuracy
 
             artifacts.extend(
                 plot_profiled_accuracy(
@@ -887,7 +887,7 @@ def run_workflow(
     write_dataframe(summary, summary_path)
     artifacts.append(summary_path)
     if make_plots:
-        from alp_discrimination.lifetime_blind_plotting import plot_profiled_thresholds
+        from alp_discrimination.plotting.lifetime import plot_profiled_thresholds
 
         artifacts.extend(
             plot_profiled_thresholds(

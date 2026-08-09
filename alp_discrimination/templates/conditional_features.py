@@ -41,15 +41,15 @@ from funcs.ship_setup import x_max, y_max, z_max, z_min
 
 from alp_discrimination.cache import CacheStore
 from alp_discrimination.config import get_config
-from alp_discrimination.eventcalc_adapter import EventCalcAdapter
-from alp_discrimination.eventcalc_proposals import generate_mother_sample
-from alp_discrimination.models import get_model
-from alp_discrimination.mass_seed_resolution import (
+from alp_discrimination.eventcalc.adapter import EventCalcAdapter
+from alp_discrimination.eventcalc.proposals import generate_mother_sample
+from alp_discrimination.physics.models import get_model
+from alp_discrimination.eventcalc.seed_resolution import (
     DEFAULT_WEEK8_DOMAIN_PATH,
     model_seed_for_bank,
 )
-from alp_discrimination.profiled_statistics import stable_truth_rng
-from alp_discrimination.selections import SelectionContext
+from alp_discrimination.statistics.profiled import stable_truth_rng
+from alp_discrimination.eventcalc.selections import SelectionContext
 from alp_discrimination.workflows.lifetime_blind_discrimination import (
     proposal_lifetime_for_target,
 )

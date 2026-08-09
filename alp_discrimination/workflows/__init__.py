@@ -16,7 +16,7 @@ from alp_discrimination.config import PROFILES, AnalysisConfig, get_config
 from alp_discrimination.paths import portable_path
 
 if TYPE_CHECKING:
-    from alp_discrimination.eventcalc_adapter import EventCalcAdapter
+    from alp_discrimination.eventcalc.adapter import EventCalcAdapter
 
 
 def add_profile_cache_arguments(parser: ArgumentParser) -> None:
@@ -26,7 +26,7 @@ def add_profile_cache_arguments(parser: ArgumentParser) -> None:
 
 
 def config_and_adapter(args: Namespace) -> tuple[AnalysisConfig, "EventCalcAdapter"]:
-    from alp_discrimination.eventcalc_adapter import EventCalcAdapter
+    from alp_discrimination.eventcalc.adapter import EventCalcAdapter
 
     config = get_config(args.profile)
     cache = CacheStore(config.name, enabled=not args.no_cache)

@@ -7,7 +7,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from alp_discrimination.plot_style import REPORT_STYLE, style_axis, use_report_style
+from alp_discrimination.plotting.style import REPORT_STYLE, style_axis, use_report_style
 
 
 class PlotStyleTests(unittest.TestCase):

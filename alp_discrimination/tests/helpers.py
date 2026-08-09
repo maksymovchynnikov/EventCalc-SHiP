@@ -1,6 +1,6 @@
 import numpy as np
 
-from alp_discrimination.spectra import WeightedSpectrum
+from alp_discrimination.physics.spectra import WeightedSpectrum
 
 
 def spectrum(energies, weights, *, model="toy", source="inclusive", mass=1.0):
