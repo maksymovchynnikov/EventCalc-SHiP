@@ -40,10 +40,6 @@ from alp_discrimination.workflows import float_token
 from alp_discrimination.workflows.lifetime_bank_builder import (
     run_point as run_adaptive_bank_point,
 )
-# Compatibility import retained for old external/tests code.
-from alp_discrimination.workflows.conditional_feature_scan import (
-    run_conditional_feature_point,
-)
 from alp_discrimination.workflows.results import write_project_outputs
 
 

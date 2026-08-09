@@ -170,9 +170,7 @@ def test_pairwise_hellinger_matches_scalar_implementation():
     np.testing.assert_allclose(pairwise, scalar, rtol=1.0e-12, atol=1.0e-12)
 
 
-def test_normalized_mean_z_reproduces_scalar_mean_z_profile():
-    from alp_discrimination.conditional_mean_z import profiled_scores as scalar_scores
-
+def test_normalized_mean_z_matches_independent_scalar_reference():
     sampled_bins = np.asarray([[0, 1, 0], [1, 1, 0]], dtype=int)
     event_counts = np.asarray([1, 3], dtype=int)
     probabilities = np.asarray([[0.7, 0.3], [0.3, 0.7]], dtype=float)
@@ -180,14 +178,27 @@ def test_normalized_mean_z_reproduces_scalar_mean_z_profile():
     variance_z = np.asarray([[9.0, 16.0], [4.0, 25.0]], dtype=float)
     observed_z = np.asarray([[41.0, 50.0], [62.0, 54.0]], dtype=float)
 
-    _, scalar_combined = scalar_scores(
-        sampled_bins=sampled_bins,
-        observed_mean_z=observed_z,
-        probabilities=probabilities,
-        conditional_mean_z=mean_z,
-        conditional_variance_z=variance_z,
-        event_counts=event_counts,
-    )
+    counts = event_counts
+    indices = counts - 1
+    log_prob = np.log(probabilities)
+    energy = np.cumsum(log_prob[:, sampled_bins], axis=2)
+    mean_sum = np.cumsum(mean_z[:, sampled_bins], axis=2)
+    variance_sum = np.cumsum(variance_z[:, sampled_bins], axis=2)
+
+    scalar_combined = np.empty((sampled_bins.shape[0], len(counts)))
+    for column, (count, event_index) in enumerate(zip(counts, indices)):
+        energy_at_count = energy[:, :, event_index]
+        predicted_mean = mean_sum[:, :, event_index] / float(count)
+        variance_of_mean = variance_sum[:, :, event_index] / float(count * count)
+        residual = observed_z[:, column][None, :] - predicted_mean
+        log_mean_z = -0.5 * (
+            np.square(residual) / variance_of_mean
+            + np.log(2.0 * np.pi * variance_of_mean)
+        )
+        scalar_combined[:, column] = np.max(
+            energy_at_count + log_mean_z,
+            axis=0,
+        )
 
     means = np.zeros((2, 2, 3), dtype=float)
     covariances = np.repeat(
@@ -214,7 +225,6 @@ def test_normalized_mean_z_reproduces_scalar_mean_z_profile():
         rtol=1.0e-8,
         atol=1.0e-8,
     )
-
 
 def test_transverse_geometry_scale_is_finite():
     assert np.isfinite(R_SCALE_M)

@@ -171,8 +171,7 @@ alp_discrimination/
 python -m pytest alp_discrimination/tests -q
 ```
 
-At the cleanup checkpoint used for the final production analysis, the suite gives
-`201 passed, 2 skipped`.
+The full package test suite should be run after structural changes before starting new production points.
 
 ## EventCalc core
 
