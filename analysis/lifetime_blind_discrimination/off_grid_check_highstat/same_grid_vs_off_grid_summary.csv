@@ -1,5 +1,0 @@
-mass_GeV,configuration,minimum_persistent_events,accuracy_at_threshold,limiting_truth_model_at_threshold,limiting_truth_ctau_m_at_threshold
-0.75,off-grid truth,3,0.94357,photon,7.769660870865048
-0.75,same grid,3,0.94307,photon,7.499999999999999
-1.0,off-grid truth,4,0.92994,photon,10.085830188531624
-1.0,same grid,4,0.92935,photon,10.000000000000002

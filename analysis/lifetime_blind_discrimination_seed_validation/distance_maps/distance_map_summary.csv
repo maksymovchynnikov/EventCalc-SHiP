@@ -1,3 +1,0 @@
-mass_GeV,number_of_energy_bins,number_of_photon_lifetimes,number_of_su2_lifetimes,minimum_D_TV,minimum_photon_lifetime_index,minimum_photon_ctau_m,minimum_photon_N_events,minimum_su2_lifetime_index,minimum_su2_ctau_m,minimum_su2_N_events,maximum_D_TV,maximum_photon_lifetime_index,maximum_photon_ctau_m,maximum_su2_lifetime_index,maximum_su2_ctau_m
-0.75,20,41,41,0.6636821748425196,0,7.499999999999999,136.6051093678726,34,122.03697136020621,27.04486667718887,0.7038924689885231,40,30.810110447647613,0,7.499999999999999
-1.0,21,41,41,0.5600644876829451,0,10.000000000000002,18.620447202610844,40,143.5397238778698,10.093642442472062,0.5806483400114818,39,13.955789853355071,1,10.688685596623833

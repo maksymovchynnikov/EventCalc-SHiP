@@ -87,14 +87,6 @@ LOG_DISTANCE_STYLES = {
     },
 }
 
-DEFAULT_GEOM_ONLY_BOUNDARIES = (
-    PACKAGE_ROOT.parent
-    / "analysis"
-    / "event_density_scan"
-    / "ecal"
-    / "event_contour_boundaries.csv"
-)
-
 
 def _validate_analysis2_provenance(event_dir: Path) -> None:
     """Ensure the accepted analysis2 contour is the mother-level epsilon_dec=1 result."""
@@ -431,10 +423,9 @@ def main() -> None:
     parser.add_argument(
         "--geom-only-boundaries",
         type=Path,
-        default=DEFAULT_GEOM_ONLY_BOUNDARIES,
+        required=True,
         help=(
-            "ECAL-updated EventCalc boundary table. Default: "
-            "analysis/event_density_scan/ecal/event_contour_boundaries.csv"
+            "ECAL-updated EventCalc geom-only boundary table."
         ),
     )
     args = parser.parse_args()

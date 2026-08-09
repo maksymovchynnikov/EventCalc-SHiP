@@ -56,14 +56,6 @@ SELECTION_STYLES = {
     "epsilon_dec_1": "-",
 }
 
-DEFAULT_GEOM_ONLY_BOUNDARIES = (
-    PACKAGE_ROOT.parent
-    / "analysis"
-    / "event_density_scan"
-    / "ecal"
-    / "event_contour_boundaries.csv"
-)
-
 
 def use_report_style() -> None:
     mpl.rcParams.update(
@@ -419,10 +411,9 @@ def main() -> None:
     parser.add_argument(
         "--geom-only-boundaries",
         type=Path,
-        default=DEFAULT_GEOM_ONLY_BOUNDARIES,
+        required=True,
         help=(
-            "Saved ECAL geom-only photophilic EventCalc contour table. "
-            "Default: analysis/event_density_scan/ecal/event_contour_boundaries.csv"
+            "Saved ECAL geom-only photophilic EventCalc contour table."
         ),
     )
     parser.add_argument("--label-config", type=Path, default=LABEL_CONFIG_PATH)

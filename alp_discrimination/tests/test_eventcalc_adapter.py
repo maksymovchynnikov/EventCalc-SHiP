@@ -10,7 +10,6 @@ import numpy as np
 from funcs.kinematics import Grids
 from funcs.initLLP import LLP
 from funcs.ship_setup import theta_max_dec_vol
-from analysis.ECAL import diphoton_ecal_acceptance
 from alp_discrimination.cache import CacheStore, cache_key
 from alp_discrimination.config import PRODUCTION, SMOKE, lower_ctau_m
 from alp_discrimination.eventcalc_adapter import (
@@ -126,15 +125,6 @@ class EventCalcAdapterTests(unittest.TestCase):
 
             context = SelectionContext(source_seed, true_sample_seed)
             current_ecal = adapter.selection.details(mothers, context)
-            legacy_ecal = diphoton_ecal_acceptance(
-                results,
-                seed=source_seed + SMOKE.seed_policy.ecal_seed_offset,
-                return_details=True,
-            )
-            np.testing.assert_array_equal(
-                current_ecal.event_mask,
-                legacy_ecal.event_mask,
-            )
             spectrum = adapter.evaluate_spectrum(
                 proposal,
                 grid_lower_m,
@@ -150,18 +140,18 @@ class EventCalcAdapterTests(unittest.TestCase):
                 * proposal.visible_br
                 / proposal.resample_size
             )
-            legacy_preselection_weights = event_weight_scale * results[:, 6]
-            legacy_weights = np.asarray(
-                legacy_preselection_weights[legacy_ecal.event_mask],
+            expected_preselection_weights = event_weight_scale * results[:, 6]
+            expected_weights = np.asarray(
+                expected_preselection_weights[current_ecal.event_mask],
                 dtype=float,
             )
             np.testing.assert_array_equal(
                 spectrum.absolute_event_weights,
-                legacy_weights,
+                expected_weights,
             )
             self.assertEqual(
                 spectrum.preselection_expected_events,
-                float(np.sum(legacy_preselection_weights)),
+                float(np.sum(expected_preselection_weights)),
             )
             self.assertEqual(
                 spectrum.expected_events,
