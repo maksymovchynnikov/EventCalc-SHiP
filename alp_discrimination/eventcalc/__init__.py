@@ -1,1 +1,1 @@
-"""EventCalc adapters and detector-level selection logic."""
+"""EventCalc adapters and daughter-level geometric selection logic."""

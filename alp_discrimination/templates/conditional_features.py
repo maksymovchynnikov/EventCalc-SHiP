@@ -577,8 +577,14 @@ def profiled_feature_scores(
         raise ValueError("Candidate probabilities must be a positive matrix.")
     if sampled_bins.ndim != 2:
         raise ValueError("sampled_bins must be a matrix.")
-    if counts.ndim != 1 or np.any(np.diff(counts) <= 0):
-        raise ValueError("event_counts must be increasing.")
+    if counts.ndim != 1 or counts.size == 0 or np.any(np.diff(counts) <= 0):
+        raise ValueError("event_counts must be a non-empty increasing sequence.")
+    if counts[0] < 1:
+        raise ValueError("event_counts must contain physical counts of at least 1.")
+    if counts[-1] > sampled_bins.shape[1]:
+        raise ValueError(
+            "event_counts cannot exceed the number of available sampled events."
+        )
     if not feature_indices:
         if observed.shape[-1] != 0:
             raise ValueError("Energy-only observed features must have dimension zero.")

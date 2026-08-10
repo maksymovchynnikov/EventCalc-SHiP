@@ -14,13 +14,17 @@ under both hypotheses.
 The two benchmark hypotheses are:
 
 - **Photophilic ALP**: primary plus electromagnetic-cascade production.
-- **$SU(2)_L$ ALP**: dominated by rare $B\to X_s a$ production, with the
-  implemented subleading contribution retained by EventCalc.
+- **$SU(2)_L$ ALP**: dominated by the loop-induced $b\to s a$ transition
+  and rare $B\to X_s a$ decays. The CKM-suppressed $B\to\pi a$ contribution
+  is retained to extend the kinematic mass range.
 
-Both are studied through $a\to\gamma\gamma$. EventCalc supplies production,
-decay probability and SHiP decay-volume kinematics. The detector-level selection
-requires both photons to intersect the simplified ECAL plane; the second
-selection additionally requires $E_\gamma\geq1$ GeV for each photon.
+Both are studied through $a\to\gamma\gamma$. The implemented $SU(2)_L$
+benchmark is a simplified diphoton-only decay model, with
+$\mathrm{Br}(a\to\gamma\gamma)=1$. EventCalc supplies production, decay
+probability and the SHiP parent decay-volume geometry. The additional
+daughter-level geometric selection requires both photons to intersect the
+simplified ECAL plane; the second selection additionally requires
+$E_\gamma\geq1$ GeV for each photon.
 
 Absolute rates determine the allowed lifetime domains. They are not included in
 the discrimination likelihood, which is shape-only and conditioned on the
@@ -123,6 +127,14 @@ Legacy checkpoint filenames containing `pilot` or `lifetime_blind` are likewise
 retained where changing them would break resume compatibility.
 
 Report-facing products are exported to `final_results/report/{plots,tables,data}`.
+The canonical discrimination summary is
+`final_results/report/tables/discrimination_thresholds.csv`, and the headline
+observable-comparison figure is written as
+`final_results/report/plots/classification_observable_comparison_ma0p3_report.pdf`.
+The energy-only and $E_a+\langle z_d\rangle$ curves in that figure predate the
+unified workflow and are therefore stored as the normalized report input
+`alp_discrimination/report_inputs/headline_observable_legacy_curves_ma0p3.csv`.
+The $r_\perp$ and joint curves are read from the current final results.
 
 ## Numerical bank quality
 

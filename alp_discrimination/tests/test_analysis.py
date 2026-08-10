@@ -141,3 +141,26 @@ def test_single_event_validation_grids_are_supported():
     available = [1, 2, 3, 4]
     assert workflow.selection_counts(1, available) == [1, 2]
     assert workflow.empirical_counts(1, available) == [1, 2, 3]
+
+
+def test_merge_observable_records_preserves_subset_results():
+    existing = [{"observable": "energy_mean_z_r_perp", "N90": 4}]
+    subset = [{"observable": "energy_mean_r_perp", "N90": 5}]
+
+    merged = workflow.merge_observable_records(existing, subset)
+
+    assert [(row["observable"], row["N90"]) for row in merged] == [
+        ("energy_mean_r_perp", 5),
+        ("energy_mean_z_r_perp", 4),
+    ]
+
+
+def test_merge_observable_records_updates_matching_observable():
+    existing = [{"observable": "energy_mean_z_r_perp", "N90": 6}]
+    updated = [{"observable": "energy_mean_z_r_perp", "N90": 4}]
+
+    merged = workflow.merge_observable_records(existing, updated)
+
+    assert merged == [
+        {"observable": "energy_mean_z_r_perp", "N90": 4}
+    ]

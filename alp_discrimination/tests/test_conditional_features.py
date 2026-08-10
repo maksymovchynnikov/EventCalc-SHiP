@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from alp_discrimination.templates.conditional_features import (
     FEATURE_LABELS,
@@ -319,3 +320,38 @@ def test_callable_conditional_feature_runner_forwards_settings(
     assert captured["truth_grid"] == "all"
     assert captured["neighbour_radius"] == 2
     assert captured["reuse_moments"] is True
+
+
+
+def test_profiled_feature_scores_rejects_zero_event_count():
+    with pytest.raises(ValueError, match="at least 1"):
+        profiled_feature_scores(
+            sampled_bins=np.asarray([[0, 1, 0]], dtype=int),
+            observed_feature_means=np.empty((1, 2, 0)),
+            probabilities=np.asarray([[0.5, 0.5]], dtype=float),
+            conditional_feature_mean=np.zeros((1, 2, 3), dtype=float),
+            conditional_feature_covariance=np.repeat(
+                np.eye(3)[None, None, :, :],
+                2,
+                axis=1,
+            ),
+            event_counts=np.asarray([0, 1]),
+            feature_indices=(),
+        )
+
+
+def test_profiled_feature_scores_rejects_event_count_beyond_sample():
+    with pytest.raises(ValueError, match="available sampled events"):
+        profiled_feature_scores(
+            sampled_bins=np.asarray([[0, 1, 0]], dtype=int),
+            observed_feature_means=np.empty((1, 2, 0)),
+            probabilities=np.asarray([[0.5, 0.5]], dtype=float),
+            conditional_feature_mean=np.zeros((1, 2, 3), dtype=float),
+            conditional_feature_covariance=np.repeat(
+                np.eye(3)[None, None, :, :],
+                2,
+                axis=1,
+            ),
+            event_counts=np.asarray([1, 4]),
+            feature_indices=(),
+        )

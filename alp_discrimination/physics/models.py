@@ -59,7 +59,8 @@ ALP_SU2L = ModelDefinition(
     identifier="alp_su2l", eventcalc_name="ALP-SU2L", legacy_name="ALP-SU2L",
     plot_label=r"ALP-$SU(2)_L$",
     distribution_directory=REPOSITORY_ROOT / "Distributions" / "ALP-SU2L",
-    # The inclusive B spectrum already contains cascade production implicitly.
+    # The inclusive B spectrum contains the implemented B -> X_s a channels
+    # together with the CKM-suppressed B -> pi a contribution.
     sources=(ProductionSource("inclusive", None),),
 )
 

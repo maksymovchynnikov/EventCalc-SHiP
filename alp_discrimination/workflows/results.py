@@ -12,6 +12,7 @@ from alp_discrimination.templates.conditional_features import FEATURE_LABELS
 from alp_discrimination.plotting.report import (
     plot_classification_accuracy,
     plot_distance_diagnostics,
+    plot_headline_observable_comparison as plot_report_headline_observable_comparison,
     plot_n90_vs_mass as plot_report_n90_vs_mass,
     plot_observable_comparison as plot_report_observable_comparison,
 )
@@ -37,8 +38,10 @@ def collect_tables(output_root: Path) -> dict[str, pd.DataFrame]:
     ):
         try:
             summary = json.loads(summary_path.read_text())
-        except Exception:
-            continue
+        except (OSError, json.JSONDecodeError) as exc:
+            raise RuntimeError(
+                f"Failed to read point summary: {summary_path}"
+            ) from exc
         if not summary.get("results"):
             continue
 
@@ -96,6 +99,10 @@ def save_figure(fig, base: Path) -> None:
 def plot_n90_vs_mass(table: pd.DataFrame, plots: Path) -> None:
     if table.empty:
         return
+    if "project_final" in table.columns:
+        table = table[table["project_final"].fillna(False).astype(bool)].copy()
+    if table.empty:
+        return
     for observable, subset in table.groupby("observable"):
         fig, ax = plt.subplots(figsize=(7.2, 4.8))
         for selection, group in subset.groupby("selection_name"):
@@ -150,6 +157,85 @@ def _read_csv_if_present(path: Path) -> pd.DataFrame:
         return pd.read_csv(path)
     except pd.errors.EmptyDataError:
         return pd.DataFrame()
+
+
+
+def _headline_observable_comparison_curves(
+    output_root: Path,
+) -> tuple[dict[str, pd.DataFrame], list[str]]:
+    """Load the four frozen curves used by the headline m_a=0.3 figure."""
+
+    repo = Path(__file__).resolve().parents[2]
+    report_tables = Path(output_root) / "report" / "tables"
+
+    legacy_path = (
+        repo
+        / "alp_discrimination/report_inputs/"
+        "headline_observable_legacy_curves_ma0p3.csv"
+    )
+    r_path = (
+        report_tables
+        / "classification_accuracy_ma_0p3_ecal_energy_r_perp.csv"
+    )
+    joint_path = (
+        report_tables
+        / "classification_accuracy_ma_0p3_ecal_energy_z_r_perp.csv"
+    )
+
+    paths = {
+        "legacy_energy_and_z": legacy_path,
+        "energy_mean_r_perp": r_path,
+        "energy_mean_z_r_perp": joint_path,
+    }
+
+    missing = [
+        str(path)
+        for path in paths.values()
+        if not path.is_file()
+    ]
+    if missing:
+        return {}, missing
+
+    legacy = pd.read_csv(legacy_path)
+    required = {"observable", "number_of_events", "accuracy"}
+    if not required.issubset(legacy.columns):
+        raise ValueError(
+            "Bundled headline legacy curves must contain "
+            "'observable', 'number_of_events' and 'accuracy'."
+        )
+
+    energy = legacy[
+        legacy["observable"].astype(str) == "energy"
+    ][["number_of_events", "accuracy"]].copy()
+    z = legacy[
+        legacy["observable"].astype(str) == "energy_mean_z"
+    ][["number_of_events", "accuracy"]].copy()
+
+    if energy.empty or z.empty:
+        raise ValueError(
+            "Bundled headline legacy curves are missing energy or energy_mean_z."
+        )
+
+    r = pd.read_csv(r_path)[
+        ["number_of_events", "high_statistics_accuracy"]
+    ].rename(
+        columns={"high_statistics_accuracy": "accuracy"}
+    )
+
+    joint = pd.read_csv(joint_path)[
+        ["number_of_events", "high_statistics_accuracy"]
+    ].rename(
+        columns={"high_statistics_accuracy": "accuracy"}
+    )
+
+    curves = {
+        "energy": energy,
+        "energy_mean_z": z,
+        "energy_mean_r_perp": r,
+        "energy_mean_z_r_perp": joint,
+    }
+    return curves, []
+
 
 
 def write_report_outputs(output_root: Path, thresholds: pd.DataFrame) -> dict:
@@ -304,6 +390,37 @@ def write_report_outputs(output_root: Path, thresholds: pd.DataFrame) -> dict:
             output_dir=plot_dir,
         )
 
+    headline_curves, missing_headline_sources = (
+        _headline_observable_comparison_curves(output_root)
+    )
+    headline_plot_written = False
+    if headline_curves:
+        headline_n90 = {
+            "energy": 142,
+            "energy_mean_z": 36,
+            "energy_mean_r_perp": 5,
+            "energy_mean_z_r_perp": 4,
+        }
+
+        export_rows = []
+        for observable, frame in headline_curves.items():
+            exported = frame.copy()
+            exported.insert(0, "observable", observable)
+            exported["N90"] = headline_n90[observable]
+            export_rows.append(exported)
+
+        pd.concat(export_rows, ignore_index=True).to_csv(
+            data_dir / "classification_observable_comparison_ma0p3.csv",
+            index=False,
+        )
+
+        plot_report_headline_observable_comparison(
+            curves=headline_curves,
+            n90=headline_n90,
+            output_dir=plot_dir,
+        )
+        headline_plot_written = True
+
     plot_report_n90_vs_mass(thresholds, plot_dir)
     if distance_minima:
         pd.concat(distance_minima, ignore_index=True).to_csv(
@@ -316,6 +433,8 @@ def write_report_outputs(output_root: Path, thresholds: pd.DataFrame) -> dict:
         "plots_dir": str(plot_dir),
         "tables_dir": str(table_dir),
         "data_dir": str(data_dir),
+        "headline_observable_comparison_written": headline_plot_written,
+        "missing_headline_observable_sources": missing_headline_sources,
     }
     (report_root / "summary.json").write_text(
         json.dumps(report_summary, indent=2) + "\n"

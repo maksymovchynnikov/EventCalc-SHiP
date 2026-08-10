@@ -753,6 +753,39 @@ def empirical_n90(summary: dict) -> tuple[int | None, int | None]:
     )
 
 
+def _observable_sort_key(row: dict) -> tuple[int, str]:
+    observable = str(row.get("observable", ""))
+    try:
+        index = ALL_OBSERVABLES.index(observable)
+    except ValueError:
+        index = len(ALL_OBSERVABLES)
+    return index, observable
+
+
+def merge_observable_records(
+    existing_rows: Sequence[dict],
+    new_rows: Sequence[dict],
+) -> list[dict]:
+    """Upsert per-observable records without dropping results from subset runs."""
+
+    merged: dict[str, dict] = {}
+    for row in [*existing_rows, *new_rows]:
+        observable = str(row.get("observable", ""))
+        if not observable:
+            raise ValueError("Observable result row is missing 'observable'.")
+        merged[observable] = dict(row)
+    return sorted(merged.values(), key=_observable_sort_key)
+
+
+def _read_csv_records(path: Path) -> list[dict]:
+    if not path.is_file() or path.stat().st_size == 0:
+        return []
+    try:
+        return pd.read_csv(path).to_dict(orient="records")
+    except pd.errors.EmptyDataError:
+        return []
+
+
 def finalize_point(
     *,
     point: Path,
@@ -917,7 +950,41 @@ def finalize_point(
     tables.mkdir(parents=True, exist_ok=True)
     plots.mkdir(parents=True, exist_ok=True)
 
-    result_table = pd.DataFrame(rows).sort_values("observable", ignore_index=True)
+    previous_summary_path = point / "point_summary.json"
+    previous_rows: list[dict] = []
+    if previous_summary_path.is_file():
+        try:
+            previous_summary = json.loads(previous_summary_path.read_text())
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(
+                f"Malformed existing point summary: {previous_summary_path}"
+            ) from exc
+        if (
+            float(previous_summary.get("mass_GeV")) != float(bank.mass_gev)
+            or str(previous_summary.get("selection_name"))
+            != str(bank.selection_name)
+        ):
+            raise ValueError(
+                f"Existing point summary does not match {bank.mass_gev:g}, "
+                f"{bank.selection_name}: {previous_summary_path}"
+            )
+        previous_rows = list(previous_summary.get("results", []))
+
+    rows = merge_observable_records(previous_rows, rows)
+    limiting_rows = merge_observable_records(
+        _read_csv_records(tables / "limiting_truths.csv"),
+        limiting_rows,
+    )
+    distance_rows = merge_observable_records(
+        _read_csv_records(tables / "distance_summary.csv"),
+        distance_rows,
+    )
+    empirical_rows = merge_observable_records(
+        _read_csv_records(tables / "empirical_summary.csv"),
+        empirical_rows,
+    )
+
+    result_table = pd.DataFrame(rows)
     result_table.to_csv(tables / "n90_by_observable.csv", index=False)
     pd.DataFrame(limiting_rows).to_csv(tables / "limiting_truths.csv", index=False)
     pd.DataFrame(distance_rows).to_csv(tables / "distance_summary.csv", index=False)
@@ -952,7 +1019,7 @@ def finalize_point(
         "selection_name": str(bank.selection_name),
         "bank_path": str(bank_path),
         "bank_quality": quality,
-        "observables": list(observables),
+        "observables": [str(row["observable"]) for row in rows],
         "results": rows,
         "interpretation": (
             "Project-final means the lifetime-domain audit passed and every "

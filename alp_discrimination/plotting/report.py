@@ -9,6 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+from matplotlib.ticker import NullFormatter, ScalarFormatter
 import numpy as np
 import pandas as pd
 
@@ -371,11 +372,140 @@ def plot_observable_comparison(
     )
 
 
+
+def plot_headline_observable_comparison(
+    *,
+    curves: dict[str, pd.DataFrame],
+    n90: dict[str, int],
+    output_dir: Path,
+) -> None:
+    """Plot the canonical m_a=0.3 GeV ECAL-only feature comparison."""
+
+    order = [
+        "energy",
+        "energy_mean_z",
+        "energy_mean_r_perp",
+        "energy_mean_z_r_perp",
+    ]
+    labels = {
+        "energy": r"$E_a$",
+        "energy_mean_z": r"$E_a,\langle z_d\rangle$",
+        "energy_mean_r_perp": r"$E_a,\langle r_\perp\rangle$",
+        "energy_mean_z_r_perp": (
+            r"$E_a,\langle z_d\rangle,\langle r_\perp\rangle$"
+        ),
+    }
+    markers = {
+        "energy": "o",
+        "energy_mean_z": "s",
+        "energy_mean_r_perp": "^",
+        "energy_mean_z_r_perp": "D",
+    }
+    linestyles = {
+        "energy": "-",
+        "energy_mean_z": "--",
+        "energy_mean_r_perp": "-.",
+        "energy_mean_z_r_perp": ":",
+    }
+
+    missing = [name for name in order if name not in curves]
+    if missing:
+        raise ValueError(
+            "Missing headline observable curves: " + ", ".join(missing)
+        )
+
+    fig, ax = plt.subplots(figsize=(3.35, 3.30))
+
+    for name in order:
+        frame = curves[name].copy()
+        required = {"number_of_events", "accuracy"}
+        if not required.issubset(frame.columns):
+            raise ValueError(
+                f"Curve {name!r} must contain columns "
+                "'number_of_events' and 'accuracy'."
+            )
+        frame = frame.sort_values("number_of_events")
+        ax.plot(
+            frame["number_of_events"],
+            frame["accuracy"],
+            marker=markers[name],
+            markersize=2.7,
+            linewidth=1.15,
+            linestyle=linestyles[name],
+            label=(
+                labels[name]
+                + rf" ($N_{{90\%}}={int(n90[name])}$)"
+            ),
+        )
+
+    ax.axhline(
+        0.90,
+        color="0.45",
+        linestyle="--",
+        linewidth=0.8,
+        alpha=0.75,
+    )
+    ax.text(
+        2.15,
+        0.904,
+        "90%",
+        fontsize=7,
+        ha="left",
+        va="bottom",
+    )
+
+    ax.set_xscale("log")
+    ax.set_xlim(2.0, 205.0)
+    ax.set_ylim(0.72, 1.005)
+
+    ticks = [2, 5, 10, 20, 50, 100, 200]
+    ax.set_xticks(ticks)
+    ax.xaxis.set_major_formatter(ScalarFormatter())
+    ax.xaxis.set_minor_formatter(NullFormatter())
+
+    ax.set_xlabel("Number of observed events, $N$", fontsize=8)
+    ax.set_ylabel(r"Worst-case accuracy, $A_N$", fontsize=8)
+    ax.tick_params(axis="both", labelsize=7)
+
+    ax.grid(
+        axis="y",
+        alpha=0.18,
+        linewidth=0.5,
+    )
+
+    ax.legend(
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.20),
+        ncol=2,
+        frameon=False,
+        fontsize=6.7,
+        handlelength=2.4,
+        columnspacing=1.0,
+    )
+
+    fig.subplots_adjust(
+        left=0.18,
+        right=0.98,
+        top=0.98,
+        bottom=0.30,
+    )
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    base = output_dir / "classification_observable_comparison_ma0p3_report"
+    fig.savefig(base.with_suffix(".pdf"), bbox_inches="tight")
+    fig.savefig(base.with_suffix(".png"), dpi=220, bbox_inches="tight")
+    plt.close(fig)
+
+
+
 def plot_n90_vs_mass(thresholds: pd.DataFrame, output_dir: Path) -> None:
     if thresholds.empty:
         return
-    table = thresholds[
-        thresholds["observable"].astype(str) == "energy_mean_z_r_perp"
+    table = thresholds.copy()
+    if "project_final" in table.columns:
+        table = table[table["project_final"].fillna(False).astype(bool)].copy()
+    table = table[
+        table["observable"].astype(str) == "energy_mean_z_r_perp"
     ].copy()
     if table.empty:
         return
