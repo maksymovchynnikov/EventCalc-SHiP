@@ -1,5 +1,6 @@
 #  Generate DoubleDistr/Emax/Validation
 
+import json
 import os
 from pathlib import Path
 import numpy as np
@@ -142,17 +143,41 @@ def load_B_momenta(path, m_B=M_B_PLUS, check=True):
     return np.column_stack((px, py, pz, E_on_shell))
 
 
+def _B_momenta_cache_signature(path, m_B):
+    source = Path(path)
+    stat = source.stat()
+    return {
+        "version": 1,
+        "source_path": str(source.resolve()),
+        "source_size": int(stat.st_size),
+        "source_mtime_ns": int(stat.st_mtime_ns),
+        "m_B_GeV": float(m_B),
+    }
+
+
 def load_B_momenta_cached(path, cache_path=None, m_B=M_B_PLUS, check=True):
     """
-    Load B momenta from a cached .npy file if available.
+    Load B momenta from a cached .npy file when its input metadata still matches.
 
-    The first run parses the large text file and saves the on-shell momenta.
-    Later runs load the .npy file, which is much faster.
+    The cache depends on the source file and on the B-meson mass used to put the
+    momenta on shell.
     """
     if cache_path is None:
         cache_path = str(path) + ".on_shell.npy"
 
-    if os.path.exists(cache_path):
+    cache_path = Path(cache_path)
+    metadata_path = Path(str(cache_path) + ".meta.json")
+    signature = _B_momenta_cache_signature(path, m_B)
+
+    cache_is_current = False
+    if cache_path.exists() and metadata_path.exists():
+        try:
+            metadata = json.loads(metadata_path.read_text())
+            cache_is_current = metadata == signature
+        except (OSError, json.JSONDecodeError):
+            cache_is_current = False
+
+    if cache_is_current:
         B_momenta = np.load(cache_path)
         if check:
             p2 = np.sum(B_momenta[:, :3] ** 2, axis=1)
@@ -164,6 +189,7 @@ def load_B_momenta_cached(path, cache_path=None, m_B=M_B_PLUS, check=True):
 
     B_momenta = load_B_momenta(path=path, m_B=m_B, check=check)
     np.save(cache_path, B_momenta)
+    metadata_path.write_text(json.dumps(signature, indent=2) + "\n")
     print(f"Saved cached B momenta to {cache_path}")
 
     return B_momenta

@@ -79,6 +79,19 @@ python -m alp_discrimination.workflows.analysis \
 production banks are reused and unavailable points are skipped rather than built
 implicitly.
 
+## Runtime
+
+Production runs can take several hours. At $m_a=0.3$ GeV, for example, the
+full-domain screen contains 89 photophilic and 96 $SU(2)_L$ lifetime points.
+The screening stage uses five seeds and 2000 pseudoexperiments per truth point;
+selected points are then repeated with 5000 or 10000 pseudoexperiments.
+
+With two workers, final $m_a=0.3$ ECAL runs took about 5.5--6.7 hours on the
+2020 MacBook Air used for this project. The main settings controlling the
+runtime are the analysis profile, number of pseudoexperiments, seeds and the
+lifetime/truth grids. Use `--dry-run` before a long run and `--resume` to reuse
+completed checkpoints.
+
 ## Validation chain
 
 A project-final spatial result passes four stages:
@@ -112,7 +125,7 @@ alp_discrimination/
 Package-level infrastructure (`config.py`, `cache.py`, `paths.py`, `planning.py`
 and `progress.py`) remains at the top level.
 
-## Outputs and checkpoint compatibility
+## Outputs and checkpoints
 
 Final products are written under
 
@@ -120,21 +133,13 @@ Final products are written under
 analysis2/outputs/production/alp_su2l_analysis/final_results/
 ```
 
-The `analysis2/cache` and `analysis2/outputs` names are intentionally retained as
-the historical **runtime-data namespace**. Moving the source package does not
-rename these directories, so expensive banks and checkpoints remain reusable.
-Legacy checkpoint filenames containing `pilot` or `lifetime_blind` are likewise
-retained where changing them would break resume compatibility.
+`analysis2/cache` and `analysis2/outputs` are kept as runtime directories so
+existing banks and checkpoints can be reused. Old checkpoint names such as
+`pilot` and `lifetime_blind` are kept for the same reason.
 
-Report-facing products are exported to `final_results/report/{plots,tables,data}`.
-The canonical discrimination summary is
-`final_results/report/tables/discrimination_thresholds.csv`, and the headline
-observable-comparison figure is written as
-`final_results/report/plots/classification_observable_comparison_ma0p3_report.pdf`.
-The energy-only and $E_a+\langle z_d\rangle$ curves in that figure predate the
-unified workflow and are therefore stored as the normalized report input
-`alp_discrimination/report_inputs/headline_observable_legacy_curves_ma0p3.csv`.
-The $r_\perp$ and joint curves are read from the current final results.
+Report tables and plots are exported to
+`final_results/report/{plots,tables,data}`. The main discrimination table is
+`final_results/report/tables/discrimination_thresholds.csv`.
 
 ## Numerical bank quality
 
@@ -150,6 +155,16 @@ not include realistic diphoton vertex resolution, photon separation, full
 reconstruction efficiency, backgrounds or detector systematics. Spatial results
 therefore quantify the information available in the accepted simulated
 kinematics, not a complete experimental sensitivity.
+
+## Next step
+
+A useful first extension is to introduce a finite transverse vertex resolution
+$\Delta r_\perp$ and repeat the discrimination study. The strong improvement
+from $\langle r_\perp\rangle$ currently uses exact simulated decay positions,
+so this directly tests how much of the separation survives reconstruction.
+
+A more complete detector study can later include photon separation and
+reconstruction, efficiencies, backgrounds and systematics.
 
 ## Tests
 

@@ -1,8 +1,7 @@
-"""Exact daughter-level diphoton ECAL geometry and Monte Carlo selection.
+"""Daughter-level diphoton ECAL geometry and Monte Carlo selection.
 
-This implementation intentionally mirrors :mod:`analysis.ECAL`.  Its random
-generator, draw order, boost, straight-line projection and inclusive rectangle
-are numerical conventions of the frozen frozen reference calculation.
+The random generator, draw order, boost, straight-line projection and inclusive
+rectangle are kept fixed for numerical reproducibility.
 """
 
 from __future__ import annotations

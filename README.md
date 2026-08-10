@@ -17,6 +17,12 @@ The code does not simulate decay products acceptance. Instead, its output is pro
 `EventCalc-SHiP` has been intensively cross-checked against [`SensCalc`](https://github.com/maksymovchynnikov/SensCalc) (which, in its turn, has been tested against the past instances of [`FairShip`](https://github.com/ShipSoft/FairShip) and other tools), see [slides](https://indico.cern.ch/event/1481729/contributions/6256116/). The agreement in all the quantities (overall number of events, geometric acceptance, averaged decay probability, spectra, etc.) is at the 10% level or better.
 
 
+### ALP-SU(2)L extension
+
+The $SU(2)_L$ ALP implementation and diphoton model-discrimination analysis are
+documented in `alp_discrimination/README.md`. The input-table builder is in
+`table_builders/ALP_SU2L/`.
+
 ## Installation
 
 The code has been tested on Linux only.

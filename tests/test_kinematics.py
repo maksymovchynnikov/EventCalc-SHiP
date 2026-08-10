@@ -274,3 +274,77 @@ def test_theta_energy_conversion_uses_px_py_pz_E_convention():
         atol=1.0e-15,
     )
     np.testing.assert_array_equal(energy, momenta[:, 3])
+
+
+
+def test_B_momenta_cache_reuses_matching_metadata(tmp_path, monkeypatch):
+    from pathlib import Path
+    from table_builders.ALP_SU2L import production
+
+    source = tmp_path / "B_momenta.txt"
+    cache = tmp_path / "B_momenta.npy"
+    source.write_text("0 0 1 1\n")
+
+    first = production.load_B_momenta_cached(
+        source,
+        cache_path=cache,
+        m_B=M_B_PLUS,
+        check=False,
+    )
+
+    def fail_if_reparsed(*args, **kwargs):
+        raise AssertionError("Matching cache should be reused.")
+
+    monkeypatch.setattr(production, "load_B_momenta", fail_if_reparsed)
+
+    second = production.load_B_momenta_cached(
+        source,
+        cache_path=cache,
+        m_B=M_B_PLUS,
+        check=False,
+    )
+
+    np.testing.assert_array_equal(second, first)
+    assert Path(str(cache) + ".meta.json").is_file()
+
+
+def test_B_momenta_cache_invalidates_when_input_changes(tmp_path):
+    from table_builders.ALP_SU2L import production
+
+    source = tmp_path / "B_momenta.txt"
+    cache = tmp_path / "B_momenta.npy"
+
+    source.write_text("0 0 1 1\n")
+    first = production.load_B_momenta_cached(
+        source,
+        cache_path=cache,
+        m_B=M_B_PLUS,
+        check=False,
+    )
+
+    source.write_text("0 0 20 20\n")
+    changed_source = production.load_B_momenta_cached(
+        source,
+        cache_path=cache,
+        m_B=M_B_PLUS,
+        check=False,
+    )
+
+    assert not np.array_equal(changed_source, first)
+    np.testing.assert_allclose(
+        changed_source[0, 3],
+        np.sqrt(20.0**2 + M_B_PLUS**2),
+    )
+
+    changed_mass = production.load_B_momenta_cached(
+        source,
+        cache_path=cache,
+        m_B=M_B_PLUS + 0.25,
+        check=False,
+    )
+
+    np.testing.assert_allclose(
+        changed_mass[0, 3],
+        np.sqrt(20.0**2 + (M_B_PLUS + 0.25) ** 2),
+    )
+    assert changed_mass[0, 3] != changed_source[0, 3]
