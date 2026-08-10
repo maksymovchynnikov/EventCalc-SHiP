@@ -6,7 +6,6 @@ M_B_PLUS = 5.27941
 M_K_PLUS = 0.493677
 M_PI_PLUS = 0.13957039
 
-# Should these be included?
 M_PI_0 = 0.1349768
 M_K_0 = 0.497611
 M_KSTAR_PLUS_892 = 0.89188
@@ -54,7 +53,7 @@ TAU_B_PLUS_S = 1.637e-12
 TAU_B_PLUS_GEV_INV = TAU_B_PLUS_S / HBAR_GEV_S
 
 
-# N_BB_PER_POT = sigma_bb / sigma_pp for SHiP, source: 1904.10447v4, Table 2. This includes cascade?
+# N_BB_PER_POT = sigma_bb / sigma_pp for SHiP, source: 1904.10447v4, Table 2.
 N_BB_PER_POT = 2.7e-7
 
 # Source: 1902.06240v2, Table 3.
@@ -90,7 +89,6 @@ G2_EW_SQUARED = 4.0 * np.sqrt(2.0) * G_F * M_W**2
 # Quark masses for x_q = m_q^2 / m_W^2
 # Source:
 #   URL: https://pdg.lbl.gov/
-#   MAYBE BETTER SOURCES??
 M_U = 0.00216
 M_C = 1.65
 M_T = 172.57

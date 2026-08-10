@@ -1,4 +1,4 @@
-"""Immutable run profiles and the frozen frozen-reference random-stream policy."""
+"""Immutable run profiles and the frozen-reference random-stream policy."""
 
 from __future__ import annotations
 

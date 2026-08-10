@@ -12,6 +12,7 @@ venv/
 # Large local Monte Carlo input and generated cache
 /table_builders/ALP_SU2L/exp1.txt
 /table_builders/ALP_SU2L/exp1.txt.on_shell.npy
+/table_builders/ALP_SU2L/exp1.txt.on_shell.npy.meta.json
 
 # Local EventCalc results
 outputs/

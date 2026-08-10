@@ -164,3 +164,82 @@ def test_merge_observable_records_updates_matching_observable():
     assert merged == [
         {"observable": "energy_mean_z_r_perp", "N90": 4}
     ]
+
+
+
+def test_source_only_reuse_dry_run_without_bank_registry(
+    tmp_path,
+    monkeypatch,
+):
+    domain = tmp_path / "domains.csv"
+    domain.write_text("mass_GeV\n0.3\n")
+    output = tmp_path / "out"
+    local_manifest = tmp_path / "missing_local.csv"
+
+    monkeypatch.setattr(
+        workflow,
+        "DEFAULT_FROZEN_BANK_MANIFEST",
+        tmp_path / "missing_frozen.csv",
+    )
+    monkeypatch.setattr(
+        workflow,
+        "DEFAULT_EXISTING_BANK_MANIFEST",
+        local_manifest,
+    )
+
+    workflow.main([
+        "--masses", "0.3",
+        "--selections", "diphoton_ecal",
+        "--domain-path", str(domain),
+        "--output-dir", str(output),
+        "--run-mode", "reuse_only",
+        "--dry-run",
+    ])
+
+    plan = pd.read_csv(output / "latest_run_plan.csv")
+    assert plan.iloc[0]["bank_state"] == "missing"
+    assert plan.iloc[0]["bank_action"] == "skip_unavailable"
+    assert not local_manifest.exists()
+
+
+def test_source_only_automatic_dry_run_without_bank_registry(
+    tmp_path,
+    monkeypatch,
+):
+    domain = tmp_path / "domains.csv"
+    domain.write_text("mass_GeV\n0.3\n")
+    output = tmp_path / "out"
+    local_manifest = tmp_path / "missing_local.csv"
+
+    monkeypatch.setattr(
+        workflow,
+        "DEFAULT_FROZEN_BANK_MANIFEST",
+        tmp_path / "missing_frozen.csv",
+    )
+    monkeypatch.setattr(
+        workflow,
+        "DEFAULT_EXISTING_BANK_MANIFEST",
+        local_manifest,
+    )
+
+    workflow.main([
+        "--masses", "0.3",
+        "--selections", "diphoton_ecal",
+        "--domain-path", str(domain),
+        "--output-dir", str(output),
+        "--run-mode", "automatic",
+        "--dry-run",
+    ])
+
+    plan = pd.read_csv(output / "latest_run_plan.csv")
+    assert plan.iloc[0]["bank_state"] == "missing"
+    assert plan.iloc[0]["bank_action"] == "build"
+    assert not local_manifest.exists()
+
+
+def test_initialise_bank_manifest_has_expected_schema(tmp_path):
+    path = workflow.initialise_bank_manifest(tmp_path / "registry.csv")
+    assert path.is_file()
+    assert list(pd.read_csv(path).columns) == list(
+        workflow.BANK_MANIFEST_COLUMNS
+    )

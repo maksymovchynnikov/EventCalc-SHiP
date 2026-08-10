@@ -235,7 +235,7 @@ def generate_mother_sample(
         (-x_max(z) < x) & (x < x_max(z)) & (-y_max(z) < y) & (y < y_max(z))
         & (z_min <= z) & (z <= z_max)
     )
-    # The frozen frozen reference implementation applied this validity filter to
+    # The frozen reference implementation applied this validity filter to
     # Grids.get_kinematics() before ECAL selection.  Valid EventCalc proposals
     # make it a no-op, but retaining it here preserves the legacy boundary.
     accepted = (

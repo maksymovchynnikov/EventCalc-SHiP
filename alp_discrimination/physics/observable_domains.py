@@ -3,7 +3,7 @@
 The production template domain is reconstructed from saved scan rows by
 log--log interpolation at the event-rate threshold.  The fixed-step scan
 bisection midpoint is retained separately as a diagnostic; it is never used
-to build the frozen frozen-reference template grid.
+to build the frozen-reference template grid.
 """
 
 from __future__ import annotations

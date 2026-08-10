@@ -61,12 +61,12 @@ From the EventCalc-SHiP repository root:
 python -m alp_discrimination.workflows.analysis --interactive
 ```
 
-For a non-interactive production run:
+For the four final ECAL-only mass points:
 
 ```bash
 python -m alp_discrimination.workflows.analysis \
   --masses 0.3 0.5 1.0 2.5 \
-  --selections diphoton_ecal diphoton_ecal_e1gev \
+  --selections diphoton_ecal \
   --observables energy_mean_z_r_perp \
   --profile production \
   --run-mode reuse_only \
@@ -75,26 +75,34 @@ python -m alp_discrimination.workflows.analysis \
   --stop-after final
 ```
 
-`reuse_only` is the safe default for expensive work: registered validated or
-production banks are reused and unavailable points are skipped rather than built
-implicitly.
+The final $E_\gamma\geq1$ GeV comparison uses $m_a=0.3$, $1.0$ and
+$2.5$ GeV with `--selections diphoton_ecal_e1gev`.
+
+`reuse_only` reuses local validated or production banks and skips unavailable
+points. Use `automatic` when missing banks should be built. A source-only
+checkout therefore supports planning immediately, but the generated template
+banks themselves are local runtime data.
+
+The default allowed lifetime domains are bundled in
+`alp_discrimination/reference_data/allowed_lifetime_domains.csv`. Use
+`--domain-path` to override them.
 
 ## Runtime
 
-Production runs can take several hours. At $m_a=0.3$ GeV, for example, the
-full-domain screen contains 89 photophilic and 96 $SU(2)_L$ lifetime points.
-The screening stage uses five seeds and 2000 pseudoexperiments per truth point;
-selected points are then repeated with 5000 or 10000 pseudoexperiments.
+Production runs can take several hours. At $m_a=0.3$ GeV, the full lifetime
+grid contains 89 photophilic and 96 $SU(2)_L$ points. The full-domain scan uses
+five seeds and 2000 pseudoexperiments per truth point; selected points are then
+repeated with 5000 or 10000 pseudoexperiments.
 
 With two workers, final $m_a=0.3$ ECAL runs took about 5.5--6.7 hours on the
-2020 MacBook Air used for this project. The main settings controlling the
-runtime are the analysis profile, number of pseudoexperiments, seeds and the
-lifetime/truth grids. Use `--dry-run` before a long run and `--resume` to reuse
-completed checkpoints.
+4-core, 8-GB laptop used for this project. Runtime is mainly controlled by the
+analysis profile, pseudoexperiments, seeds and lifetime/truth grids. Use
+`--dry-run` before a long run and `--resume` to reuse completed checkpoints.
 
 ## Validation chain
 
-A project-final spatial result passes four stages:
+A spatial result produced as project-final by the current workflow passes four
+stages:
 
 1. **Threshold scan**: locate the relevant event-count region.
 2. **Lifetime scan**: evaluate every allowed truth lifetime with 2000
@@ -104,22 +112,25 @@ A project-final spatial result passes four stages:
 4. **Empirical validation**: resample complete weighted EventCalc events and
    verify that the Gaussian conditional approximation does not change $N_{90}$.
 
-The distance measures used for lifetime maps are diagnostics; the project test
-statistic is the profiled likelihood evaluated in pseudoexperiments.
+The report-only $E_a+\langle z_d\rangle$ comparison curve predates this unified
+chain and retains its earlier high-statistics lifetime-audit result. Distance
+measures used for lifetime maps are diagnostics; the project test statistic is
+the profiled likelihood evaluated in pseudoexperiments.
 
 ## Package structure
 
 ```text
 alp_discrimination/
-├── physics/       models, spectra, lifetime and event-rate domains
-├── eventcalc/     EventCalc adapters, proposals and diphoton selections
-├── templates/     probability/lifetime banks and conditional feature moments
-├── statistics/    likelihoods, reductions, distances and adaptive scan logic
-├── plotting/      shared plotting and report-facing figures
-├── constraints/   exclusion-curve conversion and plotting helpers
-├── reference_data/ bundled photon-sensitivity reference curves
-├── workflows/     command-line orchestration and production stages
-└── tests/         unit, regression and integration tests
+├── physics/        models, spectra, lifetime and event-rate domains
+├── eventcalc/      EventCalc adapters, proposals and diphoton selections
+├── templates/      probability/lifetime banks and conditional feature moments
+├── statistics/     likelihoods, reductions, distances and adaptive scan logic
+├── plotting/       shared plotting and report-facing figures
+├── constraints/    exclusion-curve conversion and plotting helpers
+├── reference_data/ bundled reference curves and lifetime domains
+├── report_inputs/  report-only frozen legacy curves
+├── workflows/      command-line orchestration and production stages
+└── tests/          unit, regression and integration tests
 ```
 
 Package-level infrastructure (`config.py`, `cache.py`, `paths.py`, `planning.py`
@@ -133,9 +144,10 @@ Final products are written under
 analysis2/outputs/production/alp_su2l_analysis/final_results/
 ```
 
-`analysis2/cache` and `analysis2/outputs` are kept as runtime directories so
-existing banks and checkpoints can be reused. Old checkpoint names such as
-`pilot` and `lifetime_blind` are kept for the same reason.
+`analysis2/cache` and `analysis2/outputs` are local runtime directories and are
+not tracked by Git. Existing banks and checkpoints there can still be reused.
+Old checkpoint names such as `pilot` and `lifetime_blind` are kept for
+compatibility.
 
 Report tables and plots are exported to
 `final_results/report/{plots,tables,data}`. The main discrimination table is
@@ -172,8 +184,10 @@ reconstruction, efficiencies, backgrounds and systematics.
 python -m pytest alp_discrimination/tests -q
 ```
 
-Run the full suite and the saved golden-result regression after structural or
-statistical changes and before starting new production points.
+Run the full suite after structural or statistical changes. Changes affecting
+final physics outputs should also be compared with the archived validated
+results before starting new production points. The archived project result set
+is not stored in Git.
 
 ## EventCalc core
 

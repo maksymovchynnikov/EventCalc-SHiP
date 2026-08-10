@@ -84,13 +84,8 @@ def parse_stop_after(value: str) -> str:
         ) from exc
 
 
-DEFAULT_DOMAIN_PATH = (
-    OUTPUT_ROOT
-    / "production"
-    / "alp_su2l_analysis"
-    / "final_results"
-    / "provenance"
-    / "allowed_lifetime_domains.csv"
+DEFAULT_DOMAIN_PATH = Path(
+    "alp_discrimination/reference_data/allowed_lifetime_domains.csv"
 )
 DEFAULT_EXISTING_BANK_MANIFEST = (
     OUTPUT_ROOT / "production" / "alp_su2l_analysis" / "existing_bank_manifest.csv"
@@ -341,6 +336,26 @@ def choose_manifest(repo: Path, requested: Path | None) -> Path:
     if frozen.is_file():
         return frozen
     return resolve_path(repo, DEFAULT_EXISTING_BANK_MANIFEST)
+
+
+BANK_MANIFEST_COLUMNS = (
+    "mass_GeV",
+    "selection_name",
+    "status",
+    "bank_path",
+    "note",
+)
+
+
+def empty_bank_manifest() -> pd.DataFrame:
+    return pd.DataFrame(columns=BANK_MANIFEST_COLUMNS)
+
+
+def initialise_bank_manifest(path: Path) -> Path:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    empty_bank_manifest().to_csv(path, index=False)
+    return path
 
 
 def load_bank_manifest(path: Path) -> pd.DataFrame:
@@ -1105,12 +1120,19 @@ def main(argv: Sequence[str] | None = None) -> None:
     domain_path = resolve_path(repo, args.domain_path)
     output_dir = resolve_path(repo, args.output_dir)
 
-    if not manifest_path.is_file():
-        raise FileNotFoundError(manifest_path)
     if not domain_path.is_file():
         raise FileNotFoundError(domain_path)
 
-    manifest = load_bank_manifest(manifest_path)
+    if manifest_path.is_file():
+        manifest = load_bank_manifest(manifest_path)
+    elif args.bank_manifest is not None:
+        raise FileNotFoundError(manifest_path)
+    elif str(args.run_mode) in ("reuse_only", "automatic"):
+        manifest = empty_bank_manifest()
+    else:
+        raise FileNotFoundError(
+            f"No bank registry found for custom mode: {manifest_path}"
+        )
     observables = (
         ALL_OBSERVABLES
         if args.all_observables
@@ -1181,6 +1203,9 @@ def main(argv: Sequence[str] | None = None) -> None:
         write_project_outputs(output_dir, requested_plan=plan)
         print("\nDRY RUN: no EventCalc or pseudoexperiments launched.")
         return
+
+    if str(args.run_mode) == "automatic" and not manifest_path.is_file():
+        initialise_bank_manifest(manifest_path)
 
     domains = pd.read_csv(domain_path)
 

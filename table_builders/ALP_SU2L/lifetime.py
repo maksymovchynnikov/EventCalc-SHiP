@@ -1,17 +1,9 @@
-"""Photon and charged-lepton widths of a pure SU(2)_L ALP.
-Model:
-    c_W != 0,    c_B = 0,    c_{aPhi} = 0.
+"""Diphoton width and lifetime of the pure SU(2)_L ALP benchmark.
 
-The input coupling is
-    cW_over_fa = c_W / f_a    [GeV^-1].
-
-Implemented sources:
-M. B. Gavela et al., "Flavor constraints on electroweak ALP couplings",
-arXiv:1901.02031v2:
-
-* Gamma(a -> gamma gamma): Eq. (11)
-* c_{a gamma gamma}: Eqs. (12)-(13)
-* B_2 and f loop functions: Eqs. (A2)-(A3)
+The model uses c_W != 0 with c_B = c_{aPhi} = 0 and
+cW_over_fa = c_W / f_a in GeV^-1. The generated EventCalc decay table retains
+only a -> gamma gamma with branching ratio one. The electroweak expressions are
+converted from arXiv:1901.02031 to the coupling convention used here.
 """
 
 import numpy as np
@@ -53,7 +45,7 @@ def gamma_a_to_gamma_gamma(
     m_a: float,
     c_w_over_f_a: float,
 ) -> float:
-    """Gamma(a -> gamma gamma) in the 2012.12272 convention."""
+    """Gamma(a -> gamma gamma) for the coupling convention used here."""
 
     m_a = _validate_mass(m_a, "m_a")
     c_w_over_f_a = float(c_w_over_f_a)

@@ -19,8 +19,9 @@ The code does not simulate decay products acceptance. Instead, its output is pro
 
 ### ALP-SU(2)L extension
 
-The $SU(2)_L$ ALP implementation and diphoton model-discrimination analysis are
-documented in `alp_discrimination/README.md`. The input-table builder is in
+The `ALP-SU2L` model is available through the normal `python3 simulate.py`
+workflow. The separate diphoton model-discrimination analysis is documented in
+`alp_discrimination/README.md`, and its input-table builder is in
 `table_builders/ALP_SU2L/`.
 
 ## Installation

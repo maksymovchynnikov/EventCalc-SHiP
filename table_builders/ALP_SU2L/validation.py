@@ -10,7 +10,7 @@ def validate_with_eventcalc_interpolation(
     emax_table,
     alp_mass,
     theta_max_sim,
-    n_points=100000,  # so if n_points= NONE then this is n_points=100000?
+    n_points=100000,
 ):
     """
     Validate the table using EventCalc's interpolation machinery.
