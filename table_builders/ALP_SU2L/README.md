@@ -2,10 +2,10 @@
 
 This builder generates EventCalc input tables for the benchmark
 
-\[
+$$
 \mathcal L \supset \frac{\alpha_2}{4\pi}g_W\,a\,W\widetilde W,
 \qquad g_W=\frac{c_W}{f_a},
-\]
+$$
 
 with $c_B=c_{a\Phi}=0$. The FCNC and diphoton expressions from
 arXiv:1901.02031 are converted to this project coupling convention.
