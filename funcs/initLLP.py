@@ -4,8 +4,29 @@ import re  # Added for regex operations
 import numpy as np
 import pandas as pd
 from funcs import HNLmerging
-from scipy.interpolate import RegularGridInterpolator
+from scipy.interpolate import RegularGridInterpolator, PchipInterpolator
 import sympy as sp
+
+def make_log_pchip_interpolator(masses, values):
+    masses = np.asarray(masses, dtype=float)
+    values = np.asarray(values, dtype=float)
+
+    if np.any(masses <= 0.0):
+        raise ValueError("All masses must be positive.")
+    if np.any(values <= 0.0):
+        raise ValueError("All interpolated values must be positive.")
+
+    interpolator = PchipInterpolator(
+        np.log(masses),
+        np.log(values),
+        extrapolate=False,
+    )
+
+    def evaluate(mass):
+        mass = float(mass)
+        return float(np.exp(interpolator(np.log(mass))))
+
+    return evaluate
 
 class LLP:
     """
@@ -58,6 +79,8 @@ class LLP:
             self.compute_mass_dependent_properties_ALP_photon()
         elif self.LLP_name == "Dark-photons":
             self.compute_mass_dependent_properties_dark_photons()
+        elif self.LLP_name == "ALP-SU2L":
+            self.compute_mass_dependent_properties_ALP_SU2L()
         else:
             raise ValueError("Unknown LLP name.")
 
@@ -83,6 +106,11 @@ class LLP:
         self.Matrix_elements = self.get_MatrixElements(self.mass)
         self.Distr = self.get_distribution(self.mass)
 
+    def compute_mass_dependent_properties_ALP_SU2L(self):
+        self.BrRatios_distr = self.get_Br(self.mass)
+        self.c_tau_int = self.get_ctau(self.mass)
+        self.Yield = self.get_total_yield(self.mass)
+
     def import_particle(self):
         if "Scalar" in self.LLP_name:
             self.import_scalars()
@@ -98,6 +126,8 @@ class LLP:
             if self.uncertainty is None:
                 raise ValueError("Uncertainty must be provided for Dark-photons.")
             self.import_dark_photons()
+        elif self.LLP_name == "ALP-SU2L":
+            self.import_ALP_SU2L()
         else:
             raise ValueError("Unknown LLP name.")
 
@@ -333,6 +363,48 @@ class LLP:
 
         # define tabulated range for HNL
         self.define_tabulated_range_HNL()
+
+        # Print the matrix elements table
+        #self.print_matrix_elements()
+
+    def import_ALP_SU2L(self):
+        distribution_file_path = os.path.join(self.particle_path, "DoubleDistr-ALP-SU2L.txt")
+        energy_file_path = os.path.join(self.particle_path, "Emax-ALP-SU2L.txt")
+        yield_path = os.path.join(self.particle_path, "Total-yield-ALP-SU2L.txt")
+        ctau_path = os.path.join(self.particle_path, "ctau-ALP-SU2L.txt")
+        decay_json_path = os.path.join(self.particle_path, "ALP-SU2L-decay.json")
+
+        self.Distr = pd.read_csv(distribution_file_path, header=None, sep="\t")
+        self.Energy_distr = pd.read_csv(energy_file_path, header=None, sep="\t")
+        self.Yield_data = pd.read_csv(yield_path, header=None, sep="\t")
+        self.ctau_data = pd.read_csv(ctau_path, header=None, sep="\t")
+
+        mass_ctau = self.ctau_data.iloc[:, 0].to_numpy()
+        ctau_values = self.ctau_data.iloc[:, 1].to_numpy()
+        self.ctau_interpolator = RegularGridInterpolator((mass_ctau,), ctau_values, bounds_error=False, fill_value=None)
+
+        mass_yield = self.Yield_data.iloc[:, 0].to_numpy()
+        yield_values = self.Yield_data.iloc[:, 1].to_numpy()
+        self.yield_interpolator = RegularGridInterpolator((mass_yield,), yield_values, bounds_error=False, fill_value=None)
+
+        ALP_SU2L_decay = pd.read_json(decay_json_path, dtype=False)
+        self.decayChannels = ALP_SU2L_decay.iloc[:, 0].to_numpy()
+        self.PDGs = (ALP_SU2L_decay.iloc[:, 1].apply(np.array).to_numpy())
+        self.BrRatios = ALP_SU2L_decay.iloc[:, 2].to_numpy()
+
+        self.Matrix_elements_raw = ALP_SU2L_decay.iloc[:, -1].to_numpy()
+
+        # Compile matrix elements
+        self.Matrix_elements = self.compile_matrix_elements(self.Matrix_elements_raw)
+
+        self.get_ctau = make_log_pchip_interpolator(mass_ctau, ctau_values)
+        self.get_total_yield = make_log_pchip_interpolator(mass_yield, yield_values)
+        self.get_Br = self.setup_br_interpolators(self.BrRatios)
+        self.get_distribution = lambda m: self.Distr
+        self.get_MatrixElements = lambda m: self.Matrix_elements
+
+        # define tabulated range
+        self.define_tabulated_range_nonHNL(mass_yield, yield_values, self.Distr, self.ctau_data)
 
         # Print the matrix elements table
         #self.print_matrix_elements()

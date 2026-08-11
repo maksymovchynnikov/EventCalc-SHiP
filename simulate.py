@@ -40,11 +40,13 @@ LLP = initLLP.LLP(
 selected_decay_indices = prompt_decay_channels(LLP.decayChannels)
 
 print("\nGenerating LLP phenomenology plots...")
-masses_plot = np.logspace(
-    np.log10(LLP.m_min_tabulated),
-    np.log10(LLP.m_max_tabulated),
-    250
+masses_plot = np.geomspace(
+    LLP.m_min_tabulated,
+    LLP.m_max_tabulated,
+    250,
 )
+#masses_plot[0] = LLP.m_min_tabulated
+#masses_plot[-1] = LLP.m_max_tabulated
 Yield_plot    = np.array([LLP.get_total_yield(m) for m in masses_plot])
 ctau_int_plot = np.array([LLP.get_ctau(m) for m in masses_plot])
 Br_plot       = np.vstack([LLP.get_Br(m) for m in masses_plot])
