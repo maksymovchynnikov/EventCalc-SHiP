@@ -61,7 +61,7 @@ F_BPLUS = 0.417
 F_BZERO = 0.418
 
 
-# Lifetime 
+# Lifetime
 ALPHA_EM = 1.0 / 137.035999177  # NIST/CODATA
 SIN2_THETA_W = 0.23122  # For THETA_W(M_Z)
 M_W = 80.3625  # PDG

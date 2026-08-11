@@ -90,7 +90,7 @@ def plot_debug_distributions(
     else:
         plt.close(fig)
 
-    # PLOT: theta_a_energy_log 
+    # PLOT: theta_a_energy_log
     theta_edges_plot = np.geomspace(1.0e-6, np.pi, 241)
     energy_edges_plot = np.geomspace(max(alp_mass, np.min(energy)), 1.001 * np.max(energy), 181)
 
