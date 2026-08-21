@@ -50,6 +50,7 @@ def extract_files(total_dir, selected_llp):
     For HNL: HNL_mix1_mix2_mix3_total.txt
     For Dark-photons: Dark-photons_uncertainty_total.txt
     For ALP-photon: ALP-photon_primary_total.txt or ALP-photon_cascades_total.txt
+    For ALP-mixed: ALP-mixed_xi0p35_constructive_total.txt
     For Other LLPs: LLP_name_total.txt
     Returns a list of tuples (filename, identifier)
     """
@@ -90,6 +91,16 @@ def extract_files(total_dir, selected_llp):
             if match:
                 production_mode = match.group(1)
                 identifier = f"production={production_mode}"
+                extracted_files.append((file, identifier))
+    elif selected_llp == "ALP-mixed":
+        pattern = re.compile(
+            r"ALP-mixed_(xi[^_]+)_(constructive|destructive)_total\.txt$"
+        )
+        for file in files:
+            match = pattern.match(file)
+            if match:
+                xi = float(match.group(1)[2:].replace("m", "-").replace("p", "."))
+                identifier = f"xi={xi:g}, {match.group(2)}"
                 extracted_files.append((file, identifier))
     else:
         # For other LLPs, Pattern: LLP_name_total.txt
@@ -259,16 +270,16 @@ def main():
         selected_file, identifier = extracted_files[choice - 1]
         selected_filepath = os.path.join(total_dir, selected_file)
         mix_label = identifier  # Contains uncertainty
-    elif selected_llp == "ALP-photon":
+    elif selected_llp in {"ALP-photon", "ALP-mixed"}:
         if not extracted_files:
-            print("No production mode files found for ALP-photon.")
+            print(f"No parameter-specific files found for {selected_llp}.")
             sys.exit(1)
-        print(f"Available ALP-photon files:")
+        print(f"Available {selected_llp} files:")
         for i, (_, identifier) in enumerate(extracted_files, start=1):
             print(f"{i}. {identifier}")
         while True:
             try:
-                choice = int(input("Choose a production mode file by typing the number: "))
+                choice = int(input("Choose a file by typing the number: "))
                 if 1 <= choice <= len(extracted_files):
                     break
                 else:
@@ -344,7 +355,7 @@ def main():
     
     # Plot acceptances
     acceptance_plot_path = os.path.join(plot_dir, 'acceptance_plot.png')
-    if selected_llp in ["HNL", "Dark-photons", "ALP-photon"]:
+    if selected_llp in ["HNL", "Dark-photons", "ALP-photon", "ALP-mixed"]:
         plot_title = f"{selected_llp} Acceptances ({mix_label})"
     else:
         plot_title = f"{selected_llp} Acceptances"
@@ -352,7 +363,7 @@ def main():
     
     # Plot coupling vs events
     coupling_vs_events_plot_path = os.path.join(plot_dir, 'coupling_vs_events.pdf')
-    if selected_llp in ["HNL", "Dark-photons", "ALP-photon"]:
+    if selected_llp in ["HNL", "Dark-photons", "ALP-photon", "ALP-mixed"]:
         coupling_plot_title = rf"$N_{{\mathrm{{events}}}}$ for {selected_llp} ({mix_label}) as a function of $\mathrm{{coupling}}^{{2}}$"
     else:
         coupling_plot_title = rf"$N_{{\mathrm{{events}}}}$ for {selected_llp} as a function of $\mathrm{{coupling}}^{{2}}$"
@@ -360,7 +371,7 @@ def main():
     
     # Plot lifetime vs events
     lifetime_vs_events_plot_path = os.path.join(plot_dir, 'lifetime_vs_events.pdf')
-    if selected_llp in ["HNL", "Dark-photons", "ALP-photon"]:
+    if selected_llp in ["HNL", "Dark-photons", "ALP-photon", "ALP-mixed"]:
         lifetime_plot_title = rf"$N_{{\mathrm{{events}}}}$ for {selected_llp} ({mix_label}) as a function of $c\tau_{{\mathrm{{LLP}}}}$"
     else:
         lifetime_plot_title = rf"$N_{{\mathrm{{events}}}}$ for {selected_llp} as a function of $c\tau_{{\mathrm{{LLP}}}}$"

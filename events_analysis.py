@@ -1,11 +1,86 @@
+import argparse
 import os
 import numpy as np
 import sys
 import matplotlib.pyplot as plt
-from funcs.ship_setup import plot_decay_volume, z_min, z_max, y_max, x_max  # Ensure these are correctly defined
+from funcs.ship_setup import plot_decay_volume, z_min, z_max
 from collections import defaultdict
 from mpl_toolkits.mplot3d import Axes3D
 from funcs.selecting_processing import parse_filenames, user_selection, read_file  # Ensure these are correctly defined
+from funcs.PDG import get_charge
+
+
+NEUTRINO_PDGS = {12, -12, 14, -14, 16, -16}
+SIGNATURES = ("two-photon", "neutral-pair", "all-visible")
+SIGNATURE_LABELS = {
+    "two-photon": "exactly two visible photons",
+    "neutral-pair": "at least two pointing particles with total charge zero",
+    "all-visible": "all visible particles pointing",
+}
+DEFAULT_DETECTOR_Z_M = 95.0
+DEFAULT_DETECTOR_WIDTH_M = 4.0
+DEFAULT_DETECTOR_HEIGHT_M = 6.0
+
+
+def _charge(pdg):
+    """Return electric charge in units of e for detector-level particles."""
+    charge = get_charge(pdg)
+    if not isinstance(charge, str):
+        return float(charge)
+    # Pythia may return stable nucleons, which are not in the legacy PDG table.
+    nucleon_charges = {2212: 1.0, -2212: -1.0, 2112: 0.0, -2112: 0.0}
+    if pdg in nucleon_charges:
+        return nucleon_charges[pdg]
+    raise ValueError(
+        f"Electric charge is not defined for detector-level PDG code {pdg}. "
+        "Add it to funcs/PDG.py before using the neutral-pair signature."
+    )
+
+
+def _points_to_plane(px, py, pz, x_decay, y_decay, z_decay, detector_z, half_width, half_height):
+    """Project a downstream straight trajectory onto a rectangular plane."""
+    if pz <= 0.0 or detector_z <= z_decay:
+        return False
+    distance = detector_z - z_decay
+    x_plane = x_decay + distance * px / pz
+    y_plane = y_decay + distance * py / pz
+    return -half_width < x_plane < half_width and -half_height < y_plane < half_height
+
+
+def _passes_energy_cut(energy, mass, min_energy):
+    """Apply E >= max(m, E_min); E_min=None is the on-shell E >= m default."""
+    threshold = mass if min_energy is None else max(mass, min_energy)
+    return energy >= threshold - 1.0e-12
+
+
+def _has_zero_charge_subset(charges):
+    """Return whether at least two particles have exactly zero combined charge."""
+    reachable = {(0.0, 0)}
+    for charge in charges:
+        additions = {(round(total + charge, 12), count + 1) for total, count in reachable}
+        reachable |= additions
+    return any(abs(total) < 1.0e-12 and count >= 2 for total, count in reachable)
+
+
+def _passes_signature(visible_particles, signature):
+    """Evaluate one of the three model-independent visible-event signatures."""
+    accepted_particles = [
+        particle
+        for particle in visible_particles
+        if particle["points"] and particle["passes_energy"]
+    ]
+
+    if signature == "two-photon":
+        return (
+            len(visible_particles) == 2
+            and all(particle["pdg"] == 22 for particle in visible_particles)
+            and len(accepted_particles) == 2
+        )
+    if signature == "neutral-pair":
+        return _has_zero_charge_subset([_charge(particle["pdg"]) for particle in accepted_particles])
+    if signature == "all-visible":
+        return bool(visible_particles) and len(accepted_particles) == len(visible_particles)
+    raise ValueError(f"Unknown signature {signature!r}; choose one of {SIGNATURES}.")
 
 def plot_channels(channels, finalEvents, output_path, LLP_name, mass, lifetime):
     """
@@ -37,7 +112,15 @@ def plot_channels(channels, finalEvents, output_path, LLP_name, mass, lifetime):
     plt.savefig(os.path.join(output_path, "channels.pdf"), bbox_inches='tight')
     plt.close()
 
-def extract_quantities(channels, ifDisplaypdgs=False):
+def extract_quantities(
+    channels,
+    ifDisplaypdgs=False,
+    detector_z=DEFAULT_DETECTOR_Z_M,
+    detector_width=DEFAULT_DETECTOR_WIDTH_M,
+    detector_height=DEFAULT_DETECTOR_HEIGHT_M,
+    signature="all-visible",
+    min_energy=None,
+):
     """
     Extracts required quantities from the data lines.
     Returns a dictionary with the extracted quantities.
@@ -47,15 +130,24 @@ def extract_quantities(channels, ifDisplaypdgs=False):
     - Each decay product has 6 values: px, py, pz, E, mass, PDG.
     - Invariant masses are computed from 4-vectors of the decay products.
 
-    Modified according to the new requirements:
-    - We do not break early when a particle doesn't point.
-    - If a detectable decay product points to the detector, we add its 4-momentum to a reconstructible sum.
-    - If at least two pointing detectable decay products exist, we compute reconstructed invariant mass weighted by P_decay_mother.
-
-    Restoring the functionality for ifAllPoint_ratio:
-    - For each event, if ALL detectable decay products (non-neutrino, non -999) point to the detector,
-      we add P_decay_mother to ifAllPoint_counts for that channel. If at least one does not point, we don't add it.
+    The detector acceptance is evaluated on a rectangular plane.  Neutrinos and
+    placeholder entries are excluded from the visible-particle signatures.
+    Accepted fractions are weighted by the parent decay probability.
     """
+
+    if signature not in SIGNATURES:
+        raise ValueError(f"Unknown signature {signature!r}; choose one of {SIGNATURES}.")
+    if detector_z < z_max:
+        raise ValueError(
+            f"Detector plane z={detector_z} m must be at or downstream of z_max={z_max} m."
+        )
+    if detector_width <= 0.0 or detector_height <= 0.0:
+        raise ValueError("Detector width and height must be positive.")
+    if min_energy is not None and min_energy < 0.0:
+        raise ValueError("Minimum particle energy must be non-negative.")
+
+    half_width = detector_width / 2.0
+    half_height = detector_height / 2.0
 
     quantities = {
         'px_mother': [],
@@ -72,14 +164,21 @@ def extract_quantities(channels, ifDisplaypdgs=False):
         'charged_decay_products_counts': [],
         'nu_counts': [],
         'decay_products_per_event_counts': defaultdict(list),
-        'ifAllPoint_counts': defaultdict(float),
+        'acceptance_counts': defaultdict(float),
         'sum_P_decay_mother_per_channel': defaultdict(float),
-        'ifAllPoint_ratios': {},
+        'acceptance_ratios': {},
         'final_states_per_channel': defaultdict(lambda: defaultdict(int)),
         'invariant_mass_all_per_channel': defaultdict(list),
         'invariant_mass_detectable_per_channel': defaultdict(list),
         'reconstructed_invariant_mass_per_channel': defaultdict(lambda: {'mass': [], 'weight': []}),
-        'reconstructed_invariant_mass_all': {'mass': [], 'weight': []}
+        'reconstructed_invariant_mass_all': {'mass': [], 'weight': []},
+        'acceptance_config': {
+            'detector_z_m': detector_z,
+            'detector_width_m': detector_width,
+            'detector_height_m': detector_height,
+            'signature': signature,
+            'min_energy_gev': min_energy,
+        },
     }
 
     detailed_final_state_particles = [
@@ -164,9 +263,7 @@ def extract_quantities(channels, ifDisplaypdgs=False):
             nu_count = 0
             final_state_counts = {ptype: 0 for ptype in detailed_final_state_particles}
 
-            # Restoring all_point logic:
-            # Start with all_point = True
-            all_point = True
+            visible_particles = []
 
             pointing_detectables = 0
             total_px_pointing = 0.0
@@ -202,7 +299,7 @@ def extract_quantities(channels, ifDisplaypdgs=False):
                     total_decay_py_all += py
                     total_decay_pz_all += pz_dp
 
-                if pdg in [12, -12, 14, -14, 16, -16]:
+                if pdg in NEUTRINO_PDGS:
                     # Neutrino
                     nu_count += 1
                     final_state_counts['nu'] += 1
@@ -225,22 +322,28 @@ def extract_quantities(channels, ifDisplaypdgs=False):
                     if particle not in ['gamma', 'K_L', 'n', 'bar[n]', 'nu']:
                         charged_decay_products_count += 1
 
-                    # Check if this detectable decay product points to the detector
-                    if pz_dp != 0:
-                        x_proj = x_mother + (z_max - z_mother)*px/pz_dp
-                        y_proj = y_mother + (z_max - z_mother)*py/pz_dp
-                        if (-y_max(z_max)<y_proj<y_max(z_max) and -x_max(z_max)<x_proj<x_max(z_max)):
-                            pointing_detectables += 1
-                            total_px_pointing += px
-                            total_py_pointing += py
-                            total_pz_pointing += pz_dp
-                            total_e_pointing += e
-                        else:
-                            # This detectable decay product does not point, set all_point = False
-                            all_point = False
-                    else:
-                        # pz_dp=0 means no pointing
-                        all_point = False
+                    points = _points_to_plane(
+                        px,
+                        py,
+                        pz_dp,
+                        x_mother,
+                        y_mother,
+                        z_mother,
+                        detector_z,
+                        half_width,
+                        half_height,
+                    )
+                    passes_energy = _passes_energy_cut(e, mass_dp, min_energy)
+                    visible_particles.append(
+                        {'pdg': pdg, 'points': points, 'passes_energy': passes_energy}
+                    )
+
+                    if points and passes_energy:
+                        pointing_detectables += 1
+                        total_px_pointing += px
+                        total_py_pointing += py
+                        total_pz_pointing += pz_dp
+                        total_e_pointing += e
 
             quantities['decay_products_counts'].append(decay_products_count)
             quantities['charged_decay_products_counts'].append(charged_decay_products_count)
@@ -290,17 +393,20 @@ def extract_quantities(channels, ifDisplaypdgs=False):
             quantities['invariant_mass_all_per_channel'][channel].append(invariant_mass_all)
             quantities['invariant_mass_detectable_per_channel'][channel].append(invariant_mass_detectable)
 
-            # Restore adding P_decay_mother if ALL detectable decay products point
-            if all_point:
-                quantities['ifAllPoint_counts'][channel] += P_decay_mother
+            if _passes_signature(visible_particles, signature):
+                quantities['acceptance_counts'][channel] += P_decay_mother
 
     for channel in channels.keys():
         sum_P_decay = quantities['sum_P_decay_mother_per_channel'][channel]
         if sum_P_decay > 0:
-            ratio = quantities['ifAllPoint_counts'][channel]/sum_P_decay
+            ratio = quantities['acceptance_counts'][channel]/sum_P_decay
         else:
             ratio = 0
-        quantities['ifAllPoint_ratios'][channel] = ratio
+        quantities['acceptance_ratios'][channel] = ratio
+
+    total_weight = sum(quantities['sum_P_decay_mother_per_channel'].values())
+    accepted_weight = sum(quantities['acceptance_counts'].values())
+    quantities['acceptance_overall'] = accepted_weight / total_weight if total_weight > 0.0 else 0.0
 
     return quantities
 
@@ -687,12 +793,20 @@ def plot_histograms(quantities, channels, output_path, LLP_name, mass, lifetime)
                 bbox_inches='tight')
     plt.close()
 
-    # Channels IfAllPoint Ratio
+    # Per-channel truth-level detector acceptance
     plt.figure(figsize=(20, 15))
     channel_names = list(channels.keys())
-    ratios = [quantities['ifAllPoint_ratios'].get(ch, 0) for ch in channel_names]
+    ratios = [quantities['acceptance_ratios'].get(ch, 0) for ch in channel_names]
+    acceptance_config = quantities['acceptance_config']
+    signature_label = SIGNATURE_LABELS[acceptance_config['signature']]
     plt.bar(channel_names, ratios, color='green', edgecolor='black')
-    plt.title("Fraction of events where all non-v decay products point to detector", fontsize=35)
+    plt.title(
+        f"Truth-level detector acceptance: {signature_label}\n"
+        f"{acceptance_config['detector_width_m']:g} m x "
+        f"{acceptance_config['detector_height_m']:g} m plane at "
+        f"z = {acceptance_config['detector_z_m']:g} m",
+        fontsize=30,
+    )
     plt.ylabel("Fraction", fontsize=68)
     plt.ylim(0, 1.05)
     plt.xticks(rotation=45, ha='right', fontsize=39)
@@ -704,7 +818,7 @@ def plot_histograms(quantities, channels, output_path, LLP_name, mass, lifetime)
                        edgecolor="black", alpha=0.8))
     plt.tick_params(axis='both', which='both', labelsize=39, width=2, length=10)
     plt.tight_layout()
-    plt.savefig(os.path.join(output_path, "channels_ifAllPoint_ratio.pdf"), bbox_inches='tight')
+    plt.savefig(os.path.join(output_path, "channels_detector_acceptance.pdf"), bbox_inches='tight')
     plt.close()
 
     # Commenting out old invariant mass plots:
@@ -805,11 +919,80 @@ def plot_histograms(quantities, channels, output_path, LLP_name, mass, lifetime)
         plt.savefig(os.path.join(invariant_mass_path, "reconstructible_m_inv_weighted_all_channels.pdf"), bbox_inches='tight')
         plt.close()
 
+def _parse_args():
+    parser = argparse.ArgumentParser(
+        description="Analyze EventCalc events and apply a truth-level detector-plane signature."
+    )
+    parser.add_argument(
+        "--detector-z",
+        type=float,
+        default=DEFAULT_DETECTOR_Z_M,
+        metavar="METRES",
+        help=f"detector-plane position (default: {DEFAULT_DETECTOR_Z_M:g} m)",
+    )
+    parser.add_argument(
+        "--detector-width",
+        type=float,
+        default=DEFAULT_DETECTOR_WIDTH_M,
+        metavar="METRES",
+        help=f"full detector width in x (default: {DEFAULT_DETECTOR_WIDTH_M:g} m)",
+    )
+    parser.add_argument(
+        "--detector-height",
+        type=float,
+        default=DEFAULT_DETECTOR_HEIGHT_M,
+        metavar="METRES",
+        help=f"full detector height in y (default: {DEFAULT_DETECTOR_HEIGHT_M:g} m)",
+    )
+    parser.add_argument(
+        "--signature",
+        choices=SIGNATURES,
+        default="all-visible",
+        help="visible-event requirement (default: all-visible)",
+    )
+    parser.add_argument(
+        "--min-energy",
+        type=float,
+        default=None,
+        metavar="GEV",
+        help="common minimum particle energy; default is each particle's rest mass",
+    )
+    parser.add_argument(
+        "--display-pdgs",
+        action="store_true",
+        help="print the final-state PDG codes while reading events",
+    )
+    return parser.parse_args()
+
+
+def _write_acceptance_summary(output_path, quantities):
+    config = quantities['acceptance_config']
+    energy_cut = (
+        "particle mass"
+        if config['min_energy_gev'] is None
+        else f"max(particle mass, {config['min_energy_gev']:.8g} GeV)"
+    )
+    summary_path = os.path.join(output_path, 'detector_acceptance.txt')
+    with open(summary_path, 'w') as output:
+        output.write(f"signature\t{config['signature']}\n")
+        output.write(f"detector_z_m\t{config['detector_z_m']:.8g}\n")
+        output.write(f"detector_width_m\t{config['detector_width_m']:.8g}\n")
+        output.write(f"detector_height_m\t{config['detector_height_m']:.8g}\n")
+        output.write(f"minimum_particle_energy\t{energy_cut}\n")
+        output.write(f"overall_weighted_acceptance\t{quantities['acceptance_overall']:.8g}\n")
+        output.write("channel\tweighted_acceptance\n")
+        for channel, ratio in quantities['acceptance_ratios'].items():
+            output.write(f"{channel}\t{ratio:.8g}\n")
+    print(
+        f"P_decay-weighted detector acceptance: {quantities['acceptance_overall']:.6g}\n"
+        f"Acceptance summary exported to '{summary_path}'."
+    )
+
+
 def main():
+    args = _parse_args()
     directory = 'outputs'
     ifExportData = True
-    #Change to True if you want to display event details in console (pdg list, 4-momentum, etc.)
-    ifDisplaypdgs = False
 
     LLP_dict = parse_filenames(directory)
     if not LLP_dict:
@@ -826,7 +1009,16 @@ def main():
     finalEvents, coupling_squared, epsilon_polar, epsilon_azimuthal, br_visible_val, channels = read_file(os.path.join(directory, selected_file))
 
     plot_channels(channels, finalEvents, output_path, selected_LLP, selected_mass, selected_lifetime)
-    quantities = extract_quantities(channels, ifDisplaypdgs=ifDisplaypdgs)
+    quantities = extract_quantities(
+        channels,
+        ifDisplaypdgs=args.display_pdgs,
+        detector_z=args.detector_z,
+        detector_width=args.detector_width,
+        detector_height=args.detector_height,
+        signature=args.signature,
+        min_energy=args.min_energy,
+    )
+    _write_acceptance_summary(output_path, quantities)
 
     if ifExportData:
         energy_mother = np.array(quantities['energy_mother'])
@@ -858,4 +1050,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

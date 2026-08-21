@@ -3,6 +3,13 @@ import os
 import numpy as np
 import pandas as pd
 
+
+def _alp_mixed_label(xi, interference):
+    if xi is None or interference not in {"constructive", "destructive"}:
+        raise ValueError("ALP-mixed output requires xi and an interference sign")
+    xi_text = format(float(xi), ".8g").replace("-", "m").replace(".", "p")
+    return f"xi{xi_text}_{interference}"
+
 def save(
     motherParticleResults, 
     decayProductsResults, 
@@ -23,7 +30,9 @@ def save(
     selected_decay_indices, 
     uncertainty,
     ifExportEvents,
-    alp_production_mode=None
+    alp_production_mode=None,
+    alp_mixing_xi=None,
+    alp_interference=None,
 ):
     """
     Saves simulation results to data files.
@@ -77,6 +86,12 @@ def save(
                 eventData_dir,
                 f'{LLP_name}_{mass:.3e}_{c_tau:.3e}_data.dat'
             )
+    elif LLP_name == "ALP-mixed":
+        mixture_label = _alp_mixed_label(alp_mixing_xi, alp_interference)
+        outputfileName = os.path.join(
+            eventData_dir,
+            f'{LLP_name}_{mass:.3e}_{c_tau:.3e}_{mixture_label}_data.dat'
+        )
     else:
         outputfileName = os.path.join(
             eventData_dir, 
@@ -87,6 +102,13 @@ def save(
     # here we only check ifExportEvents.
     if ifExportEvents:
         with open(outputfileName, 'w') as f:
+            coupling_note = (
+                " This is |g_agammagamma,total|^2. "
+                f"Operator fraction xi: {float(alp_mixing_xi):.8g}. "
+                f"Interference: {alp_interference}."
+                if LLP_name == "ALP-mixed"
+                else ""
+            )
             header = (
                 f"Sampled {finalEvents:.6e} events inside SHiP volume. "
                 f"Squared coupling: {coupling_squared:.6e}. "
@@ -95,7 +117,7 @@ def save(
                 f"Azimuthal acceptance: {epsilon_azimuthal:.6e}. "
                 f"Averaged decay probability: {P_decay_averaged:.6e}. "
                 f"Visible Br Ratio: {br_visible_val:.6e}. "
-                f"Total number of events: {N_ev_tot:.6e}\n\n"
+                f"Total number of events: {N_ev_tot:.6e}{coupling_note}\n\n"
             )
             f.write(header)
 
@@ -136,6 +158,10 @@ def save(
             total_filename = f"{LLP_name}_{alp_production_mode}_total.txt"
         else:
             total_filename = f"{LLP_name}_total.txt"
+    elif LLP_name == "ALP-mixed":
+        total_filename = (
+            f"{LLP_name}_{_alp_mixed_label(alp_mixing_xi, alp_interference)}_total.txt"
+        )
     elif "Scalar" in LLP_name:
         total_filename = f"{LLP_name}_total.txt"
     else:
@@ -180,7 +206,9 @@ def save_total_only(
     uncertainty,
     MixingPatternArray,
     decayChannels,
-    alp_production_mode=None
+    alp_production_mode=None,
+    alp_mixing_xi=None,
+    alp_interference=None,
 ):
     base_output_dir = os.path.join('.', 'outputs', LLP_name)
     os.makedirs(base_output_dir, exist_ok=True)
@@ -203,6 +231,10 @@ def save_total_only(
             total_filename = f"{LLP_name}_{alp_production_mode}_total.txt"
         else:
             total_filename = f"{LLP_name}_total.txt"
+    elif LLP_name == "ALP-mixed":
+        total_filename = (
+            f"{LLP_name}_{_alp_mixed_label(alp_mixing_xi, alp_interference)}_total.txt"
+        )
     elif "Scalar" in LLP_name:
         total_filename = f"{LLP_name}_total.txt"
     else:

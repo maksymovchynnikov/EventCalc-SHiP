@@ -1,0 +1,12 @@
+{
+  "model": "ALP-mixed",
+  "xi": 0.35,
+  "interference": "constructive",
+  "events": 200000,
+  "masses": [0.3, 0.5, 1.0],
+  "c_taus": [0.01, 100.0, 10000.0],
+  "decay_channels": ["2gamma"],
+  "seed": 12345,
+  "plots": false,
+  "export_events": true
+}

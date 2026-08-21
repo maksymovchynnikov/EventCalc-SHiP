@@ -1,201 +1,420 @@
 # EventCalc-SHiP
 
-Sampler of decay events with hypothetical Long-Lived Particles (LLPs) for the [SHiP experiment](https://ship.web.cern.ch/). May be easily adapted for any other experiment.
+EventCalc-SHiP generates decays of long-lived particles in the SHiP decay
+volume and calculates their expected yields. The same calculation can be
+adapted to another geometry through `funcs/ship_setup.py`.
 
-## Overview
+## Physical calculation
 
-The code
-- Takes the tabulated distributions of LLPs in mass, polar angle, and energy (averaged over all relevant production channels, except for ALP-photon where the user selects either the primary-photon or cascade-photon distribution), and the tabulated dependence of the maximum LLP energy on the mass and the polar angle, and samples the 3-momentum of the LLPs in the direction of the decay volume of SHiP.
-- Having the generated 4-momenta, samples LLPs' decay positions based on the exponential distribution in the LLP decay length. The sampling is done within the z coverage of the SHiP decay volume.
-- Simulates 2-, 3-, or 4-body decays of LLPs using an internal phase space simulator and passes only events with partons or unstable products to pythia8 for showering, hadronization, or decays.
-- Using the tabulated total yields, decay branching ratios, lifetime-mass dependence, and computed geometric acceptance and decay probability, calculates the total number of decay events.
+For each selected mass and proper decay length, EventCalc
 
-The code does not simulate decay products acceptance. Instead, its output is provided to [FairShip](https://github.com/ShipSoft/FairShip) to simulate the propagation and reconstruction of decay products.
+1. interpolates the production probability and the angular--energy density of
+   the long-lived particle;
+2. samples momenta directed toward the SHiP decay volume;
+3. samples decay positions from the exponential decay law within the
+   longitudinal extent of the volume;
+4. applies its azimuthal geometry;
+5. generates two-, three-, or four-body decays in the particle rest frame;
+6. invokes Pythia 8 when partons or unstable decay products require
+   showering, hadronization, or further decays;
+7. boosts the final-state particles to the laboratory frame;
+8. combines production, geometry, decay probability, and visible branching
+   ratios to calculate the number of decays.
 
-### Validation
+The generated event record contains truth-level momenta and decay positions.
+[FairShip](https://github.com/ShipSoft/FairShip) can use this record for
+particle transport and detector reconstruction.
 
-`EventCalc-SHiP` has been intensively cross-checked against [`SensCalc`](https://github.com/maksymovchynnikov/SensCalc) (which, in its turn, has been tested against the past instances of [`FairShip`](https://github.com/ShipSoft/FairShip) and other tools), see [slides](https://indico.cern.ch/event/1481729/contributions/6256116/). The agreement in all the quantities (overall number of events, geometric acceptance, averaged decay probability, spectra, etc.) is at the 10% level or better.
+The repository includes Higgs-like scalars, photophilic ALPs, dark photons,
+heavy neutral leptons, the pure $SU(2)_L$ ALP, and a photon--$SU(2)_L$ ALP
+mixture described below. The exact model
+names accepted by the launcher are:
 
+- `Scalar-mixing`;
+- `Scalar-quartic`;
+- `ALP-photon`;
+- `Dark-photons`;
+- `HNL`;
+- `ALP-SU2L`;
+- `ALP-mixed`.
 
-### ALP-SU(2)L extension
+## $SU(2)_L$ ALP
 
-The `ALP-SU2L` model is available through the normal `python3 simulate.py`
-workflow. The separate diphoton model-discrimination analysis is documented in
-`alp_discrimination/README.md`, and its input-table builder is in
-`table_builders/ALP_SU2L/`.
+The `ALP-SU2L` model uses
+
+$$
+\mathcal L\supset C_WaW^I_{\mu\nu}\widetilde W^{I\mu\nu},
+\qquad
+C_W=\frac{\alpha_2}{4\pi}g_W,
+\qquad
+\frac{c_W}{f_a}=-C_W,
+$$
+
+with $c_B=c_{a\Phi}=0$. The last relation converts to the convention of
+arXiv:1901.02031, where the operator is
+$-c_WaW^I_{\mu\nu}\widetilde W^{I\mu\nu}/f_a$. Electroweak symmetry breaking
+induces
+
+$$
+C_\gamma^{\rm ind}=\sin^2\theta_W C_W,
+\qquad
+g_{a\gamma\gamma}=\frac{\alpha_{\rm em}}{\pi}g_W.
+$$
+
+Four processes contribute to the ALP flux: rare $B\to X_{s,d}a$ decays,
+$K^\pm\to\pi^\pm a$ below the charged-kaon threshold, Primakoff production
+by photons from the proton target interaction, and Primakoff production by
+photons in the electromagnetic cascade. Let $\widehat Y_B$ and
+$\widehat Y_K$ denote the production coefficients per $g_W^2$. Let
+$\widehat Y_{\rm primary}$ and $\widehat Y_{\rm cascade}$ denote the Primakoff
+coefficients per $g_{a\gamma\gamma}^2$. Since
+$g_{a\gamma\gamma}=kg_W$, the combined coefficient per $g_W^2$ is
+
+$$
+\widehat Y_{\rm tot}=\widehat Y_B+\widehat Y_K
++k^2(\widehat Y_{\rm primary}+\widehat Y_{\rm cascade}),
+\qquad k=\frac{\alpha_{\rm em}}{\pi},
+$$
+
+and the production probability is
+$P_{\rm prod}=g_W^2\widehat Y_{\rm tot}$. The normalized angular--energy
+density is
+
+$$
+f_{\rm tot}=
+\frac{\widehat Y_Bf_B+\widehat Y_Kf_K
++k^2\widehat Y_{\rm primary}f_{\rm primary}
++k^2\widehat Y_{\rm cascade}f_{\rm cascade}}
+{\widehat Y_{\rm tot}}.
+$$
+
+EventCalc reads this combined density as one production model. Its forward
+integral equals the polar acceptance; the angular restriction preserves the
+normalization over the complete angular range. EventCalc multiplies
+$\widehat Y_{\rm tot}$ by $g_W^2$ once when it calculates the number produced.
+
+The charged-kaon flux is $0.36=0.29+0.07$ kaons per proton on target, summed
+over the two charges. The branching coefficient is evaluated separately as a
+function of $m_a$, and the contribution vanishes exactly at
+$m_a=m_{K^\pm}-m_{\pi^\pm}$.
+
+The present decay model assumes
+$\operatorname{Br}(a\to\gamma\gamma)=1$. Its scope is the diphoton benchmark.
+Calculations involving hadronic ALP widths or other decay modes require an
+extended decay description. All numerical production, lifetime, and decay
+tables needed to run this benchmark are supplied under
+`Distributions/ALP-SU2L/`; users do not need table-generation code.
+
+For a requested proper decay length $c\tau$, EventCalc obtains the coupling
+from
+
+$$
+g_W^2=(1\,\mathrm{GeV}^{-1})^2
+\frac{(c\tau)_{g_W=1\,\mathrm{GeV}^{-1}}}{c\tau}.
+$$
+
+It then multiplies $\widehat Y_{\rm tot}$ by the numerical value of $g_W^2$
+expressed in $\mathrm{GeV}^{-2}$.
+
+## Mixed photon--$SU(2)_L$ ALP
+
+The `ALP-mixed` model implements both operators coherently. Its two additional
+inputs are $0\leq\xi\leq1$ and `constructive` or `destructive` interference.
+The convention is
+
+$$
+C_W=\Lambda\xi,
+\qquad
+C_\gamma^{\rm dir}=s\Lambda(1-\xi),
+\qquad s=+1\ \hbox{or}\ -1,
+$$
+
+and therefore
+
+$$
+g_{a\gamma\gamma}^{\rm tot}
+=4\Lambda\left[s(1-\xi)+\sin^2\!\theta_W\,\xi\right]
+=g_{a\gamma\gamma}^{\rm dir}+\frac{\alpha_{\rm em}}{\pi}g_W.
+$$
+
+The amplitudes interfere before the decay width is calculated; the lifetime
+is not obtained from a sum of the two coupling squares. For the diphoton-only
+benchmark,
+
+$$
+c\tau=\frac{64\pi\hbar c}
+{m_a^3\left|g_{a\gamma\gamma}^{\rm tot}\right|^2}.
+$$
+
+The `c_taus` values remain physical proper decay lengths. EventCalc infers
+$|g_{a\gamma\gamma}^{\rm tot}|^2$ from this equation. At fixed $\xi$ and sign,
+the relative coefficient of flavor-changing $B$- and charged-kaon production
+to primary- and cascade-photon production is
+
+$$
+\frac{g_W^2}{|g_{a\gamma\gamma}^{\rm tot}|^2}
+=\frac{(4\pi/\alpha_2)^2\xi^2}
+{16\left[s(1-\xi)+\sin^2\!\theta_W\,\xi\right]^2}.
+$$
+
+No spectrum generation is needed at launch. The code reconstructs the $B+K$
+component from the installed inclusive `ALP-SU2L` table and the installed
+primary/cascade photon tables. Thus $\xi=0$ reproduces their combined
+photophilic production, while $\xi=1$ reproduces the pure `ALP-SU2L` physics.
+The common tabulated mass range is $0.02$--$4$ GeV. The exact destructive
+diphoton-cancellation point is rejected because this diphoton-only model has no
+finite signal there.
 
 ## Installation
 
-The code has been tested on Linux only.
-
-Ensure you have the required packages installed. You can use the following command to install the dependencies:
+The code has been tested on Linux. Install the Python dependencies with
 
 ```bash
-pip3 install numpy sympy numba scipy plotly pandas matplotlib
+pip3 install numpy sympy numba scipy pandas matplotlib
 ```
 
-[pythia8](https://pythia.org/) is required only when the selected decay channels contain partons or unstable particles that need showering, hadronization, or decays. Stable final-state channels such as the ALP-photon modes can run without pythia8. If pythia8 is needed, install it with Python bindings by configuring it with
-
-`./configure --with-python-config=python3-config`
-
-and then `make`. As a result, the pythia's `lib` folder has to contain the `pythia8.so` file.
-
-Once this is done, the pythia's `lib` folder can be provided with the `PYTHIA8_LIB` environment variable. If this variable is not set, `funcs/decayProducts.py` falls back to
-
-`/home/name/Downloads/pythia8312/lib`
-
-## Usage
-
-Running the main file `simulate.py`
-
-`python3 simulate.py`
-
-will first display the SHiP setup and then ask users about the requested number of LLPs to be sampled in the polar range of the SHiP experiment. Then, users will be asked about:
-
-- Entering the number of decay events to simulate in the polar angle coverage of SHiP.
-- Selecting the LLP.
-- Setting up LLP-specific properties such as the HNL mixing pattern, dark-photon flux-uncertainty variation, or ALP-photon production source.
-- Selecting the LLP's decay modes for which the simulation will be launched (their names should be self-explanatory).
-- Range of LLP masses for which the simulation will be launched.
-- Range of LLP lifetimes.
-
-After that, the simulation will start. If the given combination of the mass and lifetime has too small production yield (< 1) or decay probability (<10^-21), its simulation terminates. In the other case, it produces two outputs in the folder `outputs/<LLP>` (see description below):
-- The information about the decay events of LLPs and decay products (the file `outputs/<LLP>/eventData/<LLP>_<mass>_<lifetime>_<other parameters>_data.dat`).
-- The information about total quantities from the simulation: mass, coupling, lifetime, number of events, etc. (the file `outputs/<LLP>/total/<LLP>_<other parameters>_total.txt`).
-
-Note that the resulting number of the decay events in the output file will be lower than the initial one (by a factor `~0.6-1`). This is the effect of the azimuthal acceptance of the SHiP decay volume.
-
-### Example
-
-The following setup of launching `simulate.py` will run the simulation of `200000` decay events with HNLs with the mixing pattern `(1,0,0)`, all possible decay modes, masses `0.5, 4.5` GeV, and lifetimes ctau `0.01, 10000` for each mass:
+Plotly is optional and is used only by the interactive Plotly event display:
 
 ```bash
-
-SHiP setup (modify ship_setup.py if needed):
-
-z_min = 32 m, z_max = 82 m, Delta_x_in = 1 m, Delta_x_out = 4 m, Delta_y_in = 2.7 m, Delta_y_out = 6.2 m, theta_max = 0.044960 rad
-
-Enter the number of events to simulate: 200000
-
-Particle Selector
-
-1. Scalar-mixing
-2. ALP-photon
-3. Scalar-quartic
-4. Dark-photons
-5. HNL
-Select particle: 5
-
-Enter xi_e, xi_mu, xi_tau: (Ue2, Umu2, Utau2) = U2(xi_e,xi_mu,xi_tau), summing to 1, separated by spaces: 1 0 0
-
-Select the decay modes:
-0. All
-1. 2ev
-2. 2muv
-3. 2Pie
-4. 2Piebar
-5. 2Pimu
-6. 2Pimubar
-7. 2Pitau
-8. 2Pitaubar
-9. 2Piv
-10. 2tauv
-11. a1v
-12. emuv
-13. emuvbar
-14. EtaPrv
-15. etauv
-16. etauvbar
-17. Etav
-18. Jets-ccv
-19. Jets-cse
-20. Jets-csebar
-21. Jets-csmu
-22. Jets-csmubar
-23. Jets-cstau
-24. Jets-cstaubar
-25. Jets-ddv
-26. Jets-ssv
-27. Jets-ude
-28. Jets-udebar
-29. Jets-udmu
-30. Jets-udmubar
-31. Jets-udtau
-32. Jets-udtaubar
-33. Jets-uuv
-34. Ke
-35. Kebar
-36. Kmu
-37. Kmubar
-38. Ktau
-39. Ktaubar
-40. mutauv
-41. Omegav
-42. Phiv
-43. Pi0v
-44. Pie
-45. Piebar
-46. Pimu
-47. Pimubar
-48. Pitau
-49. Pitaubar
-Enter the numbers of the decay channels to select (separated by spaces): 0
-
-Generating LLP phenomenology plots...
-Phenomenology plots generated.
-
-Enter LLP masses in GeV (separated by spaces): 0.5 4.5
-Enter lifetimes c*tau in m for all masses (separated by spaces): 0.01 10000
+pip3 install plotly
 ```
 
+[Pythia 8](https://pythia.org/) is needed for selected decay channels that
+contain partons or unstable particles. Diphoton decays of `ALP-photon`,
+`ALP-SU2L`, and `ALP-mixed` use the internal two-body generator and run
+without Pythia 8.
 
+To install the Python bindings for Pythia 8, configure and build it with
 
+```bash
+./configure --with-python-config=python3-config
+make
+```
 
-### Code structure
+Set `PYTHIA8_LIB` to the directory containing `pythia8.so`. The fallback path
+is `/home/name/Downloads/pythia8312/lib`.
 
-- `funcs/`:
-  - `initLLP.py`: Contains the `LLP` class, which initializes the LLP object with attributes like mass, PDGs (Particle Data Group identifiers), and branching ratios.
-  - `decayProducts.py`: Contains functions for simulating decays of various LLPs, as well as the routine to perform showering and hadronization of quark and gluon decays via interfacing with `pythia8`.
-  - `HNLmerging.py`: Contains functions for handling HNLs with arbitrary mixing pattern given the tabulated distributions, branching ratios, lifetimes, total yields, and decay matrix elements for pure mixings.
-  - `PDG.py`: Contains functions or data related to Particle Data Group identifiers.
-  - `rotateVectors.py`: Contains functions for rotating vectors.
-  - `FourBodyDecay.py`: Contains functions for simulating four-body decays.
-  - `ThreeBodyDecay.py`: Contains functions for simulating three-body decays.
-  - `TwoBodyDecay.py`: Contains functions for simulating two-body decays.
-  - `boost.py`: Contains functions for boosting decay products to the lab frame.
-  - `kinematics.py`: Contains functions for handling kinematic distributions and interpolations.
-  - `selecting_processing.py`: code to be used by the post-processing scripts.
-  - `ship_setup.py`: specifies the SHiP setup used in the simulation and when making plots.
+## Simulation interface
 
-- Main code `simulate.py`: the script to run the decay simulation.
+EventCalc supports a JSON launch card, explicit command-line arguments, and
+the original interactive prompts. The first two interfaces are silent: every
+physical and numerical choice is supplied before the calculation starts.
+Card and command launches call no input prompts and use Matplotlib's
+non-interactive `Agg` backend. They create phenomenology figures only when
+`plots` or `--plots` is enabled, and write those figures to disk.
 
-- Post-processing (launched as `python3 ...`):
-  - `events_analysis.py`: the script computing various distributions with the decaying LLP and its decay products: position of the decay vertices, energy distributions, multiplicity, etc. The output is saved in the folder `plots/<LLP>/<LLP>_<mass>_<lifetime>_<other parameters>_decay products`.
-  - `total-plots.py`: the script making plots of averaged quantities, such as the polar acceptance, total geometric acceptance, mean decay probability, and the dependence of the number of events on the LLP's coupling, mass, and lifetime. The output is saved in the folder `plots/<LLP>`.
-  - `event_display.py`: the script making .pdf and interactive .html plots showing the decay point of the LLP, the direction of its momentum, and the directions of its decay products. The output is the event display of 10 random events for the selected decay mode saved in the folder `plots/<LLP>/eventDisplay/<LLP>_<mass>_<lifetime>_<other parameters>`.
+### JSON launch card
 
-### Output files of the simulation
+The example below launches the $SU(2)_L$ ALP for two masses and two lifetimes.
+Each lifetime is evaluated at each mass.
 
-- The detailed event record file (located in `outputs/<LLP>/eventData/<LLP>_<mass>_<lifetime>_<other parameters>_data.dat`):
-  - The first string is `Sampled ## events inside SHiP volume. Squared coupling: ##. Total number of produced LLPs: ##. Polar acceptance: ##. Azimuthal acceptance: ##. Averaged decay probability: ##. Visible Br Ratio: ##. Total number of events: ##`. The meanings of the numbers are: the total sample size; the squared coupling used for the simulation; the total number of LLPs produced during 15 years of SHIP running; the amount of LLPs pointing to the polar range of the experiment; of those, the amount of LLPs that also pass the azimuthal acceptance cut; of those, the averaged probability to decay inside the SHiP volume; the visible branching ratio of selected decay channels; the total number of decay events inside the decay volume.
-  - After the first string, the data is split into blocks. Each is started with `#<process=##; sample_points=##>`. The meanings of `##` are: the name of the LLP decay process; the number of samples per this process. After this string, there is the tabulated data with the decay information. The meaning of the elements is as follows:
+```json
+{
+  "model": "ALP-SU2L",
+  "events": 200000,
+  "masses": [0.3, 1.0],
+  "c_taus": [0.01, 10000.0],
+  "decay_channels": ["2gamma"],
+  "seed": 12345,
+  "plots": false,
+  "export_events": true
+}
+```
 
-   `p_x,LLP p_y,LLP p_z,LLP E_LLP mass_LLP PDG_LLP P_decay,LLP x_decay,LLP y_decay,LLP z_decay,LLP p_x,prod1 p_y,prod1 p_z,prod1 E_prod1 mass_prod1 pdg_prod1 p_x,prod2 ...`
+Run it with
 
-  - where `...` means the data for the other decay products. The units are GeV (for mass, momentum, and energy) or meters (for coordinates). The center of the coordinate system corresponds to the center of the SHiP target. The first 10 numbers correspond to the decaying LLP info: its 4-momentum, mass, pdg identifier, decay probability in SHiP, decay coordinates. Each next 6 numbers correspond to the individual metastable decay product (electrons, muons, neutrinos and their antiparticles, photons, charged kaons, `K_L`, charged pions): 4-momentum, mass, and pdg identifier. Some of the rows end with the strings `0. 0. 0. 0. 0. -999.`, to account for varying number of decay products in the same decay channel and maintain the flat array if merging all the datasets. Each event has its own weight given by `P_decay,LLP`. The total number of events may be obtained by multiplying the total number of produced LLPs, polar acceptance, azimuthal acceptance, the sum of `P_decay,LLP` divided with the total number of stored events, and the visible branching ratio (all these numbers are actually provided in the first row).
+```bash
+python3 simulate.py --card cards/alp_su2l.json
+```
 
-- The file with the total information about the simulation (located in `outputs/<LLP>/total`): contains the self-explanatory header describing the meaning of columns. Results of various simulations corresponding to the same LLP setup (such as the choice of the phenomenology within the theoretical uncertainty, the HNL mixing pattern, or the ALP-photon production source) are added to the corresponding files.
+Check the card, resolve its decay channels, and print the normalized
+configuration with
 
-- Plots with the LLP mass dependence phenomenology used to produce the event rates:
-  - The overall LLP production probability per proton-on-target per coupling squared.
-  - The LLP lifetime.
-  - The branching ratios of the decay modes selected for the simulation.
+```bash
+python3 simulate.py --card cards/alp_su2l.json --validate-only
+```
 
-### More information
+This command exits before the numerical simulation is imported.
 
-For more information (description of the phenomenology of LLPs, details of sampling, how fluxes of mother mesons have been generated, etc.), read [`DETAILS.md`](https://github.com/maksymovchynnikov/EventCalc-SHiP/blob/main/DETAILS.md).
+The required fields are `model`, `events`, `masses`, and `c_taus`.
+`decay_channels` accepts names, one-based indices, or `"all"`. A flat
+`c_taus` list is used for every mass. A nested list gives a separate lifetime
+list for each mass.
 
+The optional common fields are:
+
+- `seed`, an integer between 0 and $2^{32}-1$;
+- `plots`, with default `false` in silent mode;
+- `export_events`, with default `true`;
+- `n_pot`, with default $6\times10^{20}$ protons on target;
+- `min_events_threshold`, with default $0.1$ expected decays.
+
+Three models require an additional field:
+
+- `HNL`: `mixing_pattern`, containing $\xi_e$, $\xi_\mu$, and $\xi_\tau$;
+- `Dark-photons`: `uncertainty`, chosen from `lower`, `central`, and `upper`;
+- `ALP-photon`: `alp_production_mode`, chosen from `primary` and `cascades`.
+
+`ALP-mixed` requires `xi`, between 0 and 1, and `interference`, chosen from
+`constructive` and `destructive`. For example:
+
+```json
+{
+  "model": "ALP-mixed",
+  "xi": 0.35,
+  "interference": "constructive",
+  "events": 200000,
+  "masses": [0.3, 0.5, 1.0],
+  "c_taus": [0.01, 100.0, 10000.0],
+  "decay_channels": ["2gamma"],
+  "seed": 12345
+}
+```
+
+Run the supplied example with
+
+```bash
+python3 simulate.py --card cards/alp_mixed.json
+```
+
+`ALP-SU2L` already contains its $B$, charged-kaon, primary-photon, and
+cascade-photon contributions. Its card therefore has no production-source,
+uncertainty, or mixing field.
+
+### Explicit command
+
+The same $SU(2)_L$ ALP calculation can be launched with
+
+```bash
+python3 simulate.py \
+  --model ALP-SU2L \
+  --events 200000 \
+  --masses 0.3 1.0 \
+  --c-taus 0.01 10000 \
+  --decay-channels 2gamma \
+  --seed 12345
+```
+
+Command-line arguments override fields from a card. `python3 simulate.py
+--help` lists all options.
+
+The mixed example can equivalently be launched with `--model ALP-mixed`,
+`--xi 0.35`, and `--interference constructive`, together with the common
+arguments above.
+
+### Interactive prompts
+
+Running
+
+```bash
+python3 simulate.py
+```
+
+starts the interactive interface. The model menu has a fixed order and uses
+the names listed above. It asks for the event sample size, model-specific
+parameters, decay channels, masses, and proper decay lengths. It generates the
+production-probability, lifetime, and branching-fraction figures.
+
+## Event yields and output
+
+For each mass and lifetime, EventCalc samples `events * 10` interpolation
+candidates and resamples `events` momenta within the polar range. The
+azimuthal selection reduces the number of stored decays, typically by a factor
+of order $0.6$--$1$ for the current geometry.
+
+If the production probability per proton on target is below $10^{-21}$, the
+mass--lifetime point is skipped. If the expected number of decays is below
+`min_events_threshold`, EventCalc stores its total quantities and skips the
+generation of decay products.
+
+Results are written under `outputs/<model>/`:
+
+- `eventData/` contains the generated event records when event export is
+  enabled;
+- `total/` contains mass, coupling, lifetime, production yield, polar and
+  azimuthal acceptance, mean decay probability, visible branching ratio, and
+  expected number of decays.
+
+For `ALP-mixed`, the `coupling_squared` column is specifically
+$|g_{a\gamma\gamma}^{\rm tot}|^2$ in $\mathrm{GeV}^{-2}$. Mixed output names
+also contain $\xi$ and the interference sign, so different operator choices
+cannot overwrite one another.
+
+Each event record starts with the long-lived particle four-momentum, mass,
+identifier, decay probability, and decay coordinates. Every final-state
+particle contributes its four-momentum, mass, and identifier. Momenta,
+energies, and masses are in GeV; positions are in metres. The event weight is
+the decay probability stored with the parent particle.
+
+Enable `plots` in a card or pass `--plots` to write the mass dependence of the
+production probability, proper decay length, and selected branching ratios
+under `plots/<model>/phenomenology`.
+
+### Optional truth-level detector acceptance
+
+The main simulation reports decays whose parent LLP trajectory lies inside the
+fiducial decay volume. With event export enabled, `events_analysis.py` can
+add a model-independent, truth-level requirement on the visible decay
+products. By default it projects straight downstream trajectories onto a
+$4\,\mathrm{m}\times6\,\mathrm{m}$ plane at $z=95\,\mathrm{m}$.
+
+Run the analysis and select an existing event file interactively:
+
+```bash
+python3 events_analysis.py --signature two-photon
+```
+
+The available signatures are:
+
+- `two-photon`: exactly two visible particles, both photons, must intersect the
+  plane;
+- `neutral-pair`: at least one subset of two or more particles that intersects
+  the plane must have zero total electric charge;
+- `all-visible`: every visible particle must intersect the plane. Neutrinos are
+  ignored.
+
+The default is `all-visible`. Change the plane with `--detector-z`,
+`--detector-width`, and `--detector-height`. An optional common energy threshold
+is set with `--min-energy E_MIN`, in GeV. Every counted particle must satisfy
+$E\geq\max(m,E_{\min})$; without this option the default is the kinematic
+condition $E\geq m$.
+
+The script writes `detector_acceptance.txt` and
+`channels_detector_acceptance.pdf` in the selected analysis directory. The
+reported fractions are weighted by the parent decay probability. Multiplying
+the generator's `Total number of events` by the overall fraction gives the
+truth-level accepted yield. No detector efficiency, energy or position
+smearing, reconstruction, or particle-identification inefficiency is applied.
+
+## Checks against other calculations
+
+EventCalc-SHiP has been compared with
+[`SensCalc`](https://github.com/maksymovchynnikov/SensCalc), which was also
+tested against earlier FairShip calculations and other tools. The event yield,
+geometric acceptance, mean decay probability, and kinematic distributions
+agree at the 10% level or better; see the
+[comparison slides](https://indico.cern.ch/event/1481729/contributions/6256116/).
+
+## Source layout
+
+- `simulate.py` contains the launcher and simulation loop.
+- `funcs/simulation_config.py` validates cards and command-line arguments.
+- `funcs/initLLP.py` interpolates production, lifetime, and decay inputs.
+- `funcs/ALPmerging.py` assembles a requested photon--$SU(2)_L$ mixture from
+  the installed pure-source tables.
+- `funcs/kinematics.py` samples parent momenta and decay positions.
+- `funcs/TwoBodyDecay.py`, `ThreeBodyDecay.py`, and `FourBodyDecay.py`
+  generate rest-frame decays.
+- `funcs/decayProducts.py` decides whether Pythia 8 is required.
+- `funcs/boost.py` transforms decay products to the laboratory frame.
+- `funcs/mergeResults.py` writes event records and total yields.
+- `funcs/ship_setup.py` defines the SHiP geometry.
+- `events_analysis.py`, `total-plots.py`, and `event_display.py` provide
+  additional analysis and visualization of completed simulations.
+
+Further details of the implemented production and decay models are in
+[`DETAILS.md`](DETAILS.md).
 
 ## Credits
 
-This is the finalization of [Josue Jaramillo's CERN student project](https://github.com/josuejaramillo/summer_school_2024_SHiP).
+This repository completes Josue Jaramillo's CERN student project.

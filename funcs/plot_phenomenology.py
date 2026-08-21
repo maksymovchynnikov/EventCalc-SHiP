@@ -40,6 +40,11 @@ def plot_production_probability(masses_plot, Yield_plot, LLP, plot_folder):
         ax.text(0.05, 0.95, production_text, transform=ax.transAxes,
                 fontsize=10, verticalalignment='top',
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.5))
+    elif LLP.LLP_name == "ALP-mixed":
+        mixture_text = f"xi={LLP.xi:g}, {LLP.interference}"
+        ax.text(0.05, 0.95, mixture_text, transform=ax.transAxes,
+                fontsize=10, verticalalignment='top',
+                bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.5))
     
     ax.grid(True, which="both", linestyle='--', linewidth=0.5)
     fig.tight_layout()
@@ -80,6 +85,11 @@ def plot_lifetime(masses_plot, ctau_int_plot, LLP, plot_folder):
     elif LLP.LLP_name == "ALP-photon":
         production_text = f"Production mode: {LLP.alp_production_mode}"
         ax.text(0.05, 0.95, production_text, transform=ax.transAxes,
+                fontsize=10, verticalalignment='top',
+                bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.5))
+    elif LLP.LLP_name == "ALP-mixed":
+        mixture_text = f"xi={LLP.xi:g}, {LLP.interference}"
+        ax.text(0.05, 0.95, mixture_text, transform=ax.transAxes,
                 fontsize=10, verticalalignment='top',
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.5))
     
@@ -176,6 +186,11 @@ def plot_branching_ratios(masses_plot, Br_plot, chosen_channels, selected_decay_
     elif LLP.LLP_name == "ALP-photon":
         production_text = f"Production mode: {LLP.alp_production_mode}"
         ax.text(0.05, 0.95, production_text, transform=ax.transAxes,
+                fontsize=10, verticalalignment='top',
+                bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.5))
+    elif LLP.LLP_name == "ALP-mixed":
+        mixture_text = f"xi={LLP.xi:g}, {LLP.interference}"
+        ax.text(0.05, 0.95, mixture_text, transform=ax.transAxes,
                 fontsize=10, verticalalignment='top',
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.5))
     

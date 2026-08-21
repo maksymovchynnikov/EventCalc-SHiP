@@ -63,6 +63,24 @@ def parse_filenames(directory):
                     if mass_lifetime not in llp_dict[llp_name]:
                         llp_dict[llp_name][mass_lifetime] = {}
                     llp_dict[llp_name][mass_lifetime][alp_production_mode] = filepath
+                elif llp_name == "ALP-mixed":
+                    # ALP-mixed_mass_c_tau_xi0p35_constructive_data.dat
+                    if len(tokens) < 5 or not tokens[3].startswith("xi"):
+                        print(f"Filename {filename} has an invalid ALP-mixed label. Skipping.")
+                        continue
+                    try:
+                        mass = float(tokens[1])
+                        lifetime = float(tokens[2])
+                        xi = float(tokens[3][2:].replace("m", "-").replace("p", "."))
+                        interference = tokens[4]
+                        if interference not in {"constructive", "destructive"}:
+                            raise ValueError("invalid interference label")
+                    except ValueError:
+                        print(f"Invalid ALP-mixed parameters in filename {filename}. Skipping.")
+                        continue
+                    llp_dict.setdefault(llp_name, {}).setdefault((mass, lifetime), {})[
+                        (xi, interference)
+                    ] = filepath
                 elif llp_name == "Dark-photons":
                     # Expected pattern: Dark-photons_mass_c_tau_uncertainty_data.dat
                     if len(tokens) < 4:
@@ -195,6 +213,22 @@ def user_selection(llp_dict):
             selected_mixing_patterns = selected_alp_production_mode
         else:
             selected_mixing_patterns = None
+    elif selected_llp == "ALP-mixed":
+        print(
+            f"Available operator mixtures for {selected_llp} with mass "
+            f"{selected_mass:.2e} GeV and lifetime {selected_lifetime:.2e} m:"
+        )
+        for i, mixture in enumerate(options_list):
+            print(f"{i+1}. xi={mixture[0]:g}, {mixture[1]}")
+        while True:
+            try:
+                mixture_choice = int(input("Choose an operator mixture: "))
+                if 1 <= mixture_choice <= len(options_list):
+                    break
+                print(f"Please enter a number between 1 and {len(options_list)}.")
+            except ValueError:
+                print("Invalid input. Please enter a valid number.")
+        selected_mixing_patterns = options_list[mixture_choice - 1]
     elif selected_llp == "Dark-photons":
         if any(options_list):
             print(f"Available uncertainty choices for {selected_llp} with mass {selected_mass:.2e} GeV and lifetime {selected_lifetime:.2e} s:")

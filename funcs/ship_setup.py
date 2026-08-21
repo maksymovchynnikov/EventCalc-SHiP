@@ -3,7 +3,10 @@
 import numpy as np
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import matplotlib.pyplot as plt
-import plotly.graph_objects as go
+try:
+    import plotly.graph_objects as go
+except ImportError:  # Plotly is optional for numerical EventCalc workflows.
+    go = None
 
 # Define constants
 z_min = 32      # Minimum z-coordinate in meters
@@ -143,6 +146,9 @@ def plot_decay_volume_plotly(fig):
     plotly.graph_objects.Figure
         The updated Plotly figure with the decay volume added.
     """
+    if go is None:
+        raise ImportError("plotly is required only for plot_decay_volume_plotly")
+
     # Calculate x and y boundaries at z_min and z_max using the defined functions
     # At z_min
     x_min_zmin = -x_max(z_min)

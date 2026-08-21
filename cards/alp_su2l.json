@@ -1,0 +1,10 @@
+{
+  "model": "ALP-SU2L",
+  "events": 200000,
+  "masses": [0.3, 1.0],
+  "c_taus": [0.01, 10000.0],
+  "decay_channels": ["2gamma"],
+  "seed": 12345,
+  "plots": false,
+  "export_events": true
+}

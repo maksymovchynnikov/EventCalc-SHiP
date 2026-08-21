@@ -3,7 +3,7 @@ import os
 import re  # Added for regex operations
 import numpy as np
 import pandas as pd
-from funcs import HNLmerging
+from funcs import ALPmerging, HNLmerging
 from scipy.interpolate import RegularGridInterpolator, PchipInterpolator
 import sympy as sp
 
@@ -39,7 +39,16 @@ class LLP:
       from DistrHNL_e (distribution), HNL_yield_e (yield), DW_e (decay width)
     """
 
-    def __init__(self, mass, particle_selection, mixing_pattern=None, uncertainty=None, alp_production_mode=None):
+    def __init__(
+        self,
+        mass,
+        particle_selection,
+        mixing_pattern=None,
+        uncertainty=None,
+        alp_production_mode=None,
+        xi=None,
+        interference=None,
+    ):
         self.main_folder = "./Distributions"
         self.LLP_name = particle_selection['LLP_name']
         self.mass = mass
@@ -47,6 +56,8 @@ class LLP:
         self.MixingPatternArray = mixing_pattern if mixing_pattern is not None else None
         self.uncertainty = uncertainty if self.LLP_name == "Dark-photons" else None
         self.alp_production_mode = alp_production_mode if self.LLP_name == "ALP-photon" else None
+        self.xi = float(xi) if self.LLP_name == "ALP-mixed" and xi is not None else None
+        self.interference = interference if self.LLP_name == "ALP-mixed" else None
         self.Matrix_elements = None
         self.Matrix_elements_expr = []  # To store symbolic expressions
 
@@ -81,6 +92,8 @@ class LLP:
             self.compute_mass_dependent_properties_dark_photons()
         elif self.LLP_name == "ALP-SU2L":
             self.compute_mass_dependent_properties_ALP_SU2L()
+        elif self.LLP_name == "ALP-mixed":
+            self.compute_mass_dependent_properties_ALP_mixed()
         else:
             raise ValueError("Unknown LLP name.")
 
@@ -111,6 +124,11 @@ class LLP:
         self.c_tau_int = self.get_ctau(self.mass)
         self.Yield = self.get_total_yield(self.mass)
 
+    def compute_mass_dependent_properties_ALP_mixed(self):
+        self.BrRatios_distr = self.get_Br(self.mass)
+        self.c_tau_int = self.get_ctau(self.mass)
+        self.Yield = self.get_total_yield(self.mass)
+
     def import_particle(self):
         if "Scalar" in self.LLP_name:
             self.import_scalars()
@@ -128,6 +146,10 @@ class LLP:
             self.import_dark_photons()
         elif self.LLP_name == "ALP-SU2L":
             self.import_ALP_SU2L()
+        elif self.LLP_name == "ALP-mixed":
+            if self.xi is None or self.interference is None:
+                raise ValueError("ALP-mixed requires xi and an interference sign.")
+            self.import_ALP_mixed()
         else:
             raise ValueError("Unknown LLP name.")
 
@@ -408,6 +430,46 @@ class LLP:
 
         # Print the matrix elements table
         #self.print_matrix_elements()
+
+    def import_ALP_mixed(self):
+        distributions_root = os.path.dirname(self.particle_path)
+        tables = ALPmerging.build_mixed_tables(
+            distributions_root,
+            self.xi,
+            self.interference,
+        )
+        self.Distr = tables.distribution
+        self.Energy_distr = tables.emax
+        self.Yield_data = tables.yield_table
+        self.ctau_data = tables.ctau_table
+        self.flavor_to_photon_ratio = tables.source_ratio
+
+        decay_json_path = os.path.join(self.particle_path, "ALP-mixed-decay.json")
+        decay_data = pd.read_json(decay_json_path, dtype=False)
+        self.decayChannels = decay_data.iloc[:, 0].to_numpy()
+        self.PDGs = decay_data.iloc[:, 1].apply(np.array).to_numpy()
+        self.BrRatios = decay_data.iloc[:, 2].to_numpy()
+        self.Matrix_elements_raw = decay_data.iloc[:, -1].to_numpy()
+        self.Matrix_elements = self.compile_matrix_elements(self.Matrix_elements_raw)
+
+        mass_yield = self.Yield_data.iloc[:, 0].to_numpy()
+        yield_values = self.Yield_data.iloc[:, 1].to_numpy()
+        common_support = (
+            (mass_yield >= tables.mass_min)
+            & (mass_yield <= tables.mass_max)
+            & (yield_values > 0.0)
+        )
+        self.yield_interpolator = make_log_pchip_interpolator(
+            mass_yield[common_support], yield_values[common_support]
+        )
+
+        self.get_ctau = ALPmerging.diphoton_ctau_coefficient
+        self.get_total_yield = self.yield_interpolator
+        self.get_Br = self.setup_br_interpolators(self.BrRatios)
+        self.get_distribution = lambda m: self.Distr
+        self.get_MatrixElements = lambda m: self.Matrix_elements
+        self.m_min_tabulated = tables.mass_min
+        self.m_max_tabulated = tables.mass_max
 
     def setup_br_interpolators(self, BrRatios_raw):
         self.Br_interpolators = []
