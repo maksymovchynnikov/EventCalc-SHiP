@@ -49,6 +49,10 @@ class Grids:
     theta_max_sim : float, optional
         *Upper* θ limit (rad) for random generation.  Defaults to
         `theta_max_dec_vol`, but callers may pass `np.pi/2` etc.
+    survival_energy_floor : float, optional
+        Coefficient of ``mass / c_tau`` in the sampling-energy cutoff.  Its
+        default reproduces the SHiP value; runtime experiment cards may set it
+        from their own upstream distance and exponential cutoff.
     """
 
     # ------------------------------------------------------------------
@@ -60,12 +64,14 @@ class Grids:
         mass,
         c_tau,
         theta_max_sim=theta_max_dec_vol,
+        survival_energy_floor=2.133,
     ):
         self.Distr = Distr
         self.Energy_distr = Energy_distr
         self.nPoints = nPoints
         self.m = mass
         self.c_tau = c_tau
+        self.survival_energy_floor = survival_energy_floor
 
         # ----- θ range -------------------------------------------------
         self.thetamin = self.Distr[1].min()
@@ -114,7 +120,10 @@ class Grids:
         # the table makes the interpolator extrapolate to negative values.
         self.e_min_sampling = np.maximum(
             max(self.m, self.energy_min_tab),
-            np.minimum(2.133 * self.m / self.c_tau, 0.5 * self.max_energy),
+            np.minimum(
+                self.survival_energy_floor * self.m / self.c_tau,
+                0.5 * self.max_energy,
+            ),
         )
         # keep the sampling interval non-inverted where E_max is below that floor
         self.e_min_sampling = np.minimum(self.e_min_sampling, self.max_energy)
@@ -276,4 +285,3 @@ class Grids:
 
     def get_momentum(self):
         return self.momentum
-

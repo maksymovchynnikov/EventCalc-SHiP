@@ -1,0 +1,10 @@
+{
+  "name": "SHiP",
+  "z_min_m": 32.0,
+  "z_max_m": 82.0,
+  "x_width_in_m": 1.0,
+  "x_width_out_m": 4.0,
+  "y_width_in_m": 2.7,
+  "y_width_out_m": 6.2,
+  "survival_cutoff": 15.0
+}

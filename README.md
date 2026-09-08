@@ -179,6 +179,12 @@ Plotly is optional and is used only by the interactive Plotly event display:
 pip3 install plotly
 ```
 
+HepMC3 export from the runtime generator is optional:
+
+```bash
+pip3 install pyhepmc
+```
+
 [Pythia 8](https://pythia.org/) is needed for selected decay channels that
 contain partons or unstable particles. Diphoton decays of `ALP-photon`,
 `ALP-SU2L`, and `ALP-mixed` use the internal two-body generator and run
@@ -315,6 +321,85 @@ the names listed above. It asks for the event sample size, model-specific
 parameters, decay channels, masses, and proper decay lengths. It generates the
 production-probability, lifetime, and branching-fraction figures.
 
+### Python runtime generator
+
+`runtime_generator.py` is an event-by-event Python interface over the installed
+EventCalc production and decay tables. It initializes the chosen model once,
+constructs a two-dimensional inverse CDF for the tabulated
+$(\theta,E)$ density, and then provides `next()`, `next_event()`, `generate()`,
+`yields()`, and `stat()`. It works for every card-supported model, including
+`ALP-mixed`.
+
+The runtime generator does not create `10 * events` proposal points. It samples
+the precomputed CDF directly. The energy coordinate is mapped to a unit
+interval between the lifetime-dependent lower bound and $E_{\max}(\theta)$;
+within each CDF cell, the piecewise-bilinear density is inverted analytically.
+The original `simulate.py` workflow retains its proposal-and-resampling
+algorithm.
+
+The supplied experiment card describes the fiducial volume independently of
+the model card. The default values are those in `cards/ship.json`:
+
+```bash
+python3 runtime_generator.py \
+  --card cards/alp_su2l.json \
+  --experiment-card cards/ship.json \
+  --mass 0.3 \
+  --ctau 100 \
+  --events 1000000 \
+  --batch-size 10000 \
+  --mode fiducial \
+  --output-format npz \
+  --output-dir outputs/runtime-alp-su2l-ma0p3-ctau100
+```
+
+In `fiducial` mode, `events` is the requested number of returned decays inside
+the fiducial volume. In `attempted` mode, every sampled parent is returned;
+`inside_volume` identifies the trajectories inside the volume, and
+`decay_weights` is zero outside it. Each command-line batch is a compressed
+NumPy archive containing these arrays together with the standard EventCalc
+event rows and decay-channel labels. `metadata.json` records the resolved
+configuration and running yield estimate.
+
+Set `--output-format hepmc3` to write one HepMC3 ASCII event stream, or
+`--output-format both` to retain the NumPy batches as well. HepMC events use
+GeV and mm, contain the displaced LLP decay vertex, incoming LLP and final
+state particles, and carry `decay_weight` as the named event weight.
+
+The API performs no per-event file I/O:
+
+```python
+from pathlib import Path
+from runtime_generator import generator_from_card
+
+generator = generator_from_card(
+    Path("cards/alp_su2l.json"),
+    experiment_card=Path("cards/ship.json"),
+    mass=0.3,
+    c_tau=100.0,
+    mode="fiducial",
+    seed=12345,
+)
+generator.init()
+for _ in range(1_000_000):
+    generator.next()
+    analyze(generator.current_event)
+
+summary = generator.yields()
+```
+
+`yields()` combines the production normalization and visible branching ratio
+with the CDF integral and running Monte Carlo estimates of transverse
+acceptance and decay probability. It reports statistical errors for the
+sampled factors and expected event yield.
+
+The current scope is a Python runtime interface over EventCalc.
+Parent kinematics and decay vertices use separate Philox streams and are
+bitwise invariant under a change in batch partition. Decay generation is
+seeded per batch, and Pythia-based channels retain Pythia's own random-number
+behavior. Event-index random access, binary physics cards, and a native
+FairShip adapter remain future extensions.
+
 ## Event yields and output
 
 For each mass and lifetime, EventCalc samples `events * 10` interpolation
@@ -398,6 +483,10 @@ agree at the 10% level or better; see the
 ## Source layout
 
 - `simulate.py` contains the launcher and simulation loop.
+- `runtime_generator.py` provides the initialized event-by-event and batched
+  Python runtime interface, attempted/fiducial modes, and running yields.
+- `hepmc_export.py` provides the optional streaming HepMC3 writer.
+- `cards/ship.json` contains the default runtime fiducial geometry.
 - `funcs/simulation_config.py` validates cards and command-line arguments.
 - `funcs/initLLP.py` interpolates production, lifetime, and decay inputs.
 - `funcs/ALPmerging.py` assembles a requested photon--$SU(2)_L$ mixture from
