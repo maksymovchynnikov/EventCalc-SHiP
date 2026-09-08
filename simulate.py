@@ -20,12 +20,10 @@ from funcs.simulation_config import (
 
 
 def _load_runtime(*, headless: bool) -> SimpleNamespace:
-    # Force a non-GUI backend before ship_setup imports matplotlib.pyplot.
+    # Preserve a headless plotting default without importing Matplotlib during
+    # numerical runtime initialization.
     if headless:
         os.environ["MPLBACKEND"] = "Agg"
-        import matplotlib
-
-        matplotlib.use("Agg", force=True)
 
     import numpy as np
 

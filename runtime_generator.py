@@ -10,8 +10,9 @@ running yield estimates.
 from __future__ import annotations
 
 import argparse
+import copy
 from contextlib import contextmanager, nullcontext, redirect_stdout
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 import io
 import json
 import math
@@ -450,6 +451,132 @@ class _ProductionInverseCDF:
         return theta, energy
 
 
+class RuntimeModelScan:
+    """Shared model state for many mass--lifetime runtime generators.
+
+    Loading and merging the model tables and filling EventCalc's dense
+    interpolation grids are scan-level work.  The lifetime-dependent CDF is
+    cached separately for every requested point.
+    """
+
+    def __init__(
+        self,
+        config: SimulationConfig,
+        *,
+        experiment: ExperimentCard | None = None,
+        verbose: bool = False,
+    ) -> None:
+        self.config = config
+        self.experiment = experiment or ExperimentCard.ship()
+        self.verbose = bool(verbose)
+        self.runtime: Any = None
+        self._llp_template: Any = None
+        self._mass_templates: dict[float, Any] = {}
+        self._grid_templates: dict[tuple[int, int], Any] = {}
+        self._cdf_cache: dict[tuple[float, float, int, int], _ProductionInverseCDF] = {}
+        self._initialized = False
+
+    def init(self) -> bool:
+        if self._initialized:
+            return True
+        self.runtime = _load_runtime(headless=True)
+        self._llp_template = _make_llp(self.runtime, self.config)
+        self._initialized = True
+        return True
+
+    def _mass_template(self, mass: float) -> Any:
+        self.init()
+        mass = float(mass)
+        cached = self._mass_templates.get(mass)
+        if cached is not None:
+            return cached
+        if not _mass_is_tabulated(mass, self._llp_template):
+            raise ValueError(
+                f"mass {mass:g} GeV lies outside the installed range "
+                f"[{self._llp_template.m_min_tabulated:g}, "
+                f"{self._llp_template.m_max_tabulated:g}] GeV"
+            )
+        llp = copy.copy(self._llp_template)
+        llp.set_mass(mass)
+        llp.compute_mass_dependent_properties()
+        self._mass_templates[mass] = llp
+        return llp
+
+    def _compiled_point(
+        self, mass: float, c_tau: float
+    ) -> tuple[Any, Any, _ProductionInverseCDF]:
+        mass_template = self._mass_template(mass)
+        llp = copy.copy(mass_template)
+        llp.set_c_tau(float(c_tau))
+
+        grid_key = (id(llp.Distr), id(llp.Energy_distr))
+        grid_template = self._grid_templates.get(grid_key)
+        if grid_template is None:
+            grid_template = self.runtime.kinematics.Grids(
+                llp.Distr,
+                llp.Energy_distr,
+                1,
+                llp.mass,
+                llp.c_tau_input,
+                theta_max_sim=self.experiment.theta_max_rad,
+                survival_energy_floor=(
+                    self.experiment.z_min_m / self.experiment.survival_cutoff
+                ),
+            )
+            self._grid_templates[grid_key] = grid_template
+
+        grid = copy.copy(grid_template)
+        grid.m = float(mass)
+        grid.c_tau = float(c_tau)
+        grid.theta_max = min(
+            float(grid.Distr[1].max()), self.experiment.theta_max_rad
+        )
+        grid.survival_energy_floor = (
+            self.experiment.z_min_m / self.experiment.survival_cutoff
+        )
+
+        cdf_key = (float(mass), float(c_tau), *grid_key)
+        cdf = self._cdf_cache.get(cdf_key)
+        if cdf is None:
+            cdf = _ProductionInverseCDF(grid)
+            self._cdf_cache[cdf_key] = cdf
+        return llp, grid, cdf
+
+    def compile_points(self, points: Sequence[tuple[float, float]]) -> None:
+        """Compile and cache all ``(mass, c_tau)`` points in a scan."""
+        for mass, c_tau in points:
+            self._compiled_point(mass, c_tau)
+
+    def generator(
+        self,
+        *,
+        mass: float,
+        c_tau: float,
+        mode: RuntimeMode = "fiducial",
+        seed: int | None = None,
+        prefetch: int = 256,
+        verbose: bool | None = None,
+    ) -> "RuntimeEventGenerator":
+        config = self.config if seed is None else replace(self.config, seed=seed)
+        return RuntimeEventGenerator(
+            config,
+            mass=mass,
+            c_tau=c_tau,
+            experiment=self.experiment,
+            mode=mode,
+            prefetch=prefetch,
+            verbose=self.verbose if verbose is None else verbose,
+            scan=self,
+        )
+
+    def cache_info(self) -> dict[str, int]:
+        return {
+            "masses": len(self._mass_templates),
+            "dense_grids": len(self._grid_templates),
+            "lifetime_cdfs": len(self._cdf_cache),
+        }
+
+
 class RuntimeEventGenerator:
     """Amortized Python runtime interface backed by EventCalc tables."""
 
@@ -463,6 +590,7 @@ class RuntimeEventGenerator:
         mode: RuntimeMode = "fiducial",
         prefetch: int = 256,
         verbose: bool = False,
+        scan: RuntimeModelScan | None = None,
     ) -> None:
         if mass <= 0.0 or c_tau <= 0.0:
             raise ValueError("mass and c_tau must be positive")
@@ -478,6 +606,7 @@ class RuntimeEventGenerator:
         self.mode: RuntimeMode = mode
         self.prefetch = int(prefetch)
         self.verbose = bool(verbose)
+        self._scan = scan
         self.resolved_seed = int(
             config.seed
             if config.seed is not None
@@ -515,17 +644,25 @@ class RuntimeEventGenerator:
         if self._initialized:
             return True
 
-        self.runtime = _load_runtime(headless=True)
-        self.llp = _make_llp(self.runtime, self.config)
-        if not _mass_is_tabulated(self.mass, self.llp):
-            raise ValueError(
-                f"mass {self.mass:g} GeV lies outside the installed range "
-                f"[{self.llp.m_min_tabulated:g}, {self.llp.m_max_tabulated:g}] GeV"
+        if self._scan is not None:
+            self._scan.init()
+            self.runtime = self._scan.runtime
+            self.llp, self._grid, self._production_cdf = (
+                self._scan._compiled_point(self.mass, self.c_tau)
             )
+        else:
+            self.runtime = _load_runtime(headless=True)
+            self.llp = _make_llp(self.runtime, self.config)
+            if not _mass_is_tabulated(self.mass, self.llp):
+                raise ValueError(
+                    f"mass {self.mass:g} GeV lies outside the installed range "
+                    f"[{self.llp.m_min_tabulated:g}, "
+                    f"{self.llp.m_max_tabulated:g}] GeV"
+                )
 
-        self.llp.set_mass(self.mass)
-        self.llp.compute_mass_dependent_properties()
-        self.llp.set_c_tau(self.c_tau)
+            self.llp.set_mass(self.mass)
+            self.llp.compute_mass_dependent_properties()
+            self.llp.set_c_tau(self.c_tau)
         self.selected_decay_indices = self.config.selected_decay_indices(
             tuple(str(item) for item in self.llp.decayChannels)
         )
@@ -546,18 +683,19 @@ class RuntimeEventGenerator:
         self._produced_llps = float(
             self.config.n_pot * self.llp.Yield * self._coupling_squared
         )
-        self._grid = self.runtime.kinematics.Grids(
-            self.llp.Distr,
-            self.llp.Energy_distr,
-            1,
-            self.llp.mass,
-            self.llp.c_tau_input,
-            theta_max_sim=self.experiment.theta_max_rad,
-            survival_energy_floor=(
-                self.experiment.z_min_m / self.experiment.survival_cutoff
-            ),
-        )
-        self._production_cdf = _ProductionInverseCDF(self._grid)
+        if self._production_cdf is None:
+            self._grid = self.runtime.kinematics.Grids(
+                self.llp.Distr,
+                self.llp.Energy_distr,
+                1,
+                self.llp.mass,
+                self.llp.c_tau_input,
+                theta_max_sim=self.experiment.theta_max_rad,
+                survival_energy_floor=(
+                    self.experiment.z_min_m / self.experiment.survival_cutoff
+                ),
+            )
+            self._production_cdf = _ProductionInverseCDF(self._grid)
         parent_seed, vertex_seed = np.random.SeedSequence(
             self.resolved_seed
         ).spawn(2)
@@ -868,6 +1006,35 @@ def generator_from_card(
         mode=mode,
         prefetch=prefetch,
         verbose=verbose,
+    )
+
+
+def scan_from_card(
+    card: Path,
+    *,
+    experiment_card: Path | None = None,
+    seed: int | None = None,
+    verbose: bool = False,
+) -> RuntimeModelScan:
+    """Load one model context that can serve every point in a scan."""
+    resolved = dict(load_card(card))
+    resolved.update(
+        {
+            "plots": False,
+            "export_events": False,
+            "min_events_threshold": 0.0,
+        }
+    )
+    if seed is not None:
+        resolved["seed"] = seed
+    config = config_from_mapping(resolved, project_root=PROJECT_ROOT)
+    experiment = (
+        ExperimentCard.load(experiment_card)
+        if experiment_card is not None
+        else ExperimentCard.ship()
+    )
+    return RuntimeModelScan(
+        config, experiment=experiment, verbose=verbose
     )
 
 

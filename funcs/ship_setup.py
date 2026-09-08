@@ -1,12 +1,6 @@
 # funcs/ship_setup.py
 
 import numpy as np
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-import matplotlib.pyplot as plt
-try:
-    import plotly.graph_objects as go
-except ImportError:  # Plotly is optional for numerical EventCalc workflows.
-    go = None
 
 # Define constants
 z_min = 32      # Minimum z-coordinate in meters
@@ -70,6 +64,8 @@ def plot_decay_volume(ax):
     ax : mpl_toolkits.mplot3d.axes3d.Axes3D
         The 3D axes object to plot on.
     """
+    from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
     # Calculate x and y boundaries at z_min and z_max using the defined functions
     # At z_min
     x_min_zmin = -x_max(z_min)
@@ -146,8 +142,12 @@ def plot_decay_volume_plotly(fig):
     plotly.graph_objects.Figure
         The updated Plotly figure with the decay volume added.
     """
-    if go is None:
-        raise ImportError("plotly is required only for plot_decay_volume_plotly")
+    try:
+        import plotly.graph_objects as go
+    except ImportError as exc:
+        raise ImportError(
+            "plotly is required only for plot_decay_volume_plotly"
+        ) from exc
 
     # Calculate x and y boundaries at z_min and z_max using the defined functions
     # At z_min
@@ -222,6 +222,8 @@ def visualize_decay_volume():
     """
     Utility function to visualize the decay volume using Matplotlib's 3D plotting.
     """
+    import matplotlib.pyplot as plt
+
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111, projection='3d')
     plot_decay_volume(ax)

@@ -388,6 +388,33 @@ for _ in range(1_000_000):
 summary = generator.yields()
 ```
 
+For several masses or lifetimes, load one scan context and compile the desired
+points before generating events:
+
+```python
+from pathlib import Path
+from runtime_generator import scan_from_card
+
+points = [(0.3, 0.01), (0.3, 100.0), (0.5, 100.0)]
+scan = scan_from_card(
+    Path("cards/alp_su2l.json"),
+    experiment_card=Path("cards/ship.json"),
+    seed=12345,
+)
+scan.compile_points(points)
+
+for mass, c_tau in points:
+    generator = scan.generator(
+        mass=mass, c_tau=c_tau, mode="fiducial"
+    )
+    for batch in generator.generate(1_000_000):
+        analyze(batch)
+```
+
+The model tables and dense interpolation grid are constructed once per scan.
+Each lifetime retains its own cached CDF because the survival-energy cutoff
+depends on lifetime; constructing that CDF takes only a few milliseconds.
+
 `yields()` combines the production normalization and visible branching ratio
 with the CDF integral and running Monte Carlo estimates of transverse
 acceptance and decay probability. It reports statistical errors for the
