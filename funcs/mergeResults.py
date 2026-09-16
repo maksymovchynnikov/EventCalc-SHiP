@@ -1,5 +1,6 @@
 # mergeResults.py
 import os
+import json
 import numpy as np
 import pandas as pd
 
@@ -33,6 +34,7 @@ def save(
     alp_production_mode=None,
     alp_mixing_xi=None,
     alp_interference=None,
+    hadronization_metadata=None,
 ):
     """
     Saves simulation results to data files.
@@ -45,6 +47,8 @@ def save(
     df_results = pd.DataFrame(results)
 
     base_output_dir = os.path.join('.', 'outputs', LLP_name)
+    if hadronization_metadata and hadronization_metadata.get('backend') == 'exhad':
+        base_output_dir = os.path.join(base_output_dir, 'exhad')
     os.makedirs(base_output_dir, exist_ok=True)
     
     eventData_dir = os.path.join(base_output_dir, 'eventData')
@@ -98,6 +102,11 @@ def save(
             f'{LLP_name}_{mass:.3e}_{c_tau:.3e}_data.dat'
         )
     
+    if hadronization_metadata and hadronization_metadata.get('backend') == 'exhad':
+        with open(outputfileName + '.hadronization.json', 'w') as stream:
+            json.dump(hadronization_metadata, stream, indent=2)
+            stream.write('\n')
+
     # Since we already checked N_ev_tot < min_events_threshold in simulate.py, 
     # here we only check ifExportEvents.
     if ifExportEvents:

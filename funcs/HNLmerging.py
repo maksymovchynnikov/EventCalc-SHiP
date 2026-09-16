@@ -3,6 +3,35 @@ import pandas as pd
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 import sympy as sp
+from . import PDG
+from .hnl_source_validation import load_validated_hnl_source
+
+
+_PARTON_IDS = frozenset({1, 2, 3, 4, 5, 6, 21})
+
+
+def get_exclusive_thresholds(PDGs):
+    """Return physical mass thresholds for explicit HNL decay rows.
+
+    Partonic ``Jets-*`` rows deliberately return ``None``: their matched,
+    current-specific onset is owned by the source table, not by a sum of
+    quark masses.  The explicit rows are clamped at run time so interpolation
+    between the last zero grid node and the first positive node can never
+    create a sub-threshold branching fraction.
+    """
+    thresholds = []
+    for row in PDGs:
+        ids = [int(pid) for pid in row if int(pid) != -999]
+        if any(abs(pid) in _PARTON_IDS for pid in ids):
+            thresholds.append(None)
+            continue
+        masses = [PDG.get_mass(pid) for pid in ids]
+        missing = [pid for pid, value in zip(ids, masses)
+                   if not isinstance(value, (int, float, np.number))]
+        if missing:
+            raise ValueError("Missing PDG masses for HNL channel: %r" % missing)
+        thresholds.append(float(np.sum(masses)))
+    return thresholds
 
 def load_data(paths):
     (decay_json_path,
@@ -14,7 +43,12 @@ def load_data(paths):
      distrHNL_mu_path,
      distrHNL_tau_path) = paths
 
-    HNL_decay = pd.read_json(decay_json_path)
+    # Validate the signed JSON/width pair before pandas or any interpolator
+    # can consume it.  The returned decoded rows are then reused directly,
+    # avoiding a second, potentially divergent parse.
+    validated_source = load_validated_hnl_source(
+        decay_json_path, decay_width_path)
+    HNL_decay = pd.DataFrame(validated_source.decay_rows)
     decayChannels = HNL_decay.iloc[:, 0].to_numpy()
     PDGs = HNL_decay.iloc[:, 1].apply(np.array).to_numpy()
 
@@ -29,7 +63,7 @@ def load_data(paths):
         HNL_decay.iloc[:, 7]
     ))
 
-    HNL_decay_width = pd.read_csv(decay_width_path, header=None, sep="\t")
+    HNL_decay_width = pd.DataFrame(validated_source.width_rows)
     decay_mass = np.array(HNL_decay_width.iloc[:, 0])
     DW_e = np.array(HNL_decay_width.iloc[:, 1])
     DW_mu = np.array(HNL_decay_width.iloc[:, 2])
@@ -86,10 +120,12 @@ def regular_interpolator(point, axis, distr):
     else:
         return interp(point)
 
-def get_BrMerged_func(BrRatios, decayWidthData, MixingPatternArray):
+def get_BrMerged_func(BrRatios, decayWidthData, MixingPatternArray, PDGs=None):
     Ue2, Umu2, Utau2 = MixingPatternArray
     decay_mass, DW_e, DW_mu, DW_tau = decayWidthData
     channel_count = BrRatios[0].shape[0]
+    thresholds = (get_exclusive_thresholds(PDGs)
+                  if PDGs is not None else [None] * channel_count)
 
     # For each channel, we have arrays for Br_e, Br_mu, Br_tau
     interps_e = []
@@ -117,9 +153,13 @@ def get_BrMerged_func(BrRatios, decayWidthData, MixingPatternArray):
             return np.zeros(channel_count)
         BrMerged = []
         for i in range(channel_count):
-            br_e_val = interps_e[i]([m])[0]
-            br_mu_val = interps_mu[i]([m])[0]
-            br_tau_val = interps_tau[i]([m])[0]
+            threshold = thresholds[i]
+            if threshold is not None and m <= threshold:
+                br_e_val = br_mu_val = br_tau_val = 0.0
+            else:
+                br_e_val = interps_e[i]([m])[0]
+                br_mu_val = interps_mu[i]([m])[0]
+                br_tau_val = interps_tau[i]([m])[0]
             numerator = Ue2*DWe_val*br_e_val + Umu2*DWmu_val*br_mu_val + Utau2*DWtau_val*br_tau_val
             BrMerged.append(numerator/denominator)
         return np.array(BrMerged)
@@ -192,4 +232,3 @@ def get_MatrixElements_funcs(Matrix_elements_raw):
         func_tau.append(ftau_)
 
     return func_e, func_mu, func_tau
-

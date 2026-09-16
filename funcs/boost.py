@@ -55,108 +55,40 @@ def E_prod_lab(EmotherLab, mMother, pMotherLab1, pMotherLab2, pMotherLab3,
     return gamma * (EProdRest + np.dot(vvec, pVecProdRest))
 
 def tab_boosted_decay_products(m, momentum, tabledaughters_array):
-    """
-    Compute the boosted decay products for multiple events.
-    """
+    """Boost and pack all real daughters, preserving scalar arithmetic order."""
     num_events, num_columns = tabledaughters_array.shape
-    num_particles = num_columns // 6  # Each particle has 6 attributes
-
-    # Initialize list to collect boosted products
-    boosted_products = []
-
-    # Debugging: Print shape of input arrays
-    #print(f"Number of decay events (tabledaughters_array): {num_events}")
-    #print(f"Number of particles per event (including padding): {num_particles}")
-    #print(f"Shape of tabledaughters_array: {tabledaughters_array.shape}")
-    #print(f"Shape of momentum array: {momentum.shape}")
-
-    # Convert momentum to NumPy array if it's not already
-    if not isinstance(momentum, np.ndarray):
-        momentum = np.array(momentum)
-    
-    # Debugging: Print number of momentum entries
-    #print(f"Number of momentum entries: {momentum.shape[0]}")
-
-    # Validate momentum array dimensions
+    num_particles = num_columns // 6
+    momentum = np.asarray(momentum)
     if momentum.ndim != 2 or momentum.shape[1] != 4:
         raise ValueError("Momentum should be a 2D array with shape (num_events, 4)")
-
     if momentum.shape[0] != num_events:
-        print(f"Mismatch detected: {momentum.shape[0]} momentum entries vs {num_events} decay events.")
         raise ValueError("The number of momentum entries does not match the number of decay events.")
-
-    # Extract mother energy and momentum components
-    mother_E = momentum[:, 3]
-    mother_px = momentum[:, 0]
-    mother_py = momentum[:, 1]
-    mother_pz = momentum[:, 2]
-
-    # Calculate velocity vectors
     with np.errstate(divide='ignore', invalid='ignore'):
-        vvec_x = mother_px / mother_E
-        vvec_y = mother_py / mother_E
-        vvec_z = mother_pz / mother_E
-
-    # Calculate gamma and gamma_factor_lab
-    gamma = mother_E / m
+        vvec_x = momentum[:, 0] / momentum[:, 3]
+        vvec_y = momentum[:, 1] / momentum[:, 3]
+        vvec_z = momentum[:, 2] / momentum[:, 3]
+    gamma = momentum[:, 3] / m
     v_squared = vvec_x**2 + vvec_y**2 + vvec_z**2
-    # To prevent division by zero
     v_squared = np.where(v_squared == 0, 1e-12, v_squared)
     gamma_factor_lab = (gamma - 1) / v_squared
 
-    # Define the pad value for boosted products
-    padding = [0.0, 0.0, 0.0, 0.0, 0.0, -999]
-
-    for i in range(num_events):
-        boosted_event = []
-        for j in range(num_particles):
-            idx = j * 6
-            pdgId = tabledaughters_array[i, idx + indexpdg1]
-            if pdgId == -999:
-                continue  # Skip placeholder particles
-
-            EProdRest = tabledaughters_array[i, idx + indexE1]
-            pProdRest1 = tabledaughters_array[i, idx + indexpx1]
-            pProdRest2 = tabledaughters_array[i, idx + indexpy1]
-            pProdRest3 = tabledaughters_array[i, idx + indexpz1]
-
-            # Compute boosted energy and momentum
-            E_lab = gamma[i] * (EProdRest + vvec_x[i] * pProdRest1 +
-                                vvec_y[i] * pProdRest2 + vvec_z[i] * pProdRest3)
-            p_lab = np.array([
-                pProdRest1 + gamma[i] * vvec_x[i] * EProdRest + gamma_factor_lab[i] * vvec_x[i] * (vvec_x[i] * pProdRest1 + vvec_y[i] * pProdRest2 + vvec_z[i] * pProdRest3),
-                pProdRest2 + gamma[i] * vvec_y[i] * EProdRest + gamma_factor_lab[i] * vvec_y[i] * (vvec_x[i] * pProdRest1 + vvec_y[i] * pProdRest2 + vvec_z[i] * pProdRest3),
-                pProdRest3 + gamma[i] * vvec_z[i] * EProdRest + gamma_factor_lab[i] * vvec_z[i] * (vvec_x[i] * pProdRest1 + vvec_y[i] * pProdRest2 + vvec_z[i] * pProdRest3)
-            ])
-
-            boosted_daughter = [
-                p_lab[0],  # px
-                p_lab[1],  # py
-                p_lab[2],  # pz
-                E_lab,     # E
-                tabledaughters_array[i, idx + indexm1],  # mass
-                pdgId
-            ]
-            boosted_event.extend(boosted_daughter)
-
-        # Pad boosted_event to have the same number of particles as max_n
-        current_num_boosted = len(boosted_event) // 6
-        m = num_particles - current_num_boosted
-        if m > 0:
-            event_padded = boosted_event + padding * m
-            #print(f"Padded event {i+1} from {current_num_boosted} to {num_particles} particles.")
-        else:
-            event_padded = boosted_event
-            #print(f"No padding needed for event {i+1} with {current_num_boosted} particles.")
-        boosted_products.append(event_padded)
-        #boosted_products.append(boosted_event)
-
-        # Debugging: Print progress every 10 events
-        #if (i + 1) % 10 == 0 or i + 1 == num_events:
-            #print(f"Boosted {i + 1} / {num_events} events")
-
-    # Convert to NumPy array
-    boosted_products_array = np.array(boosted_products, dtype=np.float64)
-
-    return boosted_products_array
-
+    # Keep the original operation order, including E + vx*px + vy*py + vz*pz.
+    # Internal padding is compacted without changing particle order.
+    daughters = tabledaughters_array.reshape(num_events, num_particles, 6)
+    present = daughters[:, :, indexpdg1] != -999
+    rows, slots = np.nonzero(present)
+    destination = np.cumsum(present, axis=1)[rows, slots] - 1
+    values = daughters[rows, slots]
+    px, py, pz, energy = (values[:, k] for k in range(4))
+    vx, vy, vz = vvec_x[rows], vvec_y[rows], vvec_z[rows]
+    g, gf = gamma[rows], gamma_factor_lab[rows]
+    dot = vx * px + vy * py + vz * pz
+    boosted = values.copy()
+    boosted[:, 0] = px + g * vx * energy + gf * vx * dot
+    boosted[:, 1] = py + g * vy * energy + gf * vy * dot
+    boosted[:, 2] = pz + g * vz * energy + gf * vz * dot
+    boosted[:, 3] = g * (energy + vx * px + vy * py + vz * pz)
+    output = np.zeros((num_events, num_particles, 6), dtype=np.float64)
+    output[:, :, indexpdg1] = -999
+    output[rows, destination] = boosted
+    return output.reshape(num_events, num_columns)

@@ -88,6 +88,8 @@ class LLP:
             self.compute_mass_dependent_properties_HNL()
         elif self.LLP_name == "ALP-photon":
             self.compute_mass_dependent_properties_ALP_photon()
+        elif self.LLP_name == "ALP-fermion":
+            self.compute_mass_dependent_properties_ALP_photon()
         elif self.LLP_name == "Dark-photons":
             self.compute_mass_dependent_properties_dark_photons()
         elif self.LLP_name == "ALP-SU2L":
@@ -146,6 +148,9 @@ class LLP:
             self.import_dark_photons()
         elif self.LLP_name == "ALP-SU2L":
             self.import_ALP_SU2L()
+        elif self.LLP_name == "ALP-fermion":
+            from funcs.exhad_integration import import_fermion_alp
+            import_fermion_alp(self)
         elif self.LLP_name == "ALP-mixed":
             if self.xi is None or self.interference is None:
                 raise ValueError("ALP-mixed requires xi and an interference sign.")
@@ -368,7 +373,7 @@ class LLP:
         self.DWe_func, self.DWmu_func, self.DWtau_func = HNLmerging.get_decay_width_interpolators(self.decayWidthData)
         self.yield_e_func, self.yield_mu_func, self.yield_tau_func = HNLmerging.get_yield_interpolators(self.yieldData)
 
-        self.get_Br = HNLmerging.get_BrMerged_func(self.BrRatios_raw, self.decayWidthData, self.MixingPatternArray)
+        self.get_Br = HNLmerging.get_BrMerged_func(self.BrRatios_raw, self.decayWidthData, self.MixingPatternArray, self.PDGs)
         self.get_distribution = HNLmerging.get_distribution_func(self.massDistrData, self.MixingPatternArray, self.yieldData, self.DistrDataFrames)
         self.get_ctau = HNLmerging.get_ctau_func(self.decayWidthData, self.MixingPatternArray)
         self.get_total_yield = HNLmerging.get_yield_func(self.yieldData, self.MixingPatternArray)
@@ -507,6 +512,9 @@ class LLP:
             'E_1': E_1,
             'E_3': E_3,
             'mLLP': mLLP,
+            # Use the same threshold-step mapping as the research ALP parser.
+            # Its value exactly at zero is immaterial for continuous sampling.
+            'UnitStep': sp.Heaviside,
             'Symbol': sp.Symbol,
             'Float': float,
             'Integer': int

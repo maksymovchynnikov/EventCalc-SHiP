@@ -4,6 +4,12 @@ from numpy.random import uniform, choice
 from . import rotateVectors  # Assuming this module is defined elsewhere
 import time
 
+
+@njit
+def seed_random(seed):
+    """Seed Numba's RNG for reproducible EventCalc decay kinematics."""
+    np.random.seed(seed)
+
 def block_random_energies_vectorized(m, m1, m2, m3, n_events, success_rate=1.0):
     """
     Vectorized version of block_random_energies_old. This generates random energies for multiple events simultaneously.
@@ -88,7 +94,7 @@ def block_random_energies_hadrons(m, m1, m2, m3, n_events, distr, pdg1, pdg2, pd
         Arrays containing the generated energies for E1 and E3.
     """
     # Define parton PDG codes
-    parton_pdgs = {1, 2, 3, 4, 21}
+    parton_pdgs = {1, 2, 3, 4, 5, 21}
     
     # Identify partons among the decay products
     is_parton1 = abs(pdg1) in parton_pdgs
@@ -132,6 +138,8 @@ def block_random_energies_hadrons(m, m1, m2, m3, n_events, distr, pdg1, pdg2, pd
                 return 0.496
             elif abs_pdg == 4:
                 return 1.875
+            elif abs_pdg == 5:
+                return 5.280
             else:
                 # Default value for unexpected PDG codes
                 return 0.0
@@ -268,7 +276,20 @@ def block_random_energies(m, m1, m2, m3, Nevents, distr, pdg1, pdg2, pdg3):
     ).T
 
     # Calculate weights for the generated energies
-    weights1 = np.abs(weights_non_uniform_comp(tabE1E3unweighted, m, m1, m2, m3, distr))
+    weights1 = np.asarray(
+        np.abs(weights_non_uniform_comp(
+            tabE1E3unweighted, m, m1, m2, m3, distr)),
+        dtype=float,
+    )
+    # A constant matrix element is a legitimate phase-space model. Lambdified
+    # constant expressions return one scalar rather than an array, so expand
+    # that scalar to one weight per sampled Dalitz point.
+    if weights1.ndim == 0:
+        weights1 = np.full(len(tabE1E3unweighted), float(weights1))
+    elif weights1.shape != (len(tabE1E3unweighted),):
+        raise ValueError(
+            "Matrix-element weights have shape %r; expected one weight per "
+            "sampled energy pair." % (weights1.shape,))
 
     # Ensure weights are non-negative
     weights1 = np.where(weights1 < 0, 0, weights1)
@@ -375,4 +396,3 @@ def decay_products(MASSM, Nevents, SpecificDecay):
     ])
     
     return result
-

@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "llp_name": "ALP-fermion",
+  "coupling": {
+    "symbol": "g_Y",
+    "alias": "y",
+    "definition": "2*v_h/f_a",
+    "v_h_GeV": 246.0,
+    "squared_output_field": "coupling_squared",
+    "squared_output_quantity": "g_Y^2"
+  },
+  "benchmark": {
+    "name": "BC10",
+    "eft_rg_matching_scale_symbol": "Lambda",
+    "eft_rg_matching_scale_GeV": 1000.0,
+    "matching_scale_is_f_a": false
+  },
+  "provenance": {
+    "canonical_definition": "The model chapter defines y=2*v_h/f_a; formulas use y/(2*v_h).",
+    "non_normative_label": "The later proper-lifetime plot label y=v_h/f_a is stale and non-normative."
+  },
+  "width_scaling": "Gamma_i(m,g_Y)=(g_Y/(2*v_h))^2*W_i(m)",
+  "tables": {
+    "ctau-ALP-fermion.txt": {
+      "columns": [
+        "mass_GeV",
+        "c_tau_times_g_Y_squared_m"
+      ],
+      "relation": "c_tau(m,g_Y)=c_tau_times_g_Y_squared_m/g_Y^2"
+    },
+    "Total-yield-ALP-fermion.txt": {
+      "columns": [
+        "mass_GeV",
+        "production_probability_per_POT_per_g_Y_squared"
+      ],
+      "relation": "P_prod(m,g_Y)=production_probability_per_POT_per_g_Y_squared*g_Y^2"
+    },
+    "ALP-fermion-decay.json": {
+      "quantity": "branching_ratios",
+      "coupling_dependence": "none"
+    }
+  }
+}

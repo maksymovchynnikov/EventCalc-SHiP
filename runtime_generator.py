@@ -30,6 +30,7 @@ from funcs.interpolation_functions import (
 from funcs.simulation_config import (
     PROJECT_ROOT,
     SimulationConfig,
+    add_hadronization_arguments,
     config_from_mapping,
     load_card,
 )
@@ -821,7 +822,9 @@ class RuntimeEventGenerator:
         self._decay_block += 1
         output_context = nullcontext() if self.verbose else redirect_stdout(io.StringIO())
         with _legacy_random_seed(decay_seed, seed_numba=True), output_context:
-            rest_frame, sizes = self.runtime.decayProducts.simulateDecays_rest_frame(
+            from funcs.exhad_integration import simulate_decays
+            rest_frame, sizes = simulate_decays(
+                self.llp, self.runtime.decayProducts,
                 self.llp.mass,
                 self.llp.PDGs,
                 self.llp.BrRatios_distr,
@@ -829,6 +832,7 @@ class RuntimeEventGenerator:
                 self.llp.Matrix_elements,
                 list(self.selected_decay_indices),
                 self.visible_branching_ratio,
+                seed=decay_seed,
             )
         rest_frame = np.asarray(rest_frame, dtype=float)
         boosted = self.runtime.boost.tab_boosted_decay_products(
@@ -836,7 +840,8 @@ class RuntimeEventGenerator:
         )
         channel_names = np.asarray(
             [
-                str(self.llp.decayChannels[index])
+                ("Hadronic-exHad" if index in getattr(self.llp, "_exhad_pooled_indices", ())
+                 else str(self.llp.decayChannels[index]))
                 for index, size in zip(self.selected_decay_indices, sizes, strict=True)
                 for _ in range(int(size))
             ],
@@ -958,7 +963,9 @@ class RuntimeEventGenerator:
 
     def stat(self) -> dict[str, Any]:
         """Return generation counters together with :meth:`yields`."""
+        from funcs.exhad_integration import metadata
         return {
+            "hadronization": metadata(self.llp),
             "mode": self.mode,
             "resolved_seed": self.resolved_seed,
             "generated_events": self._generated_events,
@@ -977,10 +984,13 @@ def generator_from_card(
     seed: int | None = None,
     prefetch: int = 256,
     verbose: bool = False,
+    hadronization: str | None = None,
 ) -> RuntimeEventGenerator:
     """Construct a runtime generator from existing model and experiment cards."""
     values: Mapping[str, object] = load_card(card)
     resolved = dict(values)
+    if hadronization is not None:
+        resolved["hadronization"] = hadronization
     resolved.update(
         {
             "masses": [mass],
@@ -1015,9 +1025,12 @@ def scan_from_card(
     experiment_card: Path | None = None,
     seed: int | None = None,
     verbose: bool = False,
+    hadronization: str | None = None,
 ) -> RuntimeModelScan:
     """Load one model context that can serve every point in a scan."""
     resolved = dict(load_card(card))
+    if hadronization is not None:
+        resolved["hadronization"] = hadronization
     resolved.update(
         {
             "plots": False,
@@ -1048,6 +1061,7 @@ def _positive_int(value: str) -> int:
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--card", type=Path, required=True)
+    add_hadronization_arguments(parser)
     parser.add_argument("--experiment-card", type=Path)
     parser.add_argument("--mass", type=float, required=True, help="LLP mass in GeV")
     parser.add_argument("--ctau", type=float, required=True, help="proper decay length in m")
@@ -1078,6 +1092,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         seed=args.seed,
         prefetch=args.prefetch,
         verbose=args.verbose,
+        hadronization=args.hadronization,
     )
     generator.init()
     output_dir = args.output_dir.resolve()
@@ -1115,7 +1130,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     if hepmc_filename is not None:
         files.append(hepmc_filename)
 
+    from funcs.exhad_integration import metadata as hadronization_metadata
     metadata = {
+        "hadronization": hadronization_metadata(generator.llp),
         "format": "EventCalc Python runtime batches v3",
         "model": generator.config.model,
         "mass_GeV": generator.mass,

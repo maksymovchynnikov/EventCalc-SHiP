@@ -35,13 +35,16 @@ def load_pythia8():
             sys.path.insert(0, PYTHIA8_LIB_PATH)
         try:
             import pythia8 as pythia8_module
-        except ImportError as exc:
-            raise ImportError(
+        except ImportError:
+            try:
+                import pythia8mc as pythia8_module
+            except ImportError as exc:
+                raise ImportError(
                 "pythia8 is required for the selected decay channel because it "
                 "contains partons or unstable particles. Install PYTHIA8 with "
                 "Python bindings, set PYTHIA8_LIB to the directory containing "
                 "pythia8.so, or select only stable final-state decay channels."
-            ) from exc
+                ) from exc
         _PYTHIA8 = pythia8_module
     return _PYTHIA8
 
@@ -132,12 +135,16 @@ def distribute_events(total_events, branching_ratios):
                     difference += 1
     return rounded_events
 
-def simulateDecays_rest_frame(mass, PDGdecay, BrRatio, size, Msquared3BodyLLP, selected_decay_indices, br_visible_val):
+def simulateDecays_rest_frame(mass, PDGdecay, BrRatio, size, Msquared3BodyLLP, selected_decay_indices, br_visible_val, *, hnl=False, primary_only=False):
     """
     Simulates the decays of a particle in its rest frame, distributing events among selected decay channels.
     """
     def get_particle_properties(pdg_list):
         masses = [PDG.get_mass(pdg) for pdg in pdg_list]
+        if hnl:
+            current_masses = {1: .0047, 2: .0022, 3: .104, 4: 1.27, 5: 4.18}
+            masses = [current_masses.get(abs(int(pdg)), value)
+                      for pdg, value in zip(pdg_list, masses)]
         charges = [PDG.get_charge(pdg) for pdg in pdg_list]
         stabilities = [PDG.get_stability(pdg) for pdg in pdg_list]
         return masses, charges, stabilities
@@ -205,6 +212,12 @@ def simulateDecays_rest_frame(mass, PDGdecay, BrRatio, size, Msquared3BodyLLP, s
             decay_results = FourBodyDecay.decay_products(
                 mass, specific_decay_params, channel_size
             )
+        elif len(pdg_list) > 4:
+            from . import NBodyDecay
+            masses, charges, stabilities = get_particle_properties(pdg_list)
+            decay_results = NBodyDecay.decay_products(
+                mass, pdg_list, masses, charges, stabilities, channel_size,
+                rng=np.random.default_rng(int(np.random.randint(0, 2**32-1))))
         else:
             print(f"Invalid number of decay products ({len(pdg_list)}) in decay channel {i}. Skipping.")
             continue  # Skip invalid decay channels
@@ -214,6 +227,8 @@ def simulateDecays_rest_frame(mass, PDGdecay, BrRatio, size, Msquared3BodyLLP, s
             all_decay_events.append(decay_event)
 
     # End timing for decay simulations
+    if primary_only:
+        return all_decay_events, size_per_channel
     decay_sim_end = time.time()
     decay_sim_time = decay_sim_end - decay_sim_start
     print(f"\nTotal decay events generated: {len(all_decay_events)}")
@@ -246,118 +261,102 @@ def simulateDecays_rest_frame(mass, PDGdecay, BrRatio, size, Msquared3BodyLLP, s
 
     return (processed_results, size_per_channel)
 
-def process_events_with_pythia(decay_events_list, mass):
-    """
-    Processes a list of decay events through Pythia sequentially, pads each event to have the same number of particles,
-    and writes the processed events to external files.
-    """
-    pythia8 = load_pythia8()
+def _rebuild_manual_pythia_event(pythia, decay, mass, mother_id=25):
+    """Restore one external decay record before a hadronization attempt."""
+    num_particles = len(decay) // 8
+    pythia.event.reset()
+    # ``forceHadronLevel`` validates the complete manual event against record
+    # 0.  ``Event.reset()`` leaves that system record at zero four-momentum
+    # and zero mass, so it must be completed explicitly.  It is bookkeeping
+    # only and does not alter the fragmentation state.
+    pythia.event[0].p(0.0, 0.0, 0.0, mass)
+    pythia.event[0].m(mass)
+    pythia.event[0].status(-11)
 
-    # Initialize Pythia
-    pythia = pythia8.Pythia()
-    #pythia.readString("Print:quiet = on")  # Suppress banners and output
+    # Append the mother particle at rest with status -23.
+    pythia.event.append(
+        mother_id, -23, 0, 0, 2, num_particles + 1,
+        0, 0, 0.0, 0.0, 0.0, mass, mass
+    )
+
+    gluon_index = 0
+    for i_particle in range(num_particles):
+        idx = i_particle * 8
+        px = decay[idx]
+        py = decay[idx + 1]
+        pz = decay[idx + 2]
+        e = decay[idx + 3]
+        m = decay[idx + 4]
+        pdgId = int(decay[idx + 5])
+
+        if pdgId == -999:
+            continue  # Skip placeholder entries
+
+        # Assign the same color record on every retry.  Only Pythia's random
+        # fragmentation draw is allowed to change.
+        col = 0
+        acol = 0
+        if pdgId in [1, 2, 3, 4, 5]:
+            col = 501
+            status_code = 23
+        elif pdgId in [-1, -2, -3, -4, -5]:
+            acol = 501
+            status_code = 23
+        elif pdgId == 21:
+            # Gluons carry a closed color loop. Count only gluons; padding or
+            # non-gluon products must not alter its parity.
+            if gluon_index % 2 == 0:
+                col, acol = 501, 502
+            else:
+                col, acol = 502, 501
+            gluon_index += 1
+            status_code = 23
+        else:
+            status_code = 1
+
+        pythia.event.append(
+            pdgId, status_code, 1, 1, 0, 0,
+            col, acol, px, py, pz, e, m
+        )
+
+def process_events_with_pythia(decay_events_list, mass):
+    """Complete each primary decay; never consume a failed Pythia record."""
+    pythia = load_pythia8().Pythia()
     pythia.readString("ProcessLevel:all = off")
     pythia.readString("PartonLevel:all = on")
     pythia.readString("HadronLevel:all = on")
-    # Keep certain particles stable
-    stable_particles = [13, -13, 211, -211, 321, -321, 130]
-    for pid in stable_particles:
+    pythia.readString("Check:event = on")
+    pythia.readString("Check:epTolErr = 2e-6")
+    # The runtime seeds NumPy separately for each decay block. Without an
+    # explicit Pythia seed, a newly constructed instance restarts the same
+    # default random stream in every block.
+    pythia.readString("Random:setSeed = on")
+    pythia.readString(f"Random:seed = {int(np.random.randint(1, 900000001))}")
+    for pid in [13, -13, 211, -211, 321, -321, 130]:
         pythia.readString(f"{pid}:mayDecay = off")
-    mother_id = 25  # PDG ID for the mother particle (e.g., Higgs boson)
-    pythia.init()
-
+    if not pythia.init():
+        raise RuntimeError("Pythia initialization failed")
     processed_events = []
-    event_counter = 0  # Initialize the event counter
-
-    for decay in decay_events_list:
-        event_counter += 1
-
-        pythia.event.reset()
-        num_particles = len(decay) // 8  # Each particle has 8 attributes
-
-        # Set mother particle at rest
-        mother_px, mother_py, mother_pz = 0.0, 0.0, 0.0
-        mother_e = mass
-        mother_m = mass
-
-        # Append the mother particle with status -23
-        pythia.event.append(
-            mother_id, -23, 0, 0, 2, num_particles + 1,
-            0, 0,
-            mother_px, mother_py, mother_pz, mother_e, mother_m
-        )
-
-        # Process decay products
-        for i_particle in range(num_particles):
-            idx = i_particle * 8
-            px = decay[idx]
-            py = decay[idx + 1]
-            pz = decay[idx + 2]
-            e = decay[idx + 3]
-            m = decay[idx + 4]
-            pdgId = int(decay[idx + 5])
-
-            if pdgId == -999:
-                continue  # Skip placeholder entries
-
-            # Default color tags
-            col = 0
-            acol = 0
-
-            # Assign colors based on PDG ID
-            if pdgId in [1, 2, 3, 4, 5]:
-                # Quarks
-                col = 501
-                acol = 0
-                status_code = 23  # Outgoing parton to be showered
-            elif pdgId in [-1, -2, -3, -4, -5]:
-                # Antiquarks
-                col = 0
-                acol = 501
-                status_code = 23  # Outgoing parton to be showered
-            elif pdgId == 21:
-                # Gluon
-                # Ensure that gluons come in pairs
-                if i_particle % 2 == 0:
-                    col = 501
-                    acol = 502
-                else:
-                    # For the second gluon
-                    col = 502
-                    acol = 501
-                status_code = 23  # Outgoing parton to be showered
-            else:
-                # Other particles
-                col = 0
-                acol = 0
-                status_code = 1  # Final-state particle
-
-            # Append particle to Pythia event
-            # Set mother indices to the mother particle (index 1)
-            pythia.event.append(
-                pdgId, status_code, 1, 1, 0, 0,
-                col, acol,
-                px, py, pz, e, m
-            )
-
-        # Process the event through Pythia
-        if not pythia.forceHadronLevel():
-            #uncomment the line below is you want to see the decay products chain resulting by processing the decay in pythia during the simulation
-            #pythia.event.list()
-            pass
-
-        # Extract final state particles
-        final_state_particles = []
-        for p in pythia.event:
-            if p.isFinal():
-                particle_data = [
-                    p.px(), p.py(), p.pz(), p.e(), p.m(), p.id()
-                ]
-                final_state_particles.extend(particle_data)
-
-        processed_events.append(final_state_particles)
-
-    if not processed_events:
-        print("\nNo processed events were generated.")
-
+    for event_index, decay in enumerate(decay_events_list):
+        # Same ten-attempt policy as the research host. Restore the identical
+        # primary state; only Pythia's stochastic draw can change on a retry.
+        for attempt in range(10):
+            _rebuild_manual_pythia_event(pythia, decay, mass)
+            if pythia.forceHadronLevel():
+                break
+        else:
+            raise RuntimeError(f"Pythia forceHadronLevel failed for event {event_index} "
+                               "after 10 attempts; no failed record was returned")
+        final = []
+        # Event's Python binding uses sequence-protocol iteration. Bounding
+        # the indices avoids its costly end-of-record exception on each event.
+        event_record = pythia.event
+        for particle_index in range(event_record.size()):
+            particle = event_record[particle_index]
+            if particle.isFinal():
+                final.extend([particle.px(), particle.py(), particle.pz(),
+                              particle.e(), particle.m(), particle.id()])
+        if not final or not np.all(np.isfinite(final)):
+            raise RuntimeError("Pythia returned an empty or non-finite event")
+        processed_events.append(final)
     return pad_processed_events(processed_events)

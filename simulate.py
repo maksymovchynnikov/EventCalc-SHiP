@@ -71,7 +71,7 @@ def _make_llp(runtime: SimpleNamespace, config: SimulationConfig):
         if config.mixing_pattern is not None
         else None
     )
-    return runtime.initLLP.LLP(
+    llp = runtime.initLLP.LLP(
         mass=None,
         particle_selection=config.particle_selection,
         mixing_pattern=mixing,
@@ -80,6 +80,9 @@ def _make_llp(runtime: SimpleNamespace, config: SimulationConfig):
         xi=config.xi,
         interference=config.interference,
     )
+    from funcs.exhad_integration import configure_llp
+    configure_llp(llp, config)
+    return llp
 
 
 def _generate_phenomenology_plots(
@@ -208,7 +211,9 @@ def _run_mass_lifetime_grid(
                 )
                 continue
 
-            unboosted, size_per_channel = runtime.decayProducts.simulateDecays_rest_frame(
+            from funcs.exhad_integration import simulate_decays
+            unboosted, size_per_channel = simulate_decays(
+                llp, runtime.decayProducts,
                 llp.mass,
                 llp.PDGs,
                 llp.BrRatios_distr,
@@ -216,19 +221,23 @@ def _run_mass_lifetime_grid(
                 llp.Matrix_elements,
                 list(selected_decay_indices),
                 br_visible,
+                seed=(config.seed or 1) + mass_index * 100000 + ctau_index,
             )
             boosted = runtime.boost.tab_boosted_decay_products(llp.mass, momentum, unboosted)
 
             started = time.time()
+            from funcs.exhad_integration import legacy_output, metadata as hadronization_metadata
+            output_mothers, output_daughters, output_channels, output_sizes, output_indices = legacy_output(
+                llp, mother_results, boosted, size_per_channel, list(selected_decay_indices))
             runtime.mergeResults.save(
-                mother_results,
-                boosted,
+                output_mothers,
+                output_daughters,
                 llp.LLP_name,
                 llp.mass,
                 llp.MixingPatternArray,
                 llp.c_tau_input,
-                llp.decayChannels,
-                size_per_channel,
+                output_channels,
+                output_sizes,
                 final_events,
                 epsilon_polar,
                 epsilon_azimuthal,
@@ -237,12 +246,13 @@ def _run_mass_lifetime_grid(
                 average_decay_probability,
                 n_events_total,
                 br_visible,
-                list(selected_decay_indices),
+                output_indices,
                 config.uncertainty,
                 config.export_events,
                 llp.alp_production_mode,
                 llp.xi,
                 llp.interference,
+                hadronization_metadata=hadronization_metadata(llp),
             )
             print(f"    Exported in {time.time() - started:.1f} s")
             coupling_summary = (
@@ -277,7 +287,7 @@ def run_simulation(config: SimulationConfig) -> None:
     _run_mass_lifetime_grid(runtime, config, llp, selected)
 
 
-def _interactive_main() -> None:
+def _interactive_main(*, hadronization: str = "exhad") -> None:
     # Imports remain here so importing simulate itself can never prompt.
     from funcs.LLP_selection import (
         prompt_alp_production_mode,
@@ -300,6 +310,9 @@ def _interactive_main() -> None:
     mixing = prompt_mixing_pattern(particle_selection)
 
     partial = SimpleNamespace(
+        hadronization=hadronization,
+        exhad_root=None,
+        exhad_python=None,
         particle_selection=particle_selection,
         mixing_pattern=mixing,
         uncertainty=uncertainty,
@@ -314,6 +327,7 @@ def _interactive_main() -> None:
 
     config = config_from_mapping(
         {
+            "hadronization": hadronization,
             "model": particle_selection["LLP_name"],
             "events": events,
             "masses": masses,
@@ -335,6 +349,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     arguments = list(sys.argv[1:] if argv is None else argv)
     if not arguments:
         _interactive_main()
+        return 0
+    if arguments in (["--rawPythia"], ["--raw-pythia"], ["--exhad"]):
+        _interactive_main(hadronization="exhad" if arguments == ["--exhad"] else "raw")
         return 0
 
     config, validate_only = config_from_command_line(arguments, project_root=PROJECT_ROOT)

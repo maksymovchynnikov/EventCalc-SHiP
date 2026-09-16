@@ -1,0 +1,10 @@
+{
+  "model": "Scalar-mixing",
+  "events": 10000,
+  "masses": [2.0],
+  "c_taus": [10.0],
+  "decay_channels": ["all"],
+  "seed": 12345,
+  "plots": false,
+  "export_events": true
+}

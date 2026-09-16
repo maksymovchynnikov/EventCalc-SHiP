@@ -36,6 +36,11 @@ class ModelSpec:
 
 MODEL_SPECS: tuple[ModelSpec, ...] = (
     ModelSpec(
+        "ALP-fermion", "ALP-fermion", "ALP-fermion-decay.json",
+        ("DoubleDistr-ALP-fermion.txt", "Emax-ALP-fermion.txt",
+         "Total-yield-ALP-fermion.txt", "ctau-ALP-fermion.txt", "coupling.json"),
+    ),
+    ModelSpec(
         "Scalar-mixing",
         "Scalar-mixing",
         "HLS-decay.json",
@@ -240,6 +245,7 @@ _CARD_ALIASES = {
     "plot_phenomenology": "plots",
 }
 _CONFIG_KEYS = {
+    "hadronization", "exhad_root", "exhad_python",
     "model",
     "events",
     "masses",
@@ -291,6 +297,9 @@ class SimulationConfig:
     min_events_threshold: float
     seed: int | None
     project_root: Path
+    hadronization: str = "exhad"
+    exhad_root: str | None = None
+    exhad_python: str | None = None
 
     @property
     def n_events(self) -> int:
@@ -318,6 +327,9 @@ class SimulationConfig:
         else:
             lifetimes = [list(item) for item in self.c_taus]
         return {
+            "hadronization": self.hadronization,
+            "exhad_root": self.exhad_root,
+            "exhad_python": self.exhad_python,
             "model": self.model,
             "events": self.events,
             "masses": list(self.masses),
@@ -500,7 +512,18 @@ def config_from_mapping(
     else:
         seed = None
 
+    hadronization = values.get("hadronization", "exhad")
+    if hadronization not in {"raw", "exhad"}:
+        raise ConfigurationError("hadronization must be 'raw' or 'exhad'")
+    if hadronization == "exhad" and spec.name not in {
+            "Dark-photons", "ALP-fermion", "Scalar-mixing", "Scalar-quartic", "HNL"}:
+        raise ConfigurationError(
+            f"No exHad release model is bound to {spec.name}; "
+            "select --rawPythia (or hadronization: raw in a card) explicitly.")
     config = SimulationConfig(
+        hadronization=hadronization,
+        exhad_root=values.get("exhad_root"),
+        exhad_python=values.get("exhad_python"),
         model=spec.name,
         events=events,
         masses=masses,
@@ -547,6 +570,15 @@ def load_card(path: Path) -> dict[str, Any]:
 def load_decay_channel_names(config: SimulationConfig) -> tuple[str, ...]:
     spec = resolve_model(config.model)
     path = config.particle_path / spec.decay_file
+    if config.hadronization == 'exhad':
+        import os
+        from funcs.exhad_integration import MODELS, model_info
+        root = config.exhad_root or os.environ.get('EXHAD_ROOT')
+        if not root:
+            raise ConfigurationError('exHad requires exhad_root or EXHAD_ROOT')
+        if config.model in MODELS and MODELS[config.model][0] in ('scalar', 'dark-photon'):
+            info = model_info(Path(root).expanduser().resolve(), MODELS[config.model][0])
+            path = Path(info['tables']['decay'])
     try:
         with path.open("r", encoding="utf-8") as handle:
             data = json.load(handle)
@@ -608,6 +640,20 @@ def resolve_decay_channels(selection: Sequence[str | int], available: Sequence[s
     return resolved
 
 
+def add_hadronization_arguments(parser: argparse.ArgumentParser) -> None:
+    """Shared launcher switches; an explicit flag overrides the card."""
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "--rawPythia", "--raw-pythia", dest="hadronization", action="store_const",
+        const="raw", default=None,
+        help="use raw Pythia instead of exHad (overrides the launch card)",
+    )
+    group.add_argument(
+        "--exhad", dest="hadronization", action="store_const", const="exhad",
+        help="use exHad (the default); overrides an explicit raw setting in a card",
+    )
+
+
 def build_argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
@@ -616,6 +662,7 @@ def build_argument_parser() -> argparse.ArgumentParser:
         )
     )
     parser.add_argument("--card", type=Path, help="JSON launch card; explicit flags override card fields")
+    add_hadronization_arguments(parser)
     parser.add_argument("--model", help="LLP model name, for example ALP-SU2L")
     parser.add_argument("--events", type=int, help="number of accepted decay events to sample")
     parser.add_argument("--masses", nargs="+", type=float, help="LLP masses in GeV")

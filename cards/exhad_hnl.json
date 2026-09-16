@@ -1,0 +1,10 @@
+{
+  "model": "HNL",
+  "masses": [2.0],
+  "c_taus": [10.0],
+  "mixing_pattern": [1.0, 0.0, 0.0],
+  "decay_channels": ["all"],
+  "events": 1000,
+  "seed": 12345,
+  "hadronization": "exhad"
+}

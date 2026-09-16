@@ -4,6 +4,13 @@ EventCalc-SHiP generates decays of long-lived particles in the SHiP decay
 volume and calculates their expected yields. The same calculation can be
 adapted to another geometry through `funcs/ship_setup.py`.
 
+Matched hadronic decays use **exHad by default** for dark photons,
+fermion-coupled ALPs, Higgs-like scalars and HNLs. See [EXHAD.md](EXHAD.md) for
+installation, ready-to-run cards, physics sources, output conventions and
+tests. Add **`--rawPythia`** to either launcher to use raw Pythia instead;
+the flag overrides the card. Models without an exHad adapter also require
+this explicit raw switch. The integration preserves the buffered runtime interface.
+
 ## Physical calculation
 
 For each selected mass and proper decay length, EventCalc
@@ -33,6 +40,7 @@ names accepted by the launcher are:
 - `Scalar-mixing`;
 - `Scalar-quartic`;
 - `ALP-photon`;
+- `ALP-fermion` (universal fermion couplings at Λ = 1 TeV);
 - `Dark-photons`;
 - `HNL`;
 - `ALP-SU2L`;
@@ -230,14 +238,14 @@ Each lifetime is evaluated at each mass.
 Run it with
 
 ```bash
-python3 simulate.py --card cards/alp_su2l.json
+python3 simulate.py --card cards/alp_su2l.json --rawPythia
 ```
 
 Check the card, resolve its decay channels, and print the normalized
 configuration with
 
 ```bash
-python3 simulate.py --card cards/alp_su2l.json --validate-only
+python3 simulate.py --card cards/alp_su2l.json --rawPythia --validate-only
 ```
 
 This command exits before the numerical simulation is imported.
@@ -250,6 +258,7 @@ list for each mass.
 The optional common fields are:
 
 - `seed`, an integer between 0 and $2^{32}-1$;
+- `hadronization`, with default `"exhad"`; `--rawPythia` overrides it to `"raw"`;
 - `plots`, with default `false` in silent mode;
 - `export_events`, with default `true`;
 - `n_pot`, with default $6\times10^{20}$ protons on target;
@@ -280,7 +289,7 @@ Three models require an additional field:
 Run the supplied example with
 
 ```bash
-python3 simulate.py --card cards/alp_mixed.json
+python3 simulate.py --card cards/alp_mixed.json --rawPythia
 ```
 
 `ALP-SU2L` already contains its $B$, charged-kaon, primary-photon, and
@@ -294,6 +303,7 @@ The same $SU(2)_L$ ALP calculation can be launched with
 ```bash
 python3 simulate.py \
   --model ALP-SU2L \
+  --rawPythia \
   --events 200000 \
   --masses 0.3 1.0 \
   --c-taus 0.01 10000 \
@@ -320,6 +330,8 @@ starts the interactive interface. The model menu has a fixed order and uses
 the names listed above. It asks for the event sample size, model-specific
 parameters, decay channels, masses, and proper decay lengths. It generates the
 production-probability, lifetime, and branching-fraction figures.
+exHad is the default; start with `python3 simulate.py --rawPythia` for raw
+decays or a model without an exHad adapter.
 
 ### Python runtime generator
 
@@ -343,6 +355,7 @@ the model card. The default values are those in `cards/ship.json`:
 ```bash
 python3 runtime_generator.py \
   --card cards/alp_su2l.json \
+  --rawPythia \
   --experiment-card cards/ship.json \
   --mass 0.3 \
   --ctau 100 \
@@ -374,6 +387,7 @@ from runtime_generator import generator_from_card
 
 generator = generator_from_card(
     Path("cards/alp_su2l.json"),
+    hadronization="raw",
     experiment_card=Path("cards/ship.json"),
     mass=0.3,
     c_tau=100.0,
@@ -398,6 +412,7 @@ from runtime_generator import scan_from_card
 points = [(0.3, 0.01), (0.3, 100.0), (0.5, 100.0)]
 scan = scan_from_card(
     Path("cards/alp_su2l.json"),
+    hadronization="raw",
     experiment_card=Path("cards/ship.json"),
     seed=12345,
 )
