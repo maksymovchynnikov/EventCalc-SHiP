@@ -43,8 +43,9 @@ g_Y^2=\frac{c\tau_1(m_a)}{c\tau},
 c\tau(m_a,g_Y)=\frac{c\tau_1(m_a)}{g_Y^2}.
 $$
 
-The supplied lifetime is consistent with the installed decay table and
-retains the $g_Y=1$ normalization and $1/g_Y^2$ scaling.
+The post-processing script may rescale $c\tau_1$ to keep it consistent with
+the surviving kinematically allowed width, but it does not change the
+$g_Y=1$ normalization or the $1/g_Y^2$ scaling.
 
 ## Production-yield table
 
@@ -88,9 +89,11 @@ $$
 
 `ALP-fermion-decay.json` contains the branching-ratio tables and decay
 kinematics, not coupling-dependent physical widths. Its branching ratios are
-independent of the common $g_Y$ normalization. The launch-card field
-`hadronization` controls the event-composition generator; enabling exHad does
-not alter production yields, branching ratios, partial widths, or lifetime.
+independent of the common $g_Y$ normalization. Two switches act on the
+hadronic event composition and on nothing else: the launch-card field
+`hadronization` turns the matched generator on or off, and `exhad.json` fixes
+the benchmark it runs and its mass window. Enabling exHad does not alter
+production yields, branching ratios, partial widths, or lifetime.
 
 ## Matched hadronic event generation
 
@@ -101,8 +104,8 @@ and requests that number of events once from the pseudoscalar event measure.
 The generator therefore samples the aggregate hadronic composition rather
 than treating these five table rows as separate fragmentation sources.
 The `ePeM`, `muPmuM`, `tauPtauM`, and `2gamma` rows remain native EventCalc
-decays. The matched family and charge probabilities use the release's shared
-transition prescription; see [EXHAD.md](../../EXHAD.md).
+decays. The unresolved component changes continuously to source-conditioned
+default fragmentation from 4 to 5 GeV; see [EXHAD.md](../../EXHAD.md).
 
 ## Runtime mapping
 
@@ -115,5 +118,6 @@ N_LLP_tot = N_POT * yield_per_POT_per_gY2 * g_Y^2
 
 The generated `coupling_squared` column and the `Squared coupling` field in
 event-file headers retain their generic names for compatibility, but both
-mean $g_Y^2$ for `ALP-fermion`. The installed `coupling.json` contains the
+mean $g_Y^2$ for `ALP-fermion`. Each generated ALP event or total file also
+has a sibling `<output>.coupling.json` sidecar containing this complete
 coupling and table-normalization contract.

@@ -1,0 +1,14 @@
+{
+  "bench": "alp",
+  "backend": "portable-model1-v1",
+  "model_portal": "ALP-fermion",
+  "model_variant": "bc10-fermion-universal-alp",
+  "m_start": 1.911,
+  "m_edge": 1.911,
+  "m_charm": 3.741,
+  "m_high": 5.0,
+  "portable_model1_portal_id": "fermion-alp",
+  "portable_model1_variation": "central",
+  "_comment": "Matched ALP hadronic events are supported from 1.911 to 5 GeV with unit event weights. The nominal charm width is unchanged. Its open-charm fraction follows the retained on-shell D-Dstar p^3 threshold prescription, normalized at 4 GeV; the complement produces light hadrons from an ALP-filtered gluon source. This threshold assignment is a modelling assumption, not a calculated charm-to-gluon conversion. Two-pseudoscalar D-Dbar primary states are forbidden. The eta/eta-prime dipion charge correction remains active through 5 GeV, including the additional light response. Below 1.911 GeV the native exclusive path is retained; above 5 GeV matched generation is rejected. Explicit deployment overrides can select historical inputs. Raw Pythia and weighted generation remain explicit choices.",
+  "source_sha256": "a56539c395939e170223cdcbbee5435e1983a813f0f3ac0ad4e076e856148c0f"
+}

@@ -11,6 +11,10 @@ from funcs.PDG import get_charge
 
 
 NEUTRINO_PDGS = {12, -12, 14, -14, 16, -16}
+# Particles the SHiP spectrometer and its calorimeter reconstruct: electrons,
+# muons, charged pions and kaons, photons, and K_L.  Everything else, including
+# neutrons and antineutrons, is not counted towards a visible event.
+DETECTABLE_PDGS = {11, -11, 13, -13, 211, -211, 321, -321, 22, 130}
 SIGNATURES = ("two-photon", "neutral-pair", "all-visible")
 SIGNATURE_LABELS = {
     "two-photon": "exactly two visible photons",
@@ -130,8 +134,8 @@ def extract_quantities(
     - Each decay product has 6 values: px, py, pz, E, mass, PDG.
     - Invariant masses are computed from 4-vectors of the decay products.
 
-    The detector acceptance is evaluated on a rectangular plane.  Neutrinos and
-    placeholder entries are excluded from the visible-particle signatures.
+    The detector acceptance is evaluated on a rectangular plane.  Only the
+    particles in DETECTABLE_PDGS enter the visible-particle signatures.
     Accepted fractions are weighted by the parent decay probability.
     """
 
@@ -321,6 +325,9 @@ def extract_quantities(
                     # Charged: exclude gamma, K_L, n, bar[n], nu
                     if particle not in ['gamma', 'K_L', 'n', 'bar[n]', 'nu']:
                         charged_decay_products_count += 1
+
+                    if pdg not in DETECTABLE_PDGS:
+                        continue
 
                     points = _points_to_plane(
                         px,

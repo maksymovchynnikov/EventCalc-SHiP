@@ -9,7 +9,8 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from funcs.initLLP import LLP
-from funcs import decayProducts, exhad_integration as integration
+from funcs import decayProducts, exhadDecays
+from funcs import exhad_integration as integration
 from funcs.simulation_config import config_from_mapping
 
 
@@ -38,8 +39,9 @@ def main():
             index = list(llp.decayChannels).index(label)
             assert branching[index] > 0, label
             start = time.perf_counter()
-            rows, sizes = integration.simulate_decays(llp, decayProducts, mass, llp.PDGs,
-                branching, args.events, matrix, [index], float(branching[index]), seed=20260912)
+            rows, sizes, _labels = integration.simulate_decays(llp, decayProducts, mass,
+                llp.PDGs, branching, args.events, matrix, [index],
+                float(branching[index]), seed=20260912)
             assert list(sizes) == [args.events]
             assert len(rows) == args.events
             for row in rows:
@@ -54,7 +56,7 @@ def main():
                           seconds=time.perf_counter()-start, branching=float(branching[index]))
             results.append(result)
             print(json.dumps(result), flush=True)
-    integration.close_generators()
+    exhadDecays.close_generators()
     with args.output.open('x') as stream:
         json.dump(results, stream, indent=2)
 

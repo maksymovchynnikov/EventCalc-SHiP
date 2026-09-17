@@ -9,8 +9,9 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from runtime_generator import RuntimeEventGenerator
+from funcs import decayProducts
 from funcs.simulation_config import config_from_mapping
-from funcs.exhad_integration import close_generators
+from funcs.exhadDecays import close_generators
 
 
 def main():
@@ -52,7 +53,8 @@ def main():
                       events=len(batch), max_relative_lab_p4_residual=max(residuals),
                       channels=sorted(set(batch.channels.tolist())), yields=generator.yields().as_dict())
         if model != 'HNL':
-            assert 'Hadronic-exHad' in result['channels']
+            assert any(name.startswith(decayProducts.MATCHED_PROCESS_LABEL)
+                       for name in result['channels'])
         results[model] = result
         print(json.dumps({model: result}), flush=True)
     close_generators()

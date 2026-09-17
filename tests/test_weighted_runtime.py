@@ -6,7 +6,7 @@ import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
-from unittest.mock import Mock,patch
+from unittest.mock import MagicMock,Mock,patch
 import numpy as np
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from weighted_runtime import WeightedEventBatch,HadronizationNormalization,export_weighted
@@ -17,7 +17,8 @@ def batch(start,weights,groups,key=('alp',3.,'central',.1,'release')):
     n=len(weights);records=np.zeros((n,22));records[:,3]=3.;records[:,4]=3.;records[:,6]=.25
     records[:,10:16]=[0.,0.,1.5,1.5,0.,22.]
     records[:,16:]=[0.,0.,-1.5,1.5,0.,22.]
-    return WeightedEventBatch(0,start,start+n,records,np.full(n,'Hadronic-exHad'),
+    label=f'{decayProducts.MATCHED_PROCESS_LABEL}:Jets-cc'
+    return WeightedEventBatch(0,start,start+n,records,np.full(n,label),
         np.ones(n,dtype=bool),np.full(n,.25),np.asarray(weights,dtype=float),np.asarray(groups),key)
 
 
@@ -63,20 +64,32 @@ class WeightedTests(unittest.TestCase):
             self.assertEqual(len(list(directory.glob('.weighted-raw-*'))),0)
             with self.assertRaises(FileExistsError):export_weighted(generator,4,directory)
 
-    def test_native_pythia_is_seeded_from_current_block(self):
-        fake=Mock();fake.init.return_value=True
-        module=SimpleNamespace(Pythia=lambda:fake)
-        with patch.object(decayProducts,'load_pythia8',return_value=module):
-            np.random.seed(1);decayProducts.process_events_with_pythia([],3.)
-            first=[c.args[0] for c in fake.readString.call_args_list if c.args[0].startswith('Random:seed')][-1]
-            fake.reset_mock();np.random.seed(2);decayProducts.process_events_with_pythia([],3.)
-            second=[c.args[0] for c in fake.readString.call_args_list if c.args[0].startswith('Random:seed')][-1]
-            self.assertNotEqual(first,second)
-            fake.reset_mock();np.random.seed(1);decayProducts.process_events_with_pythia([],3.)
-            third=[c.args[0] for c in fake.readString.call_args_list if c.args[0].startswith('Random:seed')][-1]
-            self.assertEqual(first,third)
-            calls=[c.args[0] for c in fake.readString.call_args_list]
-            self.assertIn('Check:epTolErr = 2e-6',calls)
+    def test_pythia_stream_is_the_seed_the_block_was_given(self):
+        primary=[[0.,0.,1.,1.,0.,22.,0.,1., 0.,0.,-1.,1.,0.,22.,0.,1.]]
+        def settings(seed):
+            fake=Mock();fake.init.return_value=True;fake.forceHadronLevel.return_value=True
+            fake.event=MagicMock();particle=Mock()
+            for name,value in dict(isFinal=True,px=0.,py=0.,pz=1.,e=1.,m=0.,id=22).items():
+                getattr(particle,name).return_value=value
+            fake.event.__iter__.side_effect=lambda:iter([particle])
+            fake.event.size.return_value=1
+            fake.event.__getitem__.return_value=particle
+            module=SimpleNamespace(Pythia=lambda:fake)
+            with patch.object(decayProducts,'_PYTHIA_INSTANCE',None),\
+                 patch.object(decayProducts,'load_pythia8',return_value=module):
+                decayProducts.process_events_with_pythia(primary,3.,seed=seed)
+            return [call.args[0] for call in fake.readString.call_args_list]
+        first,second,repeated=settings(11),settings(12),settings(11)
+        # Pythia's own energy-momentum closure test, at the tolerance the
+        # blocks have always run with rather than ErrorChecks.xml's 1e-4.
+        self.assertIn('Check:event = on',first)
+        self.assertIn('Check:epTolErr = 2e-6',first)
+        self.assertIn('Random:seed = 11',first)
+        self.assertIn('Random:seed = 12',second)
+        self.assertEqual(first,repeated)
+        self.assertNotEqual(first,second)
+        # a block with no seed runs on Pythia's own default stream
+        self.assertFalse([line for line in settings(None) if line.startswith('Random:seed')])
 
 
 if __name__=='__main__':unittest.main()

@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "llp_name": "Scalar-mixing",
+  "coupling": {
+    "symbol": "sin_theta",
+    "definition": "sin(theta)",
+    "squared_output_field": "coupling_squared",
+    "squared_output_quantity": "sin(theta)^2"
+  },
+  "width_scaling": "Gamma_i(m,sin_theta)=sin_theta^2*f_i(m)",
+  "production_scaling": "N_prod(m,sin_theta)=sin_theta^2*P(m)",
+  "tables": {
+    "ctau-Scalar-<prescription>.txt": {
+      "format": "json_array",
+      "row_schema": [
+        "mass_GeV",
+        "c_tau_times_sin_theta_squared_m"
+      ],
+      "columns": [
+        "mass_GeV",
+        "c_tau_times_sin_theta_squared_m"
+      ],
+      "relation": "c_tau(m,sin_theta)=c_tau_times_sin_theta_squared_m/sin_theta^2",
+      "prescriptions": [
+        "1809.01876",
+        "2407.13587-Central",
+        "2407.13587-Lower",
+        "2407.13587-Upper"
+      ]
+    },
+    "BrRatio-Scalar-<prescription>.json": {
+      "quantity": "branching_ratios",
+      "coupling_dependence": "none",
+      "dimuon_channel": "muPmuM",
+      "neutral_kaon_channels": [
+        "KLKL",
+        "KSKS"
+      ],
+      "explicit_nucleon_channels": [
+        "ppbar",
+        "nnbar"
+      ],
+      "prescriptions": [
+        "1809.01876",
+        "2407.13587-Central",
+        "2407.13587-Lower",
+        "2407.13587-Upper"
+      ]
+    }
+  }
+}

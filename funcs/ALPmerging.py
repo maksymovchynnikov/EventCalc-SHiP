@@ -175,6 +175,13 @@ class _PhotonSource:
         if len(emax) != len(emax_mass) * len(emax_theta):
             raise ValueError(f"{mode} photon Emax table is not a rectangular grid")
         emax_values = emax[:, 2].reshape(len(emax_mass), len(emax_theta))
+        # The largest lab energy an ALP can carry falls as it is emitted
+        # further from the beam axis.  The energy cut applied when this source
+        # is evaluated rests on that fall, so the table has to show it.
+        if np.any(np.diff(emax_values, axis=1) > 0.0):
+            raise ValueError(
+                f"{mode} photon Emax table rises with the emission angle"
+            )
         emax_interpolator = RegularGridInterpolator(
             (np.log(emax_mass), np.log(emax_theta)),
             np.log(emax_values),
@@ -201,7 +208,17 @@ class _PhotonSource:
         target_theta: np.ndarray,
         target_energy: np.ndarray,
     ) -> np.ndarray:
-        """Evaluate this source on one rectangular theta-energy target grid."""
+        """Evaluate this source on one rectangular theta-energy target grid.
+
+        The tabulated density is carried by the region m <= E <= E_max(m,
+        theta), where E_max is the largest lab energy an ALP of that mass can
+        carry at that emission angle.  The angular grid of the maximum-energy
+        table is narrower than that of the density table.  Since E_max falls
+        with angle, its value at the last tabulated angle is an upper bound on
+        E_max at every wider angle, and the energy cut applies there; at an
+        angle in front of the first tabulated one the same value is a lower
+        bound, which cuts nothing, so no energy cut is applied.
+        """
         mass_eval = _snap_to_bounds(
             np.asarray([mass]), self.mass[0], self.mass[-1]
         )[0]
@@ -225,11 +242,17 @@ class _PhotonSource:
         )[0]
         if emax_mass < self.emax_mass[0] or emax_mass > self.emax_mass[-1]:
             return np.zeros_like(density)
-        emax_theta = np.clip(target_theta, self.emax_theta[0], self.emax_theta[-1])
+        in_front = target_theta < self.emax_theta[0]
+        emax_theta = np.minimum(
+            np.where(in_front, self.emax_theta[0], target_theta),
+            self.emax_theta[-1],
+        )
         emax_points = np.column_stack(
             (np.full(len(target_theta), np.log(emax_mass)), np.log(emax_theta))
         )
-        emax = np.exp(self.emax_interpolator(emax_points))
+        emax = np.where(
+            in_front, np.inf, np.exp(self.emax_interpolator(emax_points))
+        )
 
         supported_theta = (
             (target_theta >= self.theta[0] - 1.0e-15)

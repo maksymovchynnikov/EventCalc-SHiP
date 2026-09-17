@@ -1,0 +1,116 @@
+{
+	"schema": 1,
+	"purpose": "replace aggregate placeholder particle identities below m_T without changing rates",
+	"transition_GeV": 1.7,
+	"refined_table_sha256": "a246f18eae9fa4ff4c92a486495d879ca578d6f207f7dd157d04dad7a5239b75",
+	"source_directory": "compact/data/dark-photon/",
+	"groups": {
+		"KK": [
+			"KK_n",
+			"KK_c"
+		],
+		"KKpi": [
+			"KKpi_0",
+			"KKpi_1",
+			"KKpi_2"
+		],
+		"rho_other": [
+			"EtaPiPi",
+			"EtaPrimePiPi",
+			"6pi_n",
+			"6pi_c",
+			"OmegaPion",
+			"PhiPi",
+			"ppbar",
+			"nnbar"
+		],
+		"omega_other": [
+			"EtaGamma",
+			"EtaOmega",
+			"OmPiPi_n",
+			"OmPiPi_c"
+		],
+		"phi_other": [
+			"EtaPhi",
+			"KKpipi_0",
+			"KKpipi_1",
+			"KKpipi_2",
+			"KKpipi_3",
+			"PhiPiPi_n",
+			"PhiPiPi_c"
+		]
+	},
+	"replacement_rows": {
+		"KK": [
+			"KL_KS",
+			"Kp_Km"
+		],
+		"KKpi": [
+			"KKpi_0_KL_KS_Pi0",
+			"Kp_Km_Pi0",
+			"KKpi_2_KS_plus",
+			"KKpi_2_KS_minus",
+			"KKpi_2_KL_plus",
+			"KKpi_2_KL_minus"
+		],
+		"rho_other": [
+			"EtaPiPi",
+			"EtaPrimePiPi",
+			"6pi_n",
+			"6pi_c",
+			"OmegaPion",
+			"PhiPi",
+			"ppbar",
+			"nnbar"
+		],
+		"omega_other": [
+			"EtaGamma",
+			"EtaOmega",
+			"OmPiPi_n",
+			"OmPiPi_c"
+		],
+		"phi_other": [
+			"EtaPhi",
+			"KKpipi_0",
+			"KKpipi_1_KS_plus",
+			"KKpipi_1_KS_minus",
+			"KKpipi_1_KL_plus",
+			"KKpipi_1_KL_minus",
+			"KKpipi_2_KS_plus",
+			"KKpipi_2_KS_minus",
+			"KKpipi_2_KL_plus",
+			"KKpipi_2_KL_minus",
+			"KKpipi_3_KS_plus",
+			"KKpipi_3_KS_minus",
+			"KKpipi_3_KL_plus",
+			"KKpipi_3_KL_minus",
+			"PhiPiPi_n",
+			"PhiPiPi_c"
+		]
+	},
+	"checkpoints": {
+		"1.600": {
+			"KK": 0.02579832317448053,
+			"KKpi": 0.044235774520802025,
+			"rho_other": 0.03805277905010035,
+			"omega_other": 0.0271477763088062,
+			"phi_other": 0.00421818616790578
+		},
+		"1.690": {
+			"KK": 0.014381134668079755,
+			"KKpi": 0.05025928886591089,
+			"rho_other": 0.04823989551232253,
+			"omega_other": 0.03608342433050711,
+			"phi_other": 0.039275314917789385
+		},
+		"1.700": {
+			"KK": 0.0,
+			"KKpi": 0.0,
+			"rho_other": 0.0,
+			"omega_other": 0.0,
+			"phi_other": 0.0
+		}
+	},
+	"rate_contract": "replacement rows sum to the former aggregate at every tabulated mass",
+	"kinematics": "flat phase space for direct multibody rows; omega/phi are passed to the existing Pythia decay step"
+}

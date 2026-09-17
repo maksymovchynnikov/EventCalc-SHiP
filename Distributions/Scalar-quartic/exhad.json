@@ -1,0 +1,22 @@
+{
+  "bench": "hls",
+  "backend": "matched-spinzero-v1",
+  "model_portal": "Scalar-mixing",
+  "bench_variants": {
+    "1809.01876": "hls-1809",
+    "2407.13587-Central": "hls",
+    "2407.13587-Lower": "hls-lower",
+    "2407.13587-Upper": "hls-upper"
+  },
+  "model_variants": {
+    "hls": "2407.13587-Central",
+    "hls-lower": "2407.13587-Lower",
+    "hls-upper": "2407.13587-Upper",
+    "hls-1809": "1809.01876"
+  },
+  "m_start": 2.0,
+  "m_edge": 2.0,
+  "m_H": 4.0,
+  "m_high": 63.0,
+  "_comment": "From 2 to 5 GeV, one matched scalar event measure replaces the complete pooled hadronic branching fraction while leaving leptonic rows unchanged. The selected EventCalc rate prescription is carried into the event generator exactly: Blackstone central is the main prediction, Blackstone lower and upper are its alternatives, and 1809.01876 is the corrected Boiarska-Winkler prescription check. Each prescription supplies its own absolute exclusive and inclusive rates; the common scalar source projector controls unresolved fragmentation and joins the default source-conditioned fragmentation continuously from 4 to 5 GeV. Choosing default fragmentation in the host disables this replacement."
+}

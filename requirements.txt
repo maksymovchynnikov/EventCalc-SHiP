@@ -1,0 +1,15 @@
+# Event generation and interpolation
+numpy
+pandas
+scipy
+sympy
+numba
+
+# Hadronization and the decays of unstable products. EventCalc requires
+# Pythia 8.317; the last number is the revision of the Python package that
+# carries that version and installs its matching XML payload.
+pythia8mc==8.317.1
+
+# Plotting and the interactive event display
+matplotlib
+plotly

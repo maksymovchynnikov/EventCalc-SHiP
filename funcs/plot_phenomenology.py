@@ -18,7 +18,11 @@ def plot_production_probability(masses_plot, Yield_plot, LLP, plot_folder):
     ax = fig.add_subplot(111)
     ax.loglog(masses_plot, Yield_plot, color='blue', linewidth=2)
     ax.set_xlabel(r"$m_{\mathrm{LLP}}\,[\mathrm{GeV}]$", fontsize=12)
-    ax.set_ylabel(r"$P_{\mathrm{prod,LLP}}/\mathrm{coupling}^{2}\,[\mathrm{units}_{\mathrm{coupling}^{-2}}]$", fontsize=12)
+    if LLP.LLP_name == "ALP-fermion":
+        ylabel = r"$P_{\mathrm{prod,LLP}}/g_Y^{2}$"
+    else:
+        ylabel = r"$P_{\mathrm{prod,LLP}}/\mathrm{coupling}^{2}\,[\mathrm{units}_{\mathrm{coupling}^{-2}}]$"
+    ax.set_ylabel(ylabel, fontsize=12)
     ax.set_title(f"Total Production Probability of {LLP.LLP_name}", fontsize=14)
     
     if LLP.LLP_name == "HNL":
@@ -31,7 +35,7 @@ def plot_production_probability(masses_plot, Yield_plot, LLP, plot_folder):
                 fontsize=10, verticalalignment='top',
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.5))
     elif LLP.LLP_name == "Dark-photons":
-        uncertainty_text = f"The {LLP.uncertainty} position of production yield"
+        uncertainty_text = f"The {LLP.uncertainty} position of production yield" + (f"\nProduction source: {LLP.dp_production_mode}" if getattr(LLP, "dp_production_mode", None) else "")
         ax.text(0.05, 0.95, uncertainty_text, transform=ax.transAxes,
                 fontsize=10, verticalalignment='top',
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.5))
@@ -39,6 +43,10 @@ def plot_production_probability(masses_plot, Yield_plot, LLP, plot_folder):
         production_text = f"Production mode: {LLP.alp_production_mode}"
         ax.text(0.05, 0.95, production_text, transform=ax.transAxes,
                 fontsize=10, verticalalignment='top',
+                bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.5))
+    elif LLP.LLP_name == "ALP-fermion":
+        ax.text(0.05, 0.95, r"$g_Y=y=2v_h/f_a$",
+                transform=ax.transAxes, fontsize=10, verticalalignment='top',
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.5))
     elif LLP.LLP_name == "ALP-mixed":
         mixture_text = f"xi={LLP.xi:g}, {LLP.interference}"
@@ -65,7 +73,11 @@ def plot_lifetime(masses_plot, ctau_int_plot, LLP, plot_folder):
     ax = fig.add_subplot(111)
     ax.loglog(masses_plot, ctau_int_plot, color='green', linewidth=2)
     ax.set_xlabel(r"$m_{\mathrm{LLP}}\,[\mathrm{GeV}]$", fontsize=12)
-    ax.set_ylabel(r"$c\tau_{\mathrm{LLP}}\cdot \mathrm{coupling}^{2}\,[\mathrm{m}\cdot \mathrm{units}_{\mathrm{coupling}^{2}}]$", fontsize=12)
+    if LLP.LLP_name == "ALP-fermion":
+        ylabel = r"$c\tau_{\mathrm{LLP}}\,g_Y^{2}\,[\mathrm{m}]$"
+    else:
+        ylabel = r"$c\tau_{\mathrm{LLP}}\cdot \mathrm{coupling}^{2}\,[\mathrm{m}\cdot \mathrm{units}_{\mathrm{coupling}^{2}}]$"
+    ax.set_ylabel(ylabel, fontsize=12)
     ax.set_title(f"Proper Lifetime of {LLP.LLP_name}", fontsize=14)
     
     if LLP.LLP_name == "HNL":
@@ -78,7 +90,7 @@ def plot_lifetime(masses_plot, ctau_int_plot, LLP, plot_folder):
                 fontsize=10, verticalalignment='top',
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.5))
     elif LLP.LLP_name == "Dark-photons":
-        uncertainty_text = f"The {LLP.uncertainty} position of production yield"
+        uncertainty_text = f"The {LLP.uncertainty} position of production yield" + (f"\nProduction source: {LLP.dp_production_mode}" if getattr(LLP, "dp_production_mode", None) else "")
         ax.text(0.05, 0.95, uncertainty_text, transform=ax.transAxes,
                 fontsize=10, verticalalignment='top',
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.5))
@@ -86,6 +98,10 @@ def plot_lifetime(masses_plot, ctau_int_plot, LLP, plot_folder):
         production_text = f"Production mode: {LLP.alp_production_mode}"
         ax.text(0.05, 0.95, production_text, transform=ax.transAxes,
                 fontsize=10, verticalalignment='top',
+                bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.5))
+    elif LLP.LLP_name == "ALP-fermion":
+        ax.text(0.05, 0.95, r"$g_Y=y=2v_h/f_a$",
+                transform=ax.transAxes, fontsize=10, verticalalignment='top',
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.5))
     elif LLP.LLP_name == "ALP-mixed":
         mixture_text = f"xi={LLP.xi:g}, {LLP.interference}"
@@ -179,7 +195,7 @@ def plot_branching_ratios(masses_plot, Br_plot, chosen_channels, selected_decay_
                 fontsize=10, verticalalignment='top',
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.5))
     elif LLP.LLP_name == "Dark-photons":
-        uncertainty_text = f"The {LLP.uncertainty} position of production yield"
+        uncertainty_text = f"The {LLP.uncertainty} position of production yield" + (f"\nProduction source: {LLP.dp_production_mode}" if getattr(LLP, "dp_production_mode", None) else "")
         ax.text(0.05, 0.95, uncertainty_text, transform=ax.transAxes,
                 fontsize=10, verticalalignment='top',
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=0.5))

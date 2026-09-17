@@ -18,11 +18,24 @@ def _load_pyhepmc() -> Any:
         ) from exc
 
 
-class HepMC3Writer:
-    """Stream :class:`runtime_generator.EventRecord` objects to HepMC3 ASCII."""
+#: The code EventCalc fills the mother's PDG column with while it generates.
+#: It is a marker, not a particle, and it must never reach a written event.
+EVENTCALC_MOTHER_PLACEHOLDER = 12345678
 
-    def __init__(self, path: Path, *, precision: int = 16) -> None:
+
+class HepMC3Writer:
+    """Stream :class:`runtime_generator.EventRecord` objects to HepMC3 ASCII.
+
+    ``mother_pdg`` is the decaying particle's real PDG code, which the caller
+    takes from ``llp.LLP_pdg``.  A HepMC reader keys on that code, so the
+    generator's internal placeholder is not written: when no code is available
+    and the record still carries the placeholder, the export stops and says so.
+    """
+
+    def __init__(self, path: Path, *, precision: int = 16,
+                 mother_pdg: int | None = None) -> None:
         self.path = Path(path)
+        self.mother_pdg = None if mother_pdg is None else int(mother_pdg)
         self._pyhepmc = _load_pyhepmc()
         self._run_info = self._pyhepmc.GenRunInfo()
         self._run_info.weight_names = ["decay_weight"]
@@ -66,6 +79,18 @@ class HepMC3Writer:
             return 0.0
         return 1000.0 * distance_m * float(mother[3]) / momentum
 
+    def _mother_pdg_code(self, mother: Any) -> int:
+        if self.mother_pdg is not None:
+            return self.mother_pdg
+        recorded = int(round(float(mother[5])))
+        if recorded != EVENTCALC_MOTHER_PLACEHOLDER:
+            return recorded
+        raise ValueError(
+            "the mother's PDG code is EventCalc's internal placeholder "
+            f"{EVENTCALC_MOTHER_PLACEHOLDER}; pass mother_pdg (the driver "
+            "takes it from llp.LLP_pdg, and --llp-pdg sets it explicitly)"
+        )
+
     def event_from_record(self, record: Any) -> Any:
         """Convert one runtime event without writing it."""
         hepmc = self._pyhepmc
@@ -94,7 +119,7 @@ class HepMC3Writer:
         )
         parent = hepmc.GenParticle(
             hepmc.FourVector(*map(float, mother[:4])),
-            int(round(float(mother[5]))),
+            self._mother_pdg_code(mother),
             2,
         )
         parent.generated_mass = float(mother[4])

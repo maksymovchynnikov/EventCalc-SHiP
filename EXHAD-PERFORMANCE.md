@@ -1,157 +1,114 @@
-# Generation performance
+# Measured generation times
 
-## rc10 conditional ALP generation
+Every number here is a wall time from a separate local run on one macOS
+machine with Pythia 8.317, under ambient load that was not controlled. They
+are not a benchmark, they are not a promise for another model, mass or host,
+and none of them is a reference a later change is required to beat. What they
+are good for is the shape of the cost: where the time goes, and what a warm
+run costs compared with a cold one.
 
-The installed integration generated **100,000 full 3-GeV ALP events in
-49.8 s on one worker**, with its normal 512-event chunks and unit
-hadronization weights. Initialization plus a separate 50-event warmup took
-7.24 s. All events pass the unchanged 2e-6 conservation tolerance.
+The interpreter these runs used is not recorded with the timings. Repeat a
+measurement on your own installation before planning a large scan around it.
 
-A controlled single-request comparison took **440.1 s with rc9 and
-40.9 s with the conditional batched sampler**, a 10.8-fold single-core
-speedup. These are actual equal-size runs; the different chunked seed
-stream and request overhead explain why the installed number is reported
-separately. No event bank, reused momenta, flat phase space or importance
-weights are introduced. The original Pythia momentum routines are retained
-after conditioning on the scarce eta/eta-prime plus two-pion channels.
+## Fermion-coupled ALP, matched hadronic decays
 
-Enable the optional accelerator from the exHad checkout with
-`python tools/build_conditional.py --pythia-source /absolute/path/to/pythia8317`
-after ordinary configuration. It applies to central-generator ALP at
-2.4 < m <= 3.5 GeV; other masses and portals retain ordinary generation.
-See exHad's `docs/PERFORMANCE.md` and conditional-kernel derivation for
-the exact scope, rate-draw distinction and independent physics checks.
+exHad has two samplers of the same event distribution: the rejection sampler,
+which fragments a complete string and accepts or rejects the trial event, and
+the accelerated sampler, which decides acceptance while the string fragments
+and generates the rarest channel groups directly. exHad uses the accelerated
+one for unweighted ALP samples above 2.4 GeV and the rejection one for
+weighted samples at every mass. At 3 GeV, with the default 512-event chunks:
 
-## Matched ALP with persistent parallel workers (rc9)
-
-Actual 100,000-event full EventCalc runs at 3 GeV, eight workers and
-512-event chunks, took **112.27 s unweighted** or **29.46 s weighted** with
-floor fraction 0.1 and hadronization effective sample size **53,615**.
-These timings exclude startup; initialization plus a separate 4,096-event
-warmup took 13.23 s and 10.51 s. All laboratory records passed the existing
-relative four-momentum tolerance of 2e-6. These were local precursor builds
-with rc9's scheduler, not a universal performance guarantee.
-
-A paired 4,000-event test took 17.88 s with one worker and 4.94 s with eight,
-returning identical complete records and labels. The pool generates fresh,
-independently seeded chunks and restores request order; it does not reuse
-events, alter channel probabilities or smooth momentum distributions.
-Weighted samples require their weights and observable-specific precision
-checks; 100,000 weighted events are not 100,000 unweighted events.
-
-The default is up to eight available CPUs; `EXHAD_WORKERS=1` selects serial
-chunked execution. This reduces elapsed time by using additional cores and
-memory, not by reducing the roughly 49 outer proposals per retained event
-at this mass. The original single-request API is still available in exHad.
-See `EXHAD.md` for reproducibility and configuration details.
-
-## Raw EventCalc pipeline profile (13 September 2026)
-
-A controlled 3 GeV ALP benchmark of 100,000 full laboratory events, in
-10,000-event batches, took 20.16 s before the event-record/boost changes.
-Timed and untimed runs produced identical complete event records and labels.
-Its measured phase costs were:
-
-| Operation | Time for 100,000 events |
-|---|---:|
-| Parent inverse-CDF sampling | 0.033 s |
-| All parent/vertex work, including that sampling | 0.049 s |
-| Pythia construction, settings and initialization, ten batches | 0.529 s |
-| Pythia `forceHadronLevel`, 100,000 calls | 0.485 s |
-| Building primary Pythia records | 0.574 s |
-| Final-particle extraction, validation and loop overhead | 16.648 s |
-| Boosts | 1.690 s |
-
-The inverse-CDF row is included in the parent/vertex row; do not add it twice.
-The extraction entry is a residual timing, not time inside fragmentation.
-Pythia's Python `Event` binding has no iterator: implicit iteration goes
-through the sequence protocol, ending with an exception for each event.
-Explicit indices bounded by `event.size()` reduced full generation to 4.84 s.
-Vectorizing the same boost formulas reduced it further to 3.20 s at 3 GeV
-and 2.63 s at 2 GeV. The 3 GeV records/labels are bit-identical across all
-three implementations (SHA-256
-`682542c05a77cf35bf7a6ed534faf4a9a0795c7783b83f5a8094b08f19678175`).
-The final 100,000-event samples at both masses pass the existing relative
-four-momentum tolerance of 2e-6. Timings exclude initial table loading and
-first JIT compilation, but include Pythia setup inside each batch.
-
-These are native raw-Pythia events, not exHad rejection-sampled events.
-The optimized extraction/boost code changes no branching fractions,
-matrix elements, Pythia settings, cuts or weights. Native Pythia seeding
-and numerical checks were held fixed across this comparison.
-
-## Earlier exHad rejection-sampler measurements
-
-The optimized sampler is the default. Reuse one `Generator` context for
-successive batches; its bounded Pythia workers are closed with the context.
-EventCalc retains exHad as its default and `--rawPythia` as the explicit
-alternative physics backend.
-
-## ALP measurements
-
-These local macOS measurements use Python 3.14.6, Pythia 8.317 and the
-universal-fermion ALP at 2 GeV. They count complete rest-frame decays, not
-detector-selected events. Do not extrapolate them to other models or masses.
-
-| Measurement, 1,000 decays | Earlier implementation | Current implementation |
+| Run | Events | Time |
 |---|---:|---:|
-| Buffered EventCalc, first batch | 18.98 s | 5.57 s |
-| Buffered EventCalc, subsequent batches | 18.34 / 17.33 s | 1.80 / 1.79 s |
-| Hadronic kernel, after 1,000-event warmup; batch-owned workers | rc2: 6.39 s | 2.58 s |
+| Accelerated sampler, one worker | 100,000 | 49.8 s |
+| Rejection sampler, eight workers | 100,000 | 112.27 s |
+| Rejection sampler, eight workers, importance-weighted, floor fraction 0.1 | 100,000 | 29.46 s |
 
-The EventCalc comparison includes its native nonhadronic channels and uses
-one persistent public generator. Its warmed throughput is about 550 decays/s
-in this benchmark, roughly ten times the original measurement. The direct
-kernel comparison starts and closes its workers for each batch; the public
-interface avoids that repeated startup. Parent sampling is timed separately
-and takes approximately 0.0005 s per 1,000 attempts.
+The timings exclude start-up. Initialization plus a separate warmup took
+7.24 s for the first row and 13.23 s (10.51 s weighted) for the other two.
+The rows come from separate runs with separate warmups.
 
-First use also imports and authenticates inputs and may compile native
-kinematic kernels. It is not equivalent to steady-state generation. These
-are separate local runs, not a controlled hardware benchmark: ambient load,
-release-bound seed streams and the mix of rare channels affect wall times.
+A single-core comparison of the two samplers on one request of the same size
+took 440.1 s with the rejection sampler and 40.9 s with the accelerated one.
+The accelerated sampler introduces no event bank, no reused momenta, no flat
+phase space and no importance weights: the momenta still come from Pythia's
+own fragmentation, conditioned on the scarce $\eta$ and $\eta'$ two-pion
+channels.
 
-## Execution changes
+A paired test of the same 4,000 events took 17.88 s with one worker and
+4.94 s with eight, and returned identical complete records and labels. Worker
+processes reduce elapsed time by using more cores; they do not reduce the
+number of proposals a retained event costs, which at 3 GeV is of order 50,
+and they change no event.
 
-- The rejection bound is the maximum of actual family-times-charge weights,
-  not the product of unrelated maxima. At 2 GeV it falls from 39.80 to 9.94.
-  Both are valid common bounds; replacing the larger one preserves every
-  normalized channel probability. It changes which candidate is accepted.
-- Rejected proposals stay in C++. Bounded source-local batches preserve
-  logical proposal ordering; only accepted complete graphs cross into Python.
-- Pythia-owned exclusive rows no longer generate and discard an EventCalc
-  phase-space event. Input checks and matrix-element parsing remain.
-- Active and exclusive Pythia runtimes are reused across public batches.
-  Caches have fixed bounds, are tied to authenticated configurations, and
-  are cleared on failure or context exit. Every proposal is explicitly seeded.
-- Graphs are parsed once, and frozen probabilities are evaluated once per
-  mass/variation batch.
-- Since rc4, the public B-L generator prepares its authenticated rate inputs
-  once. Subsequent batches evaluate the requested mass and variation directly,
-  without repeating the full-grid initialization audit. This does not cache or
-  interpolate mass-dependent rates. Start a new generator when changing inputs.
+A weighted sample of 100,000 events is not an unweighted sample of 100,000
+events: at floor fraction 0.1 the effective sample size of the run above was
+53,615, and the precision of a given observable has to be checked on that
+observable.
 
-The warmed kernel profiles generated 48,458 versus 13,135 outer proposals
-for approximately 1,000 retained fragmentation events. The latter used
-1,678 source-batch calls. There is still genuine rejection work: the frozen
-proposal distribution differs from the target hadronic composition.
+Every laboratory record of these runs satisfies the relative four-momentum
+closure of $2\times10^{-6}$ that the generator already enforced.
 
-## Correctness checks
+At 2 GeV, 1,000 complete rest-frame decays through the buffered EventCalc
+interface took 5.57 s in the first batch and 1.80 s in each following batch,
+about 550 decays per second warm. The first batch imports and authenticates
+the model inputs and compiles the kinematic kernels; it is not steady-state
+generation. Reuse one generator context across batches, and close it when the
+context ends.
 
-At 20 model/mass points, 2,200 complete events match a Python reference
-using the same joint bound, including when the compiled workers are reused
-across model and mass changes. A separate test reinstates the old bound
-and reproduces all 2,200 earlier events exactly, isolating removal of
-discarded work from the deliberate acceptance-sequence change. Analytic
-normalization tests check the joint-bound identity for 1,000 varied
-family/charge distributions. No physics probability, matching curve,
-selection, source support or hard failure limit is relaxed.
+## Unmodified-Pythia baseline
 
-Public smoke tests check all seven model choices, four-momentum closure
-and seed replay after an intervening mass change. Seeds reproduce batches
-at fixed release, runtime, model, mass and event count; identical streams
-across different releases are not promised.
+The same ALP configuration on the Pythia baseline, 100,000 complete laboratory
+events in batches of 10,000, took 3.20 s at 3 GeV and 2.63 s at 2 GeV. These
+timings exclude the initial table loading and the first compilation of the
+kernels, and include the Pythia setup inside each batch.
 
-`EXHAD_PORTABLE_REFERENCE=1` selects the Python rejection implementation
-with the same current matching probabilities and bound. It is a diagnostic,
-not raw Pythia and not the pre-rc3 acceptance sequence.
+Two details of that path are worth knowing when reading a profile of it.
+Pythia's Python `Event` binding has no iterator, so implicit iteration walks
+the sequence protocol and ends with an exception for every event; EventCalc
+therefore reads the record with explicit indices bounded by `event.size()`.
+The boosts are evaluated as array operations over a whole batch. Neither
+touches branching fractions, matrix elements, Pythia settings, cuts or
+weights, and the event records they produce are bit-identical to the
+element-by-element versions of the same formulas.
+
+## What the matched generator spends its time on
+
+The hadronic events of the ALP and the scalars are drawn by rejection: Pythia
+fragments a string, the trial event is accepted with a probability set by its
+channel group and charge combination, and the rejected trials stay in C++.
+The bound of that acceptance is the maximum of the actual
+group-times-charge weights rather than a product of unrelated maxima, which at
+2 GeV is 9.94 instead of 39.80; both are valid common bounds and both leave
+every normalized channel probability unchanged, so the smaller one only
+discards less work. The remaining rejection is genuine: the distribution
+Pythia proposes is not the hadronic composition the model requires.
+
+The rest of the cost is set up once rather than per event: the decay graphs
+are parsed once, the frozen probabilities are evaluated once per mass, and the
+Pythia runtimes are reused across batches inside one generator context, with
+bounded caches that are cleared when a context exits or a call fails. Each
+proposal is explicitly seeded.
+
+## Correctness alongside the speed
+
+These checks are what make the timings above comparable with a slower path
+rather than with a different physics.
+
+- At 20 model and mass points, 2,200 complete events match a Python reference
+  implementation that uses the same bound, including when the compiled workers
+  are reused across changes of model and mass.
+- A separate test reinstates the larger bound and reproduces all 2,200 events
+  of that bound exactly, which separates the removal of discarded work from
+  the deliberate change of which candidate is accepted.
+- Analytic normalization tests check the bound identity for 1,000 varied
+  group and charge distributions.
+- The smoke tests cover every model choice, four-momentum closure, and seed
+  replay after an intervening change of mass. A seed reproduces a batch at
+  fixed installation, model, mass and event count.
+
+`EXHAD_PORTABLE_REFERENCE=1` selects the Python implementation of the same
+rejection sampling, with the same matching probabilities and the same bound.
+It is a diagnostic: it is neither the Pythia baseline nor a different
+acceptance rule.

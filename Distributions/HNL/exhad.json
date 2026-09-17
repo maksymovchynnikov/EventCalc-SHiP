@@ -1,0 +1,17 @@
+{
+  "bench": "hnl",
+  "source_schema": 1,
+  "validated_event_composition": {
+    "production_parent_mass_range_GeV": [0.02, 5.27],
+    "composition_coordinate": "per-event exact hadronic invariant mass W",
+    "currents": ["NC_ud", "NC_s", "CC_ud", "CC_us", "CC_cd", "CC_cs"],
+    "CC_ud": "ALEPH tau spectral functions through W=1.65 GeV, followed by the source-projected continuation",
+    "CC_us": "data-tied resonance cocktail; explicit K pole excluded",
+    "NC_ud": "OPAL/tau-normalized light-current construction through W=1.65 GeV, followed by the source-projected continuation",
+    "NC_s": "data-tied strange-current construction through W=1.65 GeV, followed by the source-projected continuation",
+    "CC_cd": "charged c dbar continuum with the explicit single-D row removed",
+    "CC_cs": "charged c sbar continuum with the explicit single-Ds row removed"
+  },
+  "inactive_fail_closed_currents": ["NC_c", "NC_b", "CC_ub", "CC_cb"],
+  "_comment": "EventCalc owns every explicit pole and exclusive row. exhad replaces only the selected Jets-* subsystem, preserves its exact four-vector and W, and covers all six currents with positive installed production weight through 5.27 GeV. Set EXHAD_BENCH=raw (or choose default fragmentation in the host prompt) only for the comparison sample."
+}

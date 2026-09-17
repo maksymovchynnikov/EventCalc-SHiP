@@ -1,34 +1,42 @@
 {
-  "schema_version": 1,
-  "installed_at": "2026-07-14",
-  "source": {
-    "decay_json": "HNL-decay.json",
-    "decay_json_sha256": "ef29ae8a47b488dea80baf50fc761ac2a25653c57edf1291b962203ff810d05d",
-    "width_table": "HNLdecayWidth.dat",
-    "width_table_sha256": "77cf93693b478cdc30a730ffcd64a07e5d55c5d240d43636034c363e2266b096",
-    "notebook": "Phenomenology. HNLs_new_new_new.nb",
-    "notebook_sha256": "5c94fb05bc2f714f25b9f02242e838d5f543c715946828913f319fbaffa36111"
-  },
-  "inventory": {
-    "channels": 88,
-    "mixings": ["Ue2", "Umu2", "Utau2"],
-    "mass_nodes": 1724,
-    "mass_range_GeV": [0.0002, 40.0]
-  },
-  "validation": {
-    "status": "pass",
-    "schema_and_unique_inventory": true,
-    "finite_nonnegative_widths": true,
-    "branching_ratios_in_unit_interval": true,
-    "physical_thresholds": true,
-    "persistent_poles": true,
-    "conjugate_pairs": 36,
-    "max_conjugate_branching_difference": 0.0,
-    "max_visible_width_closure_residual": 4.86e-16
-  },
-  "scope": {
-    "validated_rate_table": "0.0002--40 GeV",
-    "data_tied_event_composition": "NC ud and s; CC ud and us in the 1--3 GeV benchmark",
-    "heavy_current_event_composition": "CC cd/cs/ub/cb and NC c/b remain explicit fail-closed boundaries until dedicated event-composition cards are supplied"
-  }
+    "schema_version": 1,
+    "installed_at": "2026-09-16",
+    "source": {
+        "decay_json": "HNL-decay.json",
+        "decay_json_sha256": "7a206bdf31eb107e771e76c50f58df0cc756e7bb4613323ebe2526036a215a9a",
+        "width_table": "HNLdecayWidth.dat",
+        "width_table_sha256": "77cf93693b478cdc30a730ffcd64a07e5d55c5d240d43636034c363e2266b096",
+        "notebook": "Phenomenology. HNLs_new_new_new.nb",
+        "notebook_sha256": "5c94fb05bc2f714f25b9f02242e838d5f543c715946828913f319fbaffa36111",
+        "origin": "exHad release data/hnl/eventcalc_branching_ratios.json and data/hnl/eventcalc_total_widths.dat; adopted so the release input-match check passes. The corrected matrix elements take the lepton masses from the generator (symbols m1/m2/m3) and the rates are threshold-aware. There is no radiative N -> nu gamma row and none may be added."
+    },
+    "inventory": {
+        "channels": 88,
+        "mixings": [
+            "Ue2",
+            "Umu2",
+            "Utau2"
+        ],
+        "mass_nodes": 1724,
+        "mass_range_GeV": [
+            0.0002,
+            40.0
+        ]
+    },
+    "validation": {
+        "status": "pass",
+        "schema_and_unique_inventory": true,
+        "finite_nonnegative_widths": true,
+        "branching_ratios_in_unit_interval": true,
+        "physical_thresholds": true,
+        "persistent_poles": true,
+        "conjugate_pairs": 36,
+        "max_conjugate_branching_difference": 0.0,
+        "max_visible_width_closure_residual": 4.86e-16
+    },
+    "scope": {
+        "validated_rate_table": "0.0002--40 GeV",
+        "data_tied_event_composition": "NC ud and s; CC ud and us in the 1--3 GeV benchmark",
+        "heavy_current_event_composition": "CC cd/cs/ub/cb and NC c/b remain explicit fail-closed boundaries until dedicated event-composition cards are supplied"
+    }
 }

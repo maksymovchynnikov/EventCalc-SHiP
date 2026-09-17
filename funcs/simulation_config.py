@@ -1,8 +1,8 @@
 """Configuration and command-line parsing for the EventCalc launcher.
 
-This module deliberately uses only the Python standard library.  In particular,
-it can validate a launch card without importing the numerical simulation stack
-or any module that prompts for user input.
+This module validates a launch card without importing the numerical simulation
+stack beyond the one constant it shares with the ALP mixture builder, and
+without importing any module that prompts for user input.
 """
 
 from __future__ import annotations
@@ -15,11 +15,35 @@ from pathlib import Path
 import re
 from typing import Any, Mapping, Sequence
 
+from funcs.ALPmerging import SIN2_THETA_W
+from funcs.channel_selection import ALL_JETS_TOKEN, resolve_channel_tokens
+
 
 DEFAULT_N_POT = 6.0e20
 DEFAULT_MIN_EVENTS_THRESHOLD = 0.1
-SIN2_THETA_W = 0.23122
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+#: The scalar decay-table prescription a scalar run uses when none is named.
+#: The four published prescriptions are separate table pairs and the host must
+#: be able to say which one it means.
+DEFAULT_SCALAR_PRESCRIPTION = "2407.13587-Central"
+
+#: Every installed scalar prescription, and the short spellings accepted for it.
+SCALAR_PRESCRIPTIONS = (
+    "2407.13587-Central",
+    "2407.13587-Lower",
+    "2407.13587-Upper",
+    "1809.01876",
+)
+_SCALAR_PRESCRIPTION_ALIASES = {
+    "central": "2407.13587-Central",
+    "lower": "2407.13587-Lower",
+    "upper": "2407.13587-Upper",
+    "1809": "1809.01876",
+}
+
+#: Placeholder the scalar model files carry, filled in with the prescription.
+_PRESCRIPTION_PLACEHOLDER = "{prescription}"
 
 
 class ConfigurationError(ValueError):
@@ -38,17 +62,18 @@ MODEL_SPECS: tuple[ModelSpec, ...] = (
     ModelSpec(
         "ALP-fermion", "ALP-fermion", "ALP-fermion-decay.json",
         ("DoubleDistr-ALP-fermion.txt", "Emax-ALP-fermion.txt",
-         "Total-yield-ALP-fermion.txt", "ctau-ALP-fermion.txt", "coupling.json"),
+         "Total-yield-ALP-fermion.txt", "ctau-ALP-fermion.txt", "coupling.json",
+         "exhad.json"),
     ),
     ModelSpec(
         "Scalar-mixing",
         "Scalar-mixing",
-        "HLS-decay.json",
+        f"../Scalar-mixing/BrRatio-Scalar-{_PRESCRIPTION_PLACEHOLDER}.json",
         (
             "DoubleDistr-Scalar-mixing.txt",
             "Emax-Scalar-mixing.txt",
             "Total-yield-Scalar-mixing.txt",
-            "ctau-Scalar.txt",
+            f"../Scalar-mixing/ctau-Scalar-{_PRESCRIPTION_PLACEHOLDER}.txt",
         ),
     ),
     ModelSpec(
@@ -60,12 +85,12 @@ MODEL_SPECS: tuple[ModelSpec, ...] = (
     ModelSpec(
         "Scalar-quartic",
         "Scalar-quartic",
-        "HLS-decay.json",
+        f"../Scalar-mixing/BrRatio-Scalar-{_PRESCRIPTION_PLACEHOLDER}.json",
         (
             "DoubleDistr-Scalar-quartic.txt",
             "Emax-Scalar-quartic.txt",
             "Total-yield-Scalar-quartic.txt",
-            "ctau-Scalar.txt",
+            f"../Scalar-mixing/ctau-Scalar-{_PRESCRIPTION_PLACEHOLDER}.txt",
         ),
     ),
     ModelSpec(
@@ -108,6 +133,35 @@ MODEL_SPECS: tuple[ModelSpec, ...] = (
     ),
 )
 
+SCALAR_MODEL_NAMES = frozenset({"Scalar-mixing", "Scalar-quartic"})
+
+#: The models an exHad release carries a matched hadronic description for.
+_EXHAD_MODEL_NAMES = frozenset(
+    {"Dark-photons", "ALP-fermion", "Scalar-mixing", "Scalar-quartic", "HNL"})
+
+#: The photon-coupled ALP has only gamma and lepton final states, so there is
+#: nothing for exHad to hadronize and an explicit 'on' has nothing to do
+#: rather than something to refuse.  run_batch.py reports such a selection as
+#: a no-op through exhad_applicable_to_selection, which reads this set.
+_EXHAD_INAPPLICABLE_MODEL_NAMES = frozenset({"ALP-photon"})
+
+_DP_PRODUCTION_MODES = {
+    "primary": "primary",
+    "cascade": "cascade",
+    "brem-cascade": "brem-cascade",
+    "combined": "combined",
+    "primary+cascade": "combined",
+    "cascade+primary": "combined",
+}
+_ALP_PRODUCTION_MODES = {
+    "primary": "primary",
+    "cascade": "cascades",
+    "cascades": "cascades",
+    "combined": "combined",
+    "primary+cascade": "combined",
+    "cascade+primary": "combined",
+}
+
 
 def _name_key(value: str) -> str:
     return re.sub(r"[^a-z0-9]", "", value.casefold())
@@ -141,6 +195,21 @@ def available_models(project_root: Path = PROJECT_ROOT) -> tuple[ModelSpec, ...]
     return tuple(spec for spec in MODEL_SPECS if (distributions / spec.directory).is_dir())
 
 
+def _resolve_prescription_placeholder(name: str, prescription: str | None) -> str:
+    if _PRESCRIPTION_PLACEHOLDER not in name:
+        return name
+    if prescription is None:
+        prescription = DEFAULT_SCALAR_PRESCRIPTION
+    return name.replace(_PRESCRIPTION_PLACEHOLDER, prescription)
+
+
+def _model_file(model_dir: Path, name: str, prescription: str | None) -> Path:
+    """The installed path of one file a model spec names."""
+    return Path(
+        (model_dir / _resolve_prescription_placeholder(name, prescription)).as_posix()
+    ).resolve()
+
+
 def _finite_float(value: Any, field: str, *, positive: bool = False, nonnegative: bool = False) -> float:
     if isinstance(value, bool):
         raise ConfigurationError(f"'{field}' must be a number, not a boolean.")
@@ -168,6 +237,20 @@ def _positive_int(value: Any, field: str) -> int:
         raise ConfigurationError(f"'{field}' must be a positive integer.")
     if result <= 0:
         raise ConfigurationError(f"'{field}' must be a positive integer.")
+    return result
+
+
+def _nonnegative_int(value: Any, field: str) -> int:
+    if isinstance(value, bool):
+        raise ConfigurationError(f"'{field}' must be a non-negative integer.")
+    try:
+        result = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ConfigurationError(f"'{field}' must be a non-negative integer.") from exc
+    if isinstance(value, float) and not value.is_integer():
+        raise ConfigurationError(f"'{field}' must be a non-negative integer.")
+    if result < 0:
+        raise ConfigurationError(f"'{field}' must be a non-negative integer.")
     return result
 
 
@@ -204,11 +287,12 @@ def _decay_selection(value: Any) -> tuple[str | int, ...]:
         return ("all",)
     raw = [value] if isinstance(value, (str, int)) and not isinstance(value, bool) else value
     if not isinstance(raw, (list, tuple)) or not raw:
-        raise ConfigurationError("'decay_channels' must be 'all' or a non-empty list of names/indices.")
+        raise ConfigurationError(
+            "'decay_channels' must be 'all', 'jets', or a non-empty list of channel names.")
     result: list[str | int] = []
     for item in raw:
         if isinstance(item, bool) or not isinstance(item, (str, int)):
-            raise ConfigurationError("Decay channels must be names or one-based integer indices.")
+            raise ConfigurationError("Decay channels must be channel names, 'all', or 'jets'.")
         if isinstance(item, str):
             item = item.strip()
             if not item:
@@ -238,14 +322,22 @@ def _strict_bool(value: Any, field: str) -> bool:
 _CARD_ALIASES = {
     "ctaus": "c_taus",
     "decays": "decay_channels",
+    "channels": "decay_channels",
     "mixing": "mixing_pattern",
     "alp_production": "alp_production_mode",
+    "dp_production": "dp_production_mode",
     "relative_sign": "interference",
     "sign": "interference",
     "plot_phenomenology": "plots",
+    "prescription": "scalar_prescription",
+    "scalar_variant": "scalar_prescription",
+    "scalar_lifetime": "scalar_prescription",
+    "pdg": "llp_pdg",
+    "hadronization": "exhad_mode",
+    "exhad": "exhad_mode",
 }
 _CONFIG_KEYS = {
-    "hadronization", "exhad_root", "exhad_python",
+    "exhad_mode", "exhad_root", "exhad_python",
     "model",
     "events",
     "masses",
@@ -254,6 +346,7 @@ _CONFIG_KEYS = {
     "mixing_pattern",
     "uncertainty",
     "alp_production_mode",
+    "dp_production_mode",
     "xi",
     "interference",
     "plots",
@@ -261,6 +354,23 @@ _CONFIG_KEYS = {
     "n_pot",
     "min_events_threshold",
     "seed",
+    "scalar_prescription",
+    "llp_pdg",
+    "batch_index_offset",
+    "stock_pythia_pool",
+}
+
+#: Card and command-line spellings of the three hadronization routes.
+_EXHAD_MODE_ALIASES = {
+    "auto": "auto",
+    "on": "on",
+    "exhad": "on",
+    "off": "off",
+    "raw": "off",
+    "rawpythia": "off",
+    "raw-pythia": "off",
+    "raw_pythia": "off",
+    "pythia": "off",
 }
 
 
@@ -289,6 +399,7 @@ class SimulationConfig:
     mixing_pattern: tuple[float, float, float] | None
     uncertainty: str | None
     alp_production_mode: str | None
+    dp_production_mode: str | None
     xi: float | None
     interference: str | None
     plots: bool
@@ -297,9 +408,25 @@ class SimulationConfig:
     min_events_threshold: float
     seed: int | None
     project_root: Path
-    hadronization: str = "exhad"
+    #: 'auto' follows the card/environment resolution, 'on' requires a usable
+    #: exHad release, 'off' forces the EventCalc baseline.
+    exhad_mode: str = "auto"
     exhad_root: str | None = None
     exhad_python: str | None = None
+    #: The scalar decay-table prescription, carried into the LLP constructor's
+    #: scalar_lifetime argument.
+    scalar_prescription: str | None = None
+    #: Mother PDG code override (--llp-pdg).  None keeps the exHad release
+    #: default (dark-photon 4900022, b-l 32, scalars 35, alp-fermion 36,
+    #: hnl 9900012).  EventCalc's internal hadronization mother code 25 is a
+    #: separate convention and is unaffected.
+    llp_pdg: int | None = None
+    #: Mass-grid entries that precede this command in an ordered scan, so a
+    #: split scan keeps the RNG coordinates of the whole one.
+    batch_index_offset: int = 0
+    #: Retain the complete ALP hadronic allocation and hadronize it with
+    #: unmodified Pythia, as the comparator sample.
+    stock_pythia_pool: bool = False
 
     @property
     def n_events(self) -> int:
@@ -327,7 +454,7 @@ class SimulationConfig:
         else:
             lifetimes = [list(item) for item in self.c_taus]
         return {
-            "hadronization": self.hadronization,
+            "exhad_mode": self.exhad_mode,
             "exhad_root": self.exhad_root,
             "exhad_python": self.exhad_python,
             "model": self.model,
@@ -338,6 +465,7 @@ class SimulationConfig:
             "mixing_pattern": list(self.mixing_pattern) if self.mixing_pattern is not None else None,
             "uncertainty": self.uncertainty,
             "alp_production_mode": self.alp_production_mode,
+            "dp_production_mode": self.dp_production_mode,
             "xi": self.xi,
             "interference": self.interference,
             "plots": self.plots,
@@ -345,29 +473,44 @@ class SimulationConfig:
             "n_pot": self.n_pot,
             "min_events_threshold": self.min_events_threshold,
             "seed": self.seed,
+            "scalar_prescription": self.scalar_prescription,
+            "llp_pdg": self.llp_pdg,
+            "batch_index_offset": self.batch_index_offset,
+            "stock_pythia_pool": self.stock_pythia_pool,
         }
 
 
-def _required_files(spec: ModelSpec, uncertainty: str | None, alp_mode: str | None) -> tuple[str, ...]:
+def _required_files(spec: ModelSpec, uncertainty: str | None, alp_mode: str | None,
+                    dp_mode: str | None) -> tuple[str, ...]:
     files = list(spec.common_files)
     if spec.name == "ALP-photon":
         assert alp_mode is not None
-        files.extend(
-            (
-                f"DoubleDistr-ALP-photon_{alp_mode}.txt",
-                f"Emax-ALP-photon_{alp_mode}.txt",
-                f"Total-yield-ALP-photon_{alp_mode}.txt",
+        modes = ("primary", "cascades") if alp_mode == "combined" else (alp_mode,)
+        for mode in modes:
+            files.extend(
+                (
+                    f"DoubleDistr-ALP-photon_{mode}.txt",
+                    f"Emax-ALP-photon_{mode}.txt",
+                    f"Total-yield-ALP-photon_{mode}.txt",
+                )
             )
-        )
     elif spec.name == "Dark-photons":
         assert uncertainty is not None
-        files.extend(
-            (
-                f"DoubleDistr-DP-{uncertainty}.txt",
-                f"Emax-DP-{uncertainty}.txt",
-                f"Total-yield-DP-{uncertainty}.txt",
+        assert dp_mode is not None
+        if dp_mode == "combined":
+            suffixes = (uncertainty, f"cascade-{uncertainty}")
+        elif dp_mode == "primary":
+            suffixes = (uncertainty,)
+        else:
+            suffixes = (f"{dp_mode}-{uncertainty}",)
+        for suffix in suffixes:
+            files.extend(
+                (
+                    f"DoubleDistr-DP-{suffix}.txt",
+                    f"Emax-DP-{suffix}.txt",
+                    f"Total-yield-DP-{suffix}.txt",
+                )
             )
-        )
     files.append(spec.decay_file)
     return tuple(files)
 
@@ -377,8 +520,16 @@ def _validate_installed_files(config: SimulationConfig) -> None:
     model_dir = config.particle_path
     if not model_dir.is_dir():
         raise ConfigurationError(f"Distribution directory does not exist: {model_dir}")
-    missing = [name for name in _required_files(spec, config.uncertainty, config.alp_production_mode)
-               if not (model_dir / name).is_file()]
+    required = _required_files(
+        spec, config.uncertainty, config.alp_production_mode, config.dp_production_mode)
+    missing = []
+    for name in required:
+        path = _model_file(model_dir, name, config.scalar_prescription)
+        if not path.is_file():
+            try:
+                missing.append(str(path.relative_to(config.project_root)))
+            except ValueError:
+                missing.append(str(path))
     if missing:
         raise ConfigurationError(
             f"Model {config.model} is missing required distribution file(s): {', '.join(missing)}."
@@ -428,8 +579,8 @@ def config_from_mapping(
     uncertainty = uncertainty_value.strip().casefold() if isinstance(uncertainty_value, str) else uncertainty_value
     alp_value = values.get("alp_production_mode")
     alp_mode = alp_value.strip().casefold() if isinstance(alp_value, str) else alp_value
-    if alp_mode == "cascade":
-        alp_mode = "cascades"
+    dp_value = values.get("dp_production_mode")
+    dp_mode = dp_value.strip().casefold() if isinstance(dp_value, str) else dp_value
 
     xi_value = values.get("xi")
     interference_value = values.get("interference")
@@ -461,12 +612,25 @@ def config_from_mapping(
     if spec.name == "Dark-photons":
         if uncertainty not in {"lower", "central", "upper"}:
             raise ConfigurationError("Dark-photons requires 'uncertainty': lower, central, or upper.")
-    elif uncertainty is not None:
-        raise ConfigurationError(f"'uncertainty' applies only to Dark-photons, not {spec.name}.")
+        dp_mode = "primary" if dp_mode is None else dp_mode
+        if dp_mode not in _DP_PRODUCTION_MODES:
+            choices = ", ".join(sorted(_DP_PRODUCTION_MODES))
+            raise ConfigurationError(
+                f"Dark-photons requires 'dp_production_mode': one of {choices}.")
+        dp_mode = _DP_PRODUCTION_MODES[dp_mode]
+    else:
+        if uncertainty is not None:
+            raise ConfigurationError(f"'uncertainty' applies only to Dark-photons, not {spec.name}.")
+        if dp_mode is not None:
+            raise ConfigurationError(
+                f"'dp_production_mode' applies only to Dark-photons, not {spec.name}.")
 
     if spec.name == "ALP-photon":
-        if alp_mode not in {"primary", "cascades"}:
-            raise ConfigurationError("ALP-photon requires 'alp_production_mode': primary or cascades.")
+        if alp_mode not in _ALP_PRODUCTION_MODES:
+            choices = ", ".join(sorted(_ALP_PRODUCTION_MODES))
+            raise ConfigurationError(
+                f"ALP-photon requires 'alp_production_mode': one of {choices}.")
+        alp_mode = _ALP_PRODUCTION_MODES[alp_mode]
     elif alp_mode is not None:
         raise ConfigurationError(f"'alp_production_mode' applies only to ALP-photon, not {spec.name}.")
 
@@ -512,16 +676,66 @@ def config_from_mapping(
     else:
         seed = None
 
-    hadronization = values.get("hadronization", "exhad")
-    if hadronization not in {"raw", "exhad"}:
-        raise ConfigurationError("hadronization must be 'raw' or 'exhad'")
-    if hadronization == "exhad" and spec.name not in {
-            "Dark-photons", "ALP-fermion", "Scalar-mixing", "Scalar-quartic", "HNL"}:
+    prescription_value = values.get("scalar_prescription")
+    if prescription_value is None:
+        scalar_prescription = (
+            DEFAULT_SCALAR_PRESCRIPTION if spec.name in SCALAR_MODEL_NAMES else None)
+    else:
+        if not isinstance(prescription_value, str):
+            raise ConfigurationError("'scalar_prescription' must be a string.")
+        key = prescription_value.strip()
+        scalar_prescription = _SCALAR_PRESCRIPTION_ALIASES.get(key.casefold(), key)
+        if scalar_prescription not in SCALAR_PRESCRIPTIONS:
+            choices = ", ".join(SCALAR_PRESCRIPTIONS)
+            raise ConfigurationError(
+                f"'scalar_prescription' must be one of: {choices}.")
+        if spec.name not in SCALAR_MODEL_NAMES:
+            raise ConfigurationError(
+                f"'scalar_prescription' applies only to the scalar models, not {spec.name}.")
+
+    pdg_value = values.get("llp_pdg")
+    if pdg_value is None:
+        llp_pdg = None
+    else:
+        if isinstance(pdg_value, bool):
+            raise ConfigurationError("'llp_pdg' must be a non-zero integer PDG code.")
+        try:
+            llp_pdg = int(pdg_value)
+        except (TypeError, ValueError) as exc:
+            raise ConfigurationError("'llp_pdg' must be a non-zero integer PDG code.") from exc
+        if isinstance(pdg_value, float) and not pdg_value.is_integer():
+            raise ConfigurationError("'llp_pdg' must be a non-zero integer PDG code.")
+        if llp_pdg == 0:
+            raise ConfigurationError("'llp_pdg' must be a non-zero integer PDG code.")
+
+    exhad_value = values.get("exhad_mode", "auto")
+    if not isinstance(exhad_value, str):
+        raise ConfigurationError("'exhad_mode' must be auto, on, or off.")
+    exhad_mode = _EXHAD_MODE_ALIASES.get(exhad_value.strip().casefold())
+    if exhad_mode is None:
+        raise ConfigurationError("'exhad_mode' must be auto, on, or off.")
+    if (exhad_mode == "on" and spec.name not in _EXHAD_MODEL_NAMES
+            and spec.name not in _EXHAD_INAPPLICABLE_MODEL_NAMES):
         raise ConfigurationError(
             f"No exHad release model is bound to {spec.name}; "
-            "select --rawPythia (or hadronization: raw in a card) explicitly.")
+            "run it with --exhad off, or leave the default --exhad auto.")
+
+    stock_pythia_pool = _strict_bool(
+        values.get("stock_pythia_pool", False), "stock_pythia_pool")
+    if stock_pythia_pool:
+        if spec.name != "ALP-fermion":
+            raise ConfigurationError(
+                "'stock_pythia_pool' is defined only for ALP-fermion.")
+        if exhad_mode != "off":
+            raise ConfigurationError(
+                "'stock_pythia_pool' requires the explicit exhad mode 'off'.")
+        if tuple(str(item).casefold() for item in decays) != ("all",):
+            raise ConfigurationError(
+                "'stock_pythia_pool' requires exactly 'all' decay channels so "
+                "the complete hadronic allocation is retained.")
+
     config = SimulationConfig(
-        hadronization=hadronization,
+        exhad_mode=exhad_mode,
         exhad_root=values.get("exhad_root"),
         exhad_python=values.get("exhad_python"),
         model=spec.name,
@@ -532,6 +746,7 @@ def config_from_mapping(
         mixing_pattern=mixing,
         uncertainty=uncertainty,
         alp_production_mode=alp_mode,
+        dp_production_mode=dp_mode,
         xi=xi,
         interference=interference,
         plots=_strict_bool(values.get("plots", False), "plots"),
@@ -543,11 +758,16 @@ def config_from_mapping(
             nonnegative=True,
         ),
         seed=seed,
+        scalar_prescription=scalar_prescription,
+        llp_pdg=llp_pdg,
+        batch_index_offset=_nonnegative_int(
+            values.get("batch_index_offset", 0), "batch_index_offset"),
+        stock_pythia_pool=stock_pythia_pool,
         project_root=Path(project_root).resolve(),
     )
     if check_files:
         _validate_installed_files(config)
-        # Resolve names/indices now so --validate-only catches channel typos.
+        # Resolve names now so --validate-only catches channel typos.
         config.selected_decay_indices()
     return config
 
@@ -568,17 +788,9 @@ def load_card(path: Path) -> dict[str, Any]:
 
 
 def load_decay_channel_names(config: SimulationConfig) -> tuple[str, ...]:
+    """The decay-table row names of the selected model, in table order."""
     spec = resolve_model(config.model)
-    path = config.particle_path / spec.decay_file
-    if config.hadronization == 'exhad':
-        import os
-        from funcs.exhad_integration import MODELS, model_info
-        root = config.exhad_root or os.environ.get('EXHAD_ROOT')
-        if not root:
-            raise ConfigurationError('exHad requires exhad_root or EXHAD_ROOT')
-        if config.model in MODELS and MODELS[config.model][0] in ('scalar', 'dark-photon'):
-            info = model_info(Path(root).expanduser().resolve(), MODELS[config.model][0])
-            path = Path(info['tables']['decay'])
+    path = _model_file(config.particle_path, spec.decay_file, config.scalar_prescription)
     try:
         with path.open("r", encoding="utf-8") as handle:
             data = json.load(handle)
@@ -596,7 +808,13 @@ def load_decay_channel_names(config: SimulationConfig) -> tuple[str, ...]:
 
 
 def resolve_decay_channels(selection: Sequence[str | int], available: Sequence[str]) -> list[int]:
-    """Resolve ``all``, names, or one-based indices into zero-based indices."""
+    """Resolve ``all``, ``jets`` or channel names into zero-based table indices.
+
+    A stored number is refused rather than interpreted.  A decay table keeps a
+    separate row for every jet flavour but offers them as one choice, so the
+    same number names one thing in the table and a different one in the menu,
+    and a card cannot say which it meant.
+    """
     channels = tuple(str(item) for item in available)
     if not channels:
         raise ConfigurationError("The selected model has no decay channels.")
@@ -610,47 +828,38 @@ def resolve_decay_channels(selection: Sequence[str | int], available: Sequence[s
             raise ConfigurationError("Decay channel 'all' (or index 0) cannot be combined with other channels.")
         return list(range(len(channels)))
 
-    folded: dict[str, list[int]] = {}
-    for index, channel in enumerate(channels):
-        folded.setdefault(channel.casefold(), []).append(index)
-
-    resolved: list[int] = []
     for item in selection:
-        index: int
-        if isinstance(item, int) or (isinstance(item, str) and re.fullmatch(r"[+-]?\d+", item)):
-            one_based = int(item)
-            index = one_based - 1
-            if index < 0 or index >= len(channels):
-                raise ConfigurationError(
-                    f"Decay-channel index {one_based} is out of range 1..{len(channels)}."
-                )
-        else:
-            name = str(item)
-            if name in channels:
-                index = channels.index(name)
-            else:
-                matches = folded.get(name.casefold(), [])
-                if len(matches) != 1:
-                    choices = ", ".join(channels)
-                    raise ConfigurationError(f"Unknown decay channel {name!r}. Available channels: {choices}.")
-                index = matches[0]
-        if index in resolved:
-            raise ConfigurationError(f"Decay channel {channels[index]!r} was selected more than once.")
-        resolved.append(index)
-    return resolved
+        text = str(item).strip()
+        if isinstance(item, int) or re.fullmatch(r"[+-]?\d+", text):
+            raise ConfigurationError(
+                f"Decay channel {text!r} is a number, and a number names two "
+                "different final states here: the row at that position in the "
+                "decay table, and the entry at that position in the menu, "
+                "which offers every Jets-* row as one choice. Write the "
+                f"channel name, or 'all', or {ALL_JETS_TOKEN!r}."
+            )
+
+    try:
+        return resolve_channel_tokens([str(item) for item in selection], channels)
+    except ValueError as exc:
+        raise ConfigurationError(str(exc)) from exc
 
 
 def add_hadronization_arguments(parser: argparse.ArgumentParser) -> None:
     """Shared launcher switches; an explicit flag overrides the card."""
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
-        "--rawPythia", "--raw-pythia", dest="hadronization", action="store_const",
-        const="raw", default=None,
-        help="use raw Pythia instead of exHad (overrides the launch card)",
+        "--exhad", dest="exhad_mode", nargs="?", const="on", default=None,
+        choices=("auto", "on", "off"),
+        help="hadronic (quark/gluon) decays: 'auto' (the default) follows the "
+             "card/environment resolution and runs on the EventCalc baseline "
+             "when no usable exHad release is configured; 'on' requires one; "
+             "'off' forces the baseline. A bare --exhad means on.",
     )
     group.add_argument(
-        "--exhad", dest="hadronization", action="store_const", const="exhad",
-        help="use exHad (the default); overrides an explicit raw setting in a card",
+        "--rawPythia", "--raw-pythia", dest="exhad_mode", action="store_const",
+        const="off",
+        help="force the EventCalc/default-Pythia baseline (same as --exhad off)",
     )
 
 
@@ -668,11 +877,14 @@ def build_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--masses", nargs="+", type=float, help="LLP masses in GeV")
     parser.add_argument("--c-taus", "--ctaus", dest="c_taus", nargs="+", type=float,
                         help="proper decay lengths in metres, applied to every mass")
-    parser.add_argument("--decay-channels", "--decays", dest="decay_channels", nargs="+",
-                        help="channel names, one-based indices, or 'all' (default)")
+    parser.add_argument("--decay-channels", "--decays", "--channels", dest="decay_channels", nargs="+",
+                        help="channel names, 'jets', or 'all' (default)")
     parser.add_argument("--mixing-pattern", nargs=3, type=float, metavar=("XI_E", "XI_MU", "XI_TAU"))
     parser.add_argument("--uncertainty", choices=("lower", "central", "upper"))
-    parser.add_argument("--alp-production-mode", choices=("primary", "cascades"))
+    parser.add_argument("--alp-production-mode", "--alp-production", dest="alp_production_mode",
+                        choices=("primary", "cascade", "cascades", "combined"))
+    parser.add_argument("--dp-production-mode", "--dp-production", dest="dp_production_mode",
+                        choices=("primary", "cascade", "brem-cascade", "combined"))
     parser.add_argument("--xi", type=float, help="ALP-mixed SU(2)_L operator fraction in [0, 1]")
     parser.add_argument(
         "--interference",
@@ -682,7 +894,26 @@ def build_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--n-pot", type=float, help=f"protons on target (default {DEFAULT_N_POT:.1e})")
     parser.add_argument("--min-events-threshold", type=float,
                         help=f"event-rate cutoff (default {DEFAULT_MIN_EVENTS_THRESHOLD})")
-    parser.add_argument("--seed", type=int, help="NumPy random seed")
+    parser.add_argument("--seed", type=int,
+                        help="run seed; seeds NumPy, Numba's njit RNG, Pythia and exHad together")
+    parser.add_argument("--scalar-prescription", "--prescription", "--scalar-lifetime",
+                        dest="scalar_prescription",
+                        help="scalar decay-table prescription: "
+                             + ", ".join(SCALAR_PRESCRIPTIONS)
+                             + f" (default: {DEFAULT_SCALAR_PRESCRIPTION})")
+    parser.add_argument("--llp-pdg", dest="llp_pdg", type=int, metavar="CODE",
+                        help="override the mother PDG code (default: the exHad release default "
+                             "-- dark-photon 4900022, b-l 32, scalars 35, alp-fermion 36, "
+                             "hnl 9900012). EventCalc's internal hadronization mother code 25 "
+                             "is unaffected.")
+    parser.add_argument("--batch-index-offset", dest="batch_index_offset", type=int,
+                        help="number of mass-grid entries preceding this command in an "
+                             "original ordered scan (default: 0)")
+    parser.add_argument("--stock-pythia-pool", dest="stock_pythia_pool", action="store_const",
+                        const=True, default=None,
+                        help="ALP-fermion comparator above 1.911 GeV: retain the complete "
+                             "hadronic event allocation and hadronize it with unmodified "
+                             "Pythia. Requires --channels all --exhad off.")
 
     plot_group = parser.add_mutually_exclusive_group()
     plot_group.add_argument("--plots", dest="plots", action="store_true",

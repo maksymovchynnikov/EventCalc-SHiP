@@ -1,6 +1,8 @@
-# Python-generated files
+# Python and runtime caches
 __pycache__/
 *.py[cod]
+.pytest_cache/
+.matplotlib-cache/
 
 # Local Python environments
 .venv/
@@ -9,25 +11,22 @@ venv/
 # macOS
 .DS_Store
 
-# Large local Monte Carlo input and generated cache
-/table_builders/ALP_SU2L/exp1.txt
-/table_builders/ALP_SU2L/exp1.txt.on_shell.npy
-/table_builders/ALP_SU2L/exp1.txt.on_shell.npy.meta.json
-
-# Local EventCalc results
+# Everything a run produces
 outputs/
 plots/
 
-# Generated validation/debug files
-/table_builders/ALP_SU2L/debug_tests/
+# Local safety copies are not inputs
+*.bak
+*.bak-*
+*.backup
 
-# Analysis
+# exHad build-local record
+cpp/.pythia8-build
 
-# Refactored analysis: all generated products are local
-/analysis2/cache/
-/analysis2/outputs/
-analysis2/cache/
-analysis2/outputs/
-analysis2_without_cache/
-logs/
-/analysis/
+# Research output kept beside the tests but not shipped with them
+tests/photon-files/
+tests/outputs/
+tests/*.pdf
+tests/*.csv
+tests/*summary.txt
+tests/dNevdEa-*.txt

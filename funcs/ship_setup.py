@@ -64,6 +64,9 @@ def plot_decay_volume(ax):
     ax : mpl_toolkits.mplot3d.axes3d.Axes3D
         The 3D axes object to plot on.
     """
+    # Keep plotting libraries optional for generation-only workflows.  In
+    # particular, importing the SHiP geometry constants must not require a
+    # Matplotlib installation.
     from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
     # Calculate x and y boundaries at z_min and z_max using the defined functions
@@ -142,6 +145,8 @@ def plot_decay_volume_plotly(fig):
     plotly.graph_objects.Figure
         The updated Plotly figure with the decay volume added.
     """
+    # Plotly is needed only by the interactive event display, not by event
+    # generation or batch configuration checks.
     try:
         import plotly.graph_objects as go
     except ImportError as exc:

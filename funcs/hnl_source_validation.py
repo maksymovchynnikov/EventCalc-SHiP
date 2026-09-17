@@ -84,7 +84,12 @@ SELF_CONJUGATE_PDGS = frozenset(
 NEUTRAL_PERSISTENT_POLES = (
     "Pi0v", "a1v", "Omegav", "Etav", "EtaPrv", "Phiv", "Etacv")
 
-_ALLOWED_ME_NAMES = frozenset(("mLLP", "E1", "E3"))
+# exHad's corrected HNL matrix elements take the lepton masses from the
+# generator rather than freezing them as decimals, so nine rows (2ev, 2muv,
+# 2tauv, emuv(bar), etauv(bar), mutauv(bar)) carry the daughter-mass symbols
+# m1/m2/m3 alongside mLLP, E1 and E3.  funcs/initLLP.py and funcs/HNLmerging.py
+# bind exactly this set and reject anything else.
+_ALLOWED_ME_NAMES = frozenset(("mLLP", "E1", "E3", "m1", "m2", "m3"))
 _ALLOWED_ME_AST = (
     ast.Expression,
     ast.BinOp,

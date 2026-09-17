@@ -1,7 +1,17 @@
 import numpy as np
 import numba as nb
-from random import uniform
 from scipy.interpolate import RegularGridInterpolator
+
+
+@nb.njit
+def seed_random(seed):
+    """Seed Numba's own RNG inside njit kernels.
+
+    ``np.random.seed`` in the host does not reach the RNG numba compiles into
+    ``@njit`` code, so every module with njit sampling exposes this entry point
+    and the host seeds all of them from one card seed.
+    """
+    np.random.seed(seed)
 
 """
 Indices referring to the meaning of the final table columns.
@@ -28,7 +38,23 @@ def n_vector_particles(thetaVals, phiVals, E1, E2, m1, m2, pdg1, pdg2, charge1, 
     """
     Calculate the momentum components of two decay products based on random angles (theta, phi).
     """
-    pmod = np.sqrt(E1**2 - m1**2)  # Magnitude of momentum from energy-mass relation
+    # Magnitude of momentum from the energy-mass relation.
+    #
+    # Exactly at threshold the true value of E1**2 - m1**2 is zero and the
+    # double-precision evaluation may land a few ulp below it, so a clamp is
+    # needed -- but ONLY for that.  A closed channel (daughters heavier than
+    # the parent) misses by a relative amount of order 1e-2, which is ten
+    # orders of magnitude outside this tolerance; it raises rather than
+    # returning daughters at rest with an energy below their own rest mass.
+    # The tolerance and its justification live in funcs/thresholds.py
+    # (MOMENTUM_ROUNDOFF_REL); closed rows are zeroed before sampling by
+    # funcs.thresholds.gate_rates.
+    psq = E1**2 - m1**2
+    if psq < -1e-12 * max(E1**2, 1.0):
+        raise ValueError('Two-body channel is closed at this mass: the '
+                         'daughters are heavier than the parent. Gate the row '
+                         'with funcs.thresholds.gate_rates before sampling.')
+    pmod = np.sqrt(max(psq, 0.0))
 
     # Momentum components for the first particle
     px1 = pmod * np.sin(thetaVals) * np.cos(phiVals)
@@ -53,7 +79,7 @@ def simulate_decays(m, m1, m2, pdg1, pdg2, charge1, charge2, stability1, stabili
     Random angles are used to determine the momentum directions.
     """
     # Random polar and azimuthal angles
-    thetaVals = np.arccos(uniform(-1, 1))
+    thetaVals = np.arccos(np.random.uniform(-1, 1))
     phiVals = np.random.rand() * 2 * np.pi
 
     # Calculate the energies of the decay products in the rest frame
@@ -99,6 +125,15 @@ def decay_products(m, size, m1, m2, pdg1, pdg2, charge1, charge2, stability1, st
     Simulate multiple decay events for a particle of mass `m` into two products.
     The size parameter defines the number of decay events to generate.
     """
+    # Threshold gate.  A row whose daughters do not fit inside the parent has
+    # rate exactly zero and must never be sampled; if one arrives here the
+    # caller skipped funcs.thresholds.gate_rates.  Strict: at threshold the
+    # daughters would be produced at rest, which carries no phase space.
+    if m <= m1 + m2:
+        raise ValueError('Two-body channel is closed at this mass (m <= m1 + m2). '
+                         'Threshold-aware rates must zero this row before sampling; '
+                         'no particles are produced.')
+
     products = np.empty((size, 16), dtype=np.float64)  # Preallocate array for all decay products
 
     for i in nb.prange(size):  # Parallel loop over all decay events

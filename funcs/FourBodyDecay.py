@@ -1,56 +1,45 @@
 import numpy as np
 
-def decay_products(mother_mass, SpecificDecay, N_events, N_candidates=100000):
+from .sampling_bounds import four_body_mass_sampler
+from .thresholds import require_open, safe_momentum_squared
+
+def decay_products(mother_mass, SpecificDecay, N_events):
     """
     Simulate four-body decay of a particle into four daughter particles.
     """
     # Masses, charges, and stability from PDG
     pdg1, pdg2, pdg3, pdg4, m1, m2, m3, m4, charge1, charge2, charge3, charge4, stability1, stability2, stability3, stability4 = SpecificDecay
-    
+
+    # Threshold gate: a row whose daughters do not fit inside the parent has
+    # rate exactly zero and is never sampled.  See funcs/thresholds.py.
+    require_open(mother_mass, (m1, m2, m3, m4))
+
     # Helper functions
-    def lambda_func(a, b, c):
-        return a**2 + b**2 + c**2 - 2*(a*b + a*c + b*c)
-    
-    def jacobian_4body(m, m1, m2, m3, m4, m234, m34):
-        term1 = np.sqrt(lambda_func(m**2, m1**2, m234**2)) / (2 * m)
-        term2 = np.sqrt(lambda_func(m234**2, m2**2, m34**2)) / (2 * m234)
-        term3 = np.sqrt(lambda_func(m34**2, m3**2, m4**2)) / (2 * m34)
-        return term1 * term2 * term3
-    
-    def generate_random_masses(N_events, N_candidates, m_parent, m1, m2, m3, m4):
-        m234_min = m2 + m3 + m4
-        m234_max = m_parent - m1
-        m34_min = m3 + m4
+    def generate_random_masses(N_events, m_parent, m1, m2, m3, m4):
+        """Exact draw of the intermediate masses (m234, m34).
 
-        m234_candidates = np.random.uniform(m234_min, m234_max, N_candidates)
-        m34_max_candidates = m234_candidates - m2
+        ``four_body_mass_sampler`` cuts the range of each of the two masses into
+        cells and carries, for each pair of cells, a value the four-body
+        phase-space density provably never exceeds inside it.  Pairs are drawn
+        in proportion to that value times their area and kept with probability
+        density over value, so the keep probability never exceeds one and the
+        accepted pairs follow flat four-body phase space exactly.  The returned
+        events are independent draws: none is duplicated and their number is not
+        capped by any pool size.  The table depends on the parent mass and the
+        four daughter masses alone, so it is built once for a channel and reused
+        for every event of it.
+        """
+        sampler = four_body_mass_sampler(m_parent, m1, m2, m3, m4)
+        drawn = sampler.draw(N_events)
+        return drawn[:, 1], drawn[:, 0]
 
-        valid = m34_max_candidates >= m34_min
-        m234_candidates = m234_candidates[valid]
-        m34_max_candidates = m34_max_candidates[valid]
-
-        m34_candidates = np.random.uniform(m34_min, m34_max_candidates)
-
-        # Include the missing factor in the weights
-        weights = (m234_candidates - m2 - m3 - m4) * jacobian_4body(m_parent, m1, m2, m3, m4, m234_candidates, m34_candidates)
-        valid_weights = weights > 0
-        m234_candidates = m234_candidates[valid_weights]
-        m34_candidates = m34_candidates[valid_weights]
-        weights = weights[valid_weights]
-        probabilities = weights / np.sum(weights)
-    
-        # Check that N_events does not exceed the number of available candidates
-        if N_events > len(m234_candidates):
-            raise ValueError("N_events exceeds the number of valid mass combinations. Increase N_candidates or reduce N_events.")
-    
-        indices = np.random.choice(len(m234_candidates), size=N_events, p=probabilities)
-
-        return m234_candidates[indices], m34_candidates[indices]
-    
     def two_body_decay_array(M, m1, m2):
         E1 = (M**2 + m1**2 - m2**2) / (2 * M)
         E2 = (M**2 - m1**2 + m2**2) / (2 * M)
-        p = np.sqrt(np.maximum(0, E1**2 - m1**2))
+        # The intermediate masses are drawn above their own thresholds, so any
+        # negative value here is floating-point roundoff and nothing else;
+        # safe_momentum_squared clamps that and raises on anything larger.
+        p = np.sqrt(safe_momentum_squared(E1**2 - m1**2, E1**2))
         N = len(M)
         costheta = np.random.uniform(-1, 1, N)
         sintheta = np.sqrt(1 - costheta**2)
@@ -75,7 +64,8 @@ def decay_products(mother_mass, SpecificDecay, N_events, N_candidates=100000):
         return np.vstack((p0, px, py, pz)).T
 
     m_parent = mother_mass
-    m234_selected, m34_selected = generate_random_masses(N_events, 100000, m_parent, m1, m2, m3, m4)
+    m234_selected, m34_selected = generate_random_masses(
+        N_events, m_parent, m1, m2, m3, m4)
     
     M0 = np.full(N_events, m_parent)
     p1_0, p234_0, costheta_1 = two_body_decay_array(M0, m1, m234_selected)

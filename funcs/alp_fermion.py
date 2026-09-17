@@ -398,7 +398,13 @@ def build_br_interpolator(
     def get_br(mass):
         mass = round(float(mass), 12)
         if mass < global_min or mass > global_max:
-            return [0.0] * len(labels)
+            # An all-zero branching vector says that every decay channel is
+            # closed at this mass.  A mass off the end of the source table
+            # carries no such information about the ALP, so the request is
+            # refused with the mass range the table covers.
+            raise ValueError(
+                "ALP mass %.12g GeV lies outside the tabulated branching-ratio "
+                "range [%.12g, %.12g] GeV" % (mass, global_min, global_max))
         # The authoritative source table deliberately has no nodes from
         # m_start through the point immediately preceding first_light_node.
         # Interpolating rows independently across this gap creates a hybrid

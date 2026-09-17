@@ -1,0 +1,189 @@
+{
+  "schema": "exhad-hnl-full-production-range-v1",
+  "authority_id": "hnl-eventcalc-production-0p02-to-5p27-v1",
+  "portal": "HNL",
+  "integration_state": "production-event-provider-connected",
+  "scope": {
+    "production_parent_mass_domain_GeV": [
+      0.02,
+      5.27
+    ],
+    "decay_rate_source_domain_GeV": [
+      0.0002,
+      40.0
+    ],
+    "production_endpoint_basis": "installed EventCalc production, yield, and kinematic-endpoint grids",
+    "composition_coordinate": "hadronic_invariant_mass_W_GeV",
+    "parent_mass_is_not_a_composition_coordinate": true
+  },
+  "production_inputs": [
+    {
+      "mixing": "e",
+      "double_distribution": "DoubleDistr-HNL-mixing-e.txt",
+      "total_yield": "Total-yield-HNL-e.txt"
+    },
+    {
+      "mixing": "mu",
+      "double_distribution": "DoubleDistr-HNL-mixing-mu.txt",
+      "total_yield": "Total-yield-HNL-mu.txt"
+    },
+    {
+      "mixing": "tau",
+      "double_distribution": "DoubleDistr-HNL-mixing-tau.txt",
+      "total_yield": "Total-yield-HNL-tau.txt"
+    }
+  ],
+  "kinematic_endpoint_input": "Emax-HNL.txt",
+  "exact_W_ownership": {
+    "evaluation": "per-event-exact",
+    "definition": "W^2=(p_q+p_qbar)^2 for the two partonic records selected by the EventCalc decay row",
+    "replacement_scope": "replace only the two-parton hadronic subsystem",
+    "preserved_quantities": [
+      "EventCalc-selected channel count",
+      "HNL lifetime",
+      "charged-lepton or neutrino four-momentum",
+      "sampled hadronic four-momentum",
+      "sampled hadronic invariant mass W"
+    ],
+    "EventCalc_owned_rows": "all explicit pole and exclusive rows",
+    "fragmentation_owned_rows": "current-resolved Jets-* residual rows",
+    "forbidden_composition_coordinates": [
+      "parent_mass_GeV"
+    ]
+  },
+  "currents_required_through_production_endpoint": [
+    "CC_ud",
+    "CC_us",
+    "CC_cd",
+    "CC_cs",
+    "NC_ud",
+    "NC_s"
+  ],
+  "currents_inactive_through_production_endpoint": {
+    "NC_c": {
+      "first_positive_parent_mass_GeV": 5.8
+    },
+    "NC_b": {
+      "reason": "no positive installed source weight at or below 5.27 GeV"
+    },
+    "CC_ub": {
+      "reason": "no positive installed source weight at or below 5.27 GeV"
+    },
+    "CC_cb": {
+      "reason": "no positive installed source weight at or below 5.27 GeV"
+    }
+  },
+  "charm_charged_current_sources": {
+    "CC_cd": {
+      "current_kind": "charged-current",
+      "reference_partons": [
+        4,
+        -1
+      ],
+      "conjugate_partons": [
+        -4,
+        1
+      ],
+      "reference_quantum_numbers": {
+        "electric_charge": 1,
+        "baryon_number": 0,
+        "strangeness": 0,
+        "charm": 1
+      },
+      "source_rows": {
+        "e": [
+          "Jets-cde",
+          "Jets-cdebar"
+        ],
+        "mu": [
+          "Jets-cdmu",
+          "Jets-cdmubar"
+        ],
+        "tau": [
+          "Jets-cdtau",
+          "Jets-cdtaubar"
+        ]
+      },
+      "first_positive_parent_mass_GeV": {
+        "e": 3.16,
+        "mu": 3.19,
+        "tau": 4.57
+      },
+      "explicit_EventCalc_owners": [
+        "De",
+        "Debar",
+        "Dmu",
+        "Dmubar",
+        "Dtau",
+        "Dtaubar"
+      ],
+      "conditional_event_source": {
+        "kind": "flavor-changing-single-open-charm-current",
+        "evaluate_at_exact_W": true,
+        "normalization_owner": "the selected EventCalc Jets-cd branching row",
+        "must_veto_explicit_owners": true,
+        "must_conserve_reference_quantum_numbers": true,
+        "reuse_neutral_electromagnetic_ccbar_source": false,
+        "provider_state": "connected-and-tested"
+      }
+    },
+    "CC_cs": {
+      "current_kind": "charged-current",
+      "reference_partons": [
+        4,
+        -3
+      ],
+      "conjugate_partons": [
+        -4,
+        3
+      ],
+      "reference_quantum_numbers": {
+        "electric_charge": 1,
+        "baryon_number": 0,
+        "strangeness": 1,
+        "charm": 1
+      },
+      "source_rows": {
+        "e": [
+          "Jets-cse",
+          "Jets-csebar"
+        ],
+        "mu": [
+          "Jets-csmu",
+          "Jets-csmubar"
+        ],
+        "tau": [
+          "Jets-cstau",
+          "Jets-cstaubar"
+        ]
+      },
+      "first_positive_parent_mass_GeV": {
+        "e": 3.55,
+        "mu": 3.58,
+        "tau": 4.9
+      },
+      "explicit_EventCalc_owners": [
+        "Dse",
+        "Dsebar",
+        "Dsmu",
+        "Dsmubar",
+        "Dstau",
+        "Dstaubar"
+      ],
+      "conditional_event_source": {
+        "kind": "flavor-changing-single-open-charm-current",
+        "evaluate_at_exact_W": true,
+        "normalization_owner": "the selected EventCalc Jets-cs branching row",
+        "must_veto_explicit_owners": true,
+        "must_conserve_reference_quantum_numbers": true,
+        "reuse_neutral_electromagnetic_ccbar_source": false,
+        "provider_state": "connected-and-tested"
+      }
+    }
+  },
+  "validation_claims": {
+    "vector_above_tau_endpoint": "test mapped CVC/isospin responses against the available electromagnetic data",
+    "axial_above_tau_endpoint": "test inclusive normalization, continuity, closure, and model envelopes; do not assign a direct exclusive-data precision",
+    "flavor_changing_charm": "test exact quantum numbers, thresholds, ownership closure, and alternative conditional fragmentation models; do not reuse the neutral electromagnetic open-charm calibration"
+  }
+}

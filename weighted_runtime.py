@@ -61,9 +61,14 @@ class WeightedALPGenerator(RuntimeEventGenerator):
                 weight_floor_fraction=self.weight_floor_fraction)
         boosted = self.runtime.boost.tab_boosted_decay_products(
             self.llp.mass, momentum, np.asarray(rest, dtype=float))
-        names = np.asarray([('Hadronic-exHad' if index in self.llp._exhad_pooled_indices
+        from funcs.exhad_integration import matched_process_labels
+        labels = matched_process_labels(self.llp.decayChannels,
+                                        self.selected_decay_indices,
+                                        self.llp._exhad_pooled_indices)
+        names = np.asarray([(str(label) if label is not None
                              else str(self.llp.decayChannels[index]))
-                            for index, size in zip(self.selected_decay_indices, sizes, strict=True)
+                            for index, size, label in zip(
+                                self.selected_decay_indices, sizes, labels, strict=True)
                             for _ in range(int(size))], dtype=str)
         if len(names) != len(mother):
             raise RuntimeError('Weighted event/channel alignment failed')
@@ -188,7 +193,7 @@ def main():
     from funcs.simulation_config import PROJECT_ROOT,config_from_mapping,load_card
     from runtime_generator import ExperimentCard
     values=dict(load_card(args.card))
-    values.update(masses=[args.mass],c_taus=[args.ctau],events=args.events,hadronization='exhad')
+    values.update(masses=[args.mass],c_taus=[args.ctau],events=args.events,exhad_mode='on')
     if args.seed is not None:values['seed']=args.seed
     config=config_from_mapping(values,project_root=PROJECT_ROOT)
     experiment=ExperimentCard.load(args.experiment_card) if args.experiment_card else ExperimentCard.ship()

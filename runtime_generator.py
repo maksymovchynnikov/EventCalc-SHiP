@@ -85,14 +85,31 @@ class ExperimentCard:
 
     @classmethod
     def ship(cls) -> "ExperimentCard":
+        """The SHiP geometry, read from the module that states it.
+
+        ``funcs/ship_setup.py`` is the single authority for those six numbers;
+        repeating them here is how the two statements drift apart.
+        ``survival_cutoff`` is not a detector dimension: it is the coefficient
+        that turns the upstream distance into the sampling-energy floor, and it
+        belongs to this card.
+        """
+        from funcs.ship_setup import (
+            Delta_x_in,
+            Delta_x_out,
+            Delta_y_in,
+            Delta_y_out,
+            z_max,
+            z_min,
+        )
+
         return cls(
             name="SHiP",
-            z_min_m=32.0,
-            z_max_m=82.0,
-            x_width_in_m=1.0,
-            x_width_out_m=4.0,
-            y_width_in_m=2.7,
-            y_width_out_m=6.2,
+            z_min_m=float(z_min),
+            z_max_m=float(z_max),
+            x_width_in_m=float(Delta_x_in),
+            x_width_out_m=float(Delta_x_out),
+            y_width_in_m=float(Delta_y_in),
+            y_width_out_m=float(Delta_y_out),
             survival_cutoff=15.0,
         )
 
@@ -302,6 +319,18 @@ class _ProductionInverseCDF:
     dE/du Jacobian, is evaluated once on a (theta, u) grid.  Sampling then uses
     a flattened cell CDF followed by analytic inversion of the bilinear density
     inside the selected cell.
+
+    The sampling floor is the larger of the LLP rest mass and the lowest
+    energy at which the production density is tabulated.  An angle whose
+    maximum energy E_max(m, theta) sits below that floor produces nothing this
+    table can describe: an LLP below its own rest mass is off shell, and an
+    energy below the first tabulated node has no density attached to it.  Such
+    angles carry zero weight.  E_max is bilinear in mass and angle, so at a
+    fixed mass it runs straight between neighbouring nodes of the
+    maximum-energy table; the angle at which it meets the floor follows from
+    those two values and is added to the sampling nodes.  Every cell that
+    carries weight then lies wholly inside the open angular range, and every
+    sampled parent carries at least its rest mass.
     """
 
     def __init__(
@@ -339,6 +368,8 @@ class _ProductionInverseCDF:
         )
         if len(base_theta) < 2:
             raise ValueError("production table has no angular interval to sample")
+        self.energy_floor = float(max(grid.m, grid.energy_min_tab))
+        base_theta = self._with_open_angle_boundaries(base_theta)
         if theta_subdivisions == 1:
             self.theta_nodes = base_theta
         else:
@@ -351,7 +382,7 @@ class _ProductionInverseCDF:
         self.u_nodes = np.unique(np.concatenate((linear_u, linear_u**2)))
 
         minimum, maximum = self._energy_bounds(self.theta_nodes)
-        width = maximum - minimum
+        width = np.maximum(maximum - minimum, 0.0)
         energy = minimum[:, None] + width[:, None] * self.u_nodes[None, :]
         theta = np.broadcast_to(self.theta_nodes[:, None], energy.shape)
         points = np.column_stack(
@@ -396,22 +427,66 @@ class _ProductionInverseCDF:
         self.integral = total
         self.cell_count = int(np.count_nonzero(flat_mass))
 
+    def _max_energy(self, theta: np.ndarray) -> np.ndarray:
+        grid = self.grid
+        points = np.column_stack((np.full(len(theta), grid.m), theta))
+        return _bilinear_interpolation(
+            points, grid.grid_m, grid.grid_a, grid.energy_distr
+        )
+
+    def _with_open_angle_boundaries(self, base_theta: np.ndarray) -> np.ndarray:
+        """Return the node set with the closed-angle boundaries made exact."""
+        grid = self.grid
+        # E_max(m, theta) is piecewise linear in the angle, with its corners at
+        # the angular nodes of the maximum-energy table.  Those corners are
+        # therefore part of the scan for the angle at which E_max meets the
+        # sampling floor, alongside the angular nodes of the production table
+        # that carry the sampling cells.
+        corners = grid.grid_a[
+            (grid.grid_a > base_theta[0]) & (grid.grid_a < base_theta[-1])
+        ]
+        scan_theta = (
+            base_theta
+            if len(corners) == 0
+            else np.unique(np.concatenate((base_theta, corners)))
+        )
+        maximum = self._max_energy(scan_theta)
+        is_open = maximum >= self.energy_floor
+        if not is_open.any():
+            raise ValueError(
+                "no LLP of mass %g GeV is produced in the requested angular "
+                "interval: the tabulated maximum energy reaches %g GeV, below "
+                "the sampling floor %g GeV"
+                % (grid.m, float(maximum.max()), self.energy_floor)
+            )
+        if is_open.all():
+            return base_theta
+        left = maximum[:-1] - self.energy_floor
+        right = maximum[1:] - self.energy_floor
+        crosses = left * right < 0.0
+        if not crosses.any():
+            return base_theta
+        # Both ends of a closed stretch become nodes, so every cell inside it
+        # has zero energy width at both of its ends and carries no weight.
+        fraction = left[crosses] / (left[crosses] - right[crosses])
+        boundary = (
+            scan_theta[:-1][crosses]
+            + fraction * np.diff(scan_theta)[crosses]
+        )
+        return np.unique(np.concatenate((base_theta, boundary)))
+
     def _energy_bounds(
         self, theta: np.ndarray
     ) -> tuple[np.ndarray, np.ndarray]:
         grid = self.grid
-        points = np.column_stack((np.full(len(theta), grid.m), theta))
-        maximum = _bilinear_interpolation(
-            points, grid.grid_m, grid.grid_a, grid.energy_distr
-        )
+        maximum = self._max_energy(theta)
         minimum = np.maximum(
-            max(grid.m, grid.energy_min_tab),
+            self.energy_floor,
             np.minimum(
                 grid.survival_energy_floor * grid.m / grid.c_tau,
                 0.5 * maximum,
             ),
         )
-        minimum = np.minimum(minimum, maximum)
         return minimum, maximum
 
     def sample(
@@ -514,15 +589,16 @@ class RuntimeModelScan:
         grid_template = self._grid_templates.get(grid_key)
         if grid_template is None:
             grid_template = self.runtime.kinematics.Grids(
-                llp.Distr,
-                llp.Energy_distr,
-                1,
-                llp.mass,
-                llp.c_tau_input,
+                Distr=llp.Distr,
+                Energy_distr=llp.Energy_distr,
+                nPoints=1,
+                mass=llp.mass,
+                c_tau=llp.c_tau_input,
                 theta_max_sim=self.experiment.theta_max_rad,
                 survival_energy_floor=(
                     self.experiment.z_min_m / self.experiment.survival_cutoff
                 ),
+                cache_token=llp.kinematics_cache_token(),
             )
             self._grid_templates[grid_key] = grid_template
 
@@ -686,15 +762,16 @@ class RuntimeEventGenerator:
         )
         if self._production_cdf is None:
             self._grid = self.runtime.kinematics.Grids(
-                self.llp.Distr,
-                self.llp.Energy_distr,
-                1,
-                self.llp.mass,
-                self.llp.c_tau_input,
+                Distr=self.llp.Distr,
+                Energy_distr=self.llp.Energy_distr,
+                nPoints=1,
+                mass=self.llp.mass,
+                c_tau=self.llp.c_tau_input,
                 theta_max_sim=self.experiment.theta_max_rad,
                 survival_energy_floor=(
                     self.experiment.z_min_m / self.experiment.survival_cutoff
                 ),
+                cache_token=self.llp.kinematics_cache_token(),
             )
             self._production_cdf = _ProductionInverseCDF(self._grid)
         parent_seed, vertex_seed = np.random.SeedSequence(
@@ -725,9 +802,25 @@ class RuntimeEventGenerator:
         rng = self._vertex_rng
         vertex_unit = rng.random((count, 2))
         phi = -math.pi + 2.0 * math.pi * vertex_unit[:, 0]
-        momentum_abs = np.sqrt(
-            np.maximum(energy * energy - self.mass * self.mass, 0.0)
-        )
+        # A parent carries at least its rest energy, so the squared momentum
+        # below is non-negative.  A negative entry means the sampler offered
+        # the particle a state it cannot occupy, and the run stops there: a
+        # clamped square root gives that parent zero momentum and an invariant
+        # mass equal to its sampled energy, a defect that is finite and
+        # therefore survives every downstream check.
+        momentum_squared = energy * energy - self.mass * self.mass
+        if momentum_squared.size and momentum_squared.min() < 0.0:
+            below_shell = momentum_squared < 0.0
+            raise ValueError(
+                "parent sampling produced an energy below the rest mass "
+                "(m = %g GeV, lowest energy %g GeV at theta = %g rad)"
+                % (
+                    self.mass,
+                    float(energy[below_shell].min()),
+                    float(theta[below_shell][np.argmin(energy[below_shell])]),
+                )
+            )
+        momentum_abs = np.sqrt(momentum_squared)
         cos_theta = np.cos(theta)
         denominator = self.c_tau * momentum_abs * cos_theta
         rate = np.divide(
@@ -823,7 +916,7 @@ class RuntimeEventGenerator:
         output_context = nullcontext() if self.verbose else redirect_stdout(io.StringIO())
         with _legacy_random_seed(decay_seed, seed_numba=True), output_context:
             from funcs.exhad_integration import simulate_decays
-            rest_frame, sizes = simulate_decays(
+            rest_frame, sizes, process_labels = simulate_decays(
                 self.llp, self.runtime.decayProducts,
                 self.llp.mass,
                 self.llp.PDGs,
@@ -840,9 +933,11 @@ class RuntimeEventGenerator:
         )
         channel_names = np.asarray(
             [
-                ("Hadronic-exHad" if index in getattr(self.llp, "_exhad_pooled_indices", ())
+                (str(label) if label is not None
                  else str(self.llp.decayChannels[index]))
-                for index, size in zip(self.selected_decay_indices, sizes, strict=True)
+                for index, size, label in zip(
+                    self.selected_decay_indices, sizes, process_labels,
+                    strict=True)
                 for _ in range(int(size))
             ],
             dtype=str,
@@ -984,13 +1079,13 @@ def generator_from_card(
     seed: int | None = None,
     prefetch: int = 256,
     verbose: bool = False,
-    hadronization: str | None = None,
+    exhad_mode: str | None = None,
 ) -> RuntimeEventGenerator:
     """Construct a runtime generator from existing model and experiment cards."""
     values: Mapping[str, object] = load_card(card)
     resolved = dict(values)
-    if hadronization is not None:
-        resolved["hadronization"] = hadronization
+    if exhad_mode is not None:
+        resolved["exhad_mode"] = exhad_mode
     resolved.update(
         {
             "masses": [mass],
@@ -1025,12 +1120,12 @@ def scan_from_card(
     experiment_card: Path | None = None,
     seed: int | None = None,
     verbose: bool = False,
-    hadronization: str | None = None,
+    exhad_mode: str | None = None,
 ) -> RuntimeModelScan:
     """Load one model context that can serve every point in a scan."""
     resolved = dict(load_card(card))
-    if hadronization is not None:
-        resolved["hadronization"] = hadronization
+    if exhad_mode is not None:
+        resolved["exhad_mode"] = exhad_mode
     resolved.update(
         {
             "plots": False,
@@ -1092,7 +1187,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         seed=args.seed,
         prefetch=args.prefetch,
         verbose=args.verbose,
-        hadronization=args.hadronization,
+        exhad_mode=args.exhad_mode,
     )
     generator.init()
     output_dir = args.output_dir.resolve()
@@ -1105,7 +1200,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         from hepmc_export import HepMC3Writer
 
         hepmc_filename = "events.hepmc3"
-        hepmc_context: Any = HepMC3Writer(output_dir / hepmc_filename)
+        hepmc_context: Any = HepMC3Writer(
+            output_dir / hepmc_filename,
+            mother_pdg=getattr(generator.llp, "LLP_pdg", None),
+        )
     else:
         hepmc_filename = None
         hepmc_context = nullcontext(None)

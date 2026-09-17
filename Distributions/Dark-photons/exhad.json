@@ -1,0 +1,9 @@
+{
+  "bench": "dv",
+  "backend": "matched-dark-photon-em-v1",
+  "m_inclusive": 1.7,
+  "m_frag": 2.0,
+  "m_H": 4.0,
+  "m_free": 5.0,
+  "_comment": "Production total-electromagnetic dark-photon hadronization. The aggregate Jets-uu/Jets-dd/Jets-ss/Jets-cc rows contribute only one summed selected event count. The bridge samples the exact DeLiVeR light measure on 1.70-2.00 GeV, the frozen coherent electromagnetic light response above 2.00 GeV, and the measured inclusive/resolved open-charm owner above threshold. The unresolved light kernel begins its stock handoff at 4.00 GeV and reaches conditioned stock at 5.00 GeV. EXHAD_EM_AUTHORITY may override the compact authority path; a missing or malformed authority is fatal. EXHAD_BENCH=raw (or the host raw-Pythia choice) remains the explicit comparator."
+}

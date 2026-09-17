@@ -210,13 +210,31 @@ def get_distribution_func(massDistrData, MixingPatternArray, yieldData, DistrDat
     return get_distribution
 
 def get_MatrixElements_funcs(Matrix_elements_raw):
+    # exHad 0.2.0 corrected the HNL matrix elements to take the lepton masses
+    # from the generator rather than freezing them as decimals, so nine rows
+    # (2ev, 2muv, 2tauv, emuv(bar), etauv(bar), mutauv(bar)) now contain the
+    # symbols m1/m2/m3.  Bind them as arguments: a compiled matrix element
+    # takes (mLLP, E_1, E_3, m1, m2, m3) and the sampler supplies the row's
+    # daughter masses.  Rows that do not mention them ignore the extra three.
     mLLP, E_1, E_3 = sp.symbols('mLLP E_1 E_3')
+    m1, m2, m3 = sp.symbols('m1 m2 m3')
+    signature = (mLLP, E_1, E_3, m1, m2, m3)
+
     def parse_expr(expr):
         if expr not in [None, "", "-"]:
             expr_str = str(expr).replace('***','e')
             expr_str = expr_str.replace('E1','E_1').replace('E3','E_3')
-            fexpr = sp.sympify(expr_str)
-            return sp.lambdify((mLLP,E_1,E_3), fexpr, 'numpy')
+            fexpr = sp.sympify(expr_str, locals={'mLLP': mLLP, 'E_1': E_1, 'E_3': E_3,
+                                                 'm1': m1, 'm2': m2, 'm3': m3})
+            # A constant expression sympifies to a plain number, which has no
+            # free_symbols attribute.
+            unbound = getattr(fexpr, 'free_symbols', set()) - set(signature)
+            if unbound:
+                raise ValueError(
+                    "HNL matrix element contains unbound symbols %s; the parser "
+                    "binds only mLLP, E_1, E_3, m1, m2, m3."
+                    % sorted(str(s) for s in unbound))
+            return sp.lambdify(signature, fexpr, 'numpy')
         return None
 
     func_e = []
