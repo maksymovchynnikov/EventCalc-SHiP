@@ -6,8 +6,8 @@ import math
 import os
 from pathlib import Path
 import sys
-import types
 import unittest
+from unittest import mock
 
 import numpy as np
 
@@ -18,12 +18,6 @@ AUTHORITY_PATH = HNL_DIR / "exhad-full-range-authority.json"
 
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-
-# The exact-W tests exercise routing only, not the numerical decay kernels.
-for module_name in ("TwoBodyDecay", "ThreeBodyDecay", "FourBodyDecay"):
-    module = types.ModuleType("funcs." + module_name)
-    module.decay_products = lambda *_args, **_kwargs: None
-    sys.modules.setdefault("funcs." + module_name, module)
 
 from funcs import exhadDecays  # noqa: E402
 
@@ -149,12 +143,6 @@ class HNLFullProductionRangeAuthorityTest(unittest.TestCase):
         self.assertIn("HNL lifetime", preserved)
         self.assertIn("EventCalc-selected channel count", preserved)
 
-    @unittest.skipUnless(
-        hasattr(exhadDecays, "hadronic_W")
-        and hasattr(exhadDecays, "split_by_hadronic_W"),
-        "funcs/exhadDecays.py does not define hadronic_W and "
-        "split_by_hadronic_W; this test was written against an adapter that "
-        "did")
     def test_existing_router_uses_exact_W_above_the_old_parent_cap(self):
         rows = {
             "CC_ud": [2, -1, 11, -999],
@@ -168,20 +156,19 @@ class HNLFullProductionRangeAuthorityTest(unittest.TestCase):
         for current, pdgs in rows.items():
             event = _current_event(pdgs, exact_W, lepton_energy=0.4)
             with self.subTest(current=current):
-                observed = exhadDecays.hadronic_W(event, pdgs)
-                self.assertEqual(observed.shape, (1,))
-                self.assertAlmostEqual(observed[0], exact_W, places=13)
-
-                low, high = exhadDecays.split_by_hadronic_W(
-                    event, pdgs, w_cap=exact_W, parent_mass=5.27)
-                self.assertEqual(len(low), 1)
-                self.assertEqual(len(high), 0)
-
-                low, high = exhadDecays.split_by_hadronic_W(
-                    event, pdgs, w_cap=exact_W - 1.0e-6,
-                    parent_mass=5.27)
-                self.assertEqual(len(low), 0)
-                self.assertEqual(len(high), 1)
+                generator = mock.Mock()
+                generator.hadronize_hnl.return_value = [[[0., 0., 0., 1., 1., 211.]]]
+                with mock.patch.object(exhadDecays, "_model_generator",
+                                       return_value=generator):
+                    exhadDecays.process_hnl_with_exhad(event, pdgs, mass=5.27, seed=9)
+                call = generator.hadronize_hnl.call_args
+                self.assertEqual(call.args[0], 5.27)
+                self.assertEqual(call.args[1], pdgs[:3])
+                np.testing.assert_array_equal(call.args[2], event)
+                pair = np.asarray(call.args[2]).reshape(-1, 8)[:2, :4].sum(axis=0)
+                observed_W = np.sqrt(pair[3] ** 2 - np.sum(pair[:3] ** 2))
+                self.assertAlmostEqual(observed_W, exact_W, places=13)
+                self.assertEqual(call.kwargs, {"seed": 9})
 
 
 if __name__ == "__main__":

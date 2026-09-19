@@ -15,7 +15,9 @@ models are summarized in [EXHAD-MODELS.md](EXHAD-MODELS.md).
 ## Installing exHad
 
 exHad is a separate package with its own compiled worker, built against
-Pythia **8.317**, the version EventCalc also requires. Follow its README:
+Pythia **8.317**. EventCalc accepts other Pythia versions with matching XML
+data, but use 8.317 when comparing the two hadronization models. Follow the
+[exHad installation instructions](https://github.com/maksymovchynnikov/exHad):
 
 ```bash
 cd /path/to/exhad
@@ -76,15 +78,12 @@ Every entry point takes `--exhad {auto,on,off}`:
 A bare `--exhad` means `on`. The card key `hadronization` takes `"exhad"` and
 `"rawPythia"` and sets the same switch, and an explicit flag overrides the
 card. An interactive run asks the same question after the channel menu, and
-offers it only when a benchmark resolves and the bridge imports.
+offers it when the selected particle has an available exHad model.
 
-Which benchmark a model gets is decided in this order: the raw choice of the
-run; `EXHAD_BENCH`, which forces one benchmark for every model, or
-`EXHAD_BENCH=raw`, which forces the baseline; the per-LLP card
-`Distributions/<LLP>/exhad.json`; the built-in model map; and finally
-`EXHAD_LLP`. A model declared to have a card but missing one, a malformed
-card, and a failed import of the bridge all stop the run. Nothing falls back
-silently.
+The selected particle and scalar prescription determine the exHad model in
+the table below. Normally no internal card needs editing. Missing or
+malformed model cards and errors loading a configured release stop the run;
+the absence of an optional installation in `auto` mode uses raw Pythia.
 
 The route is recorded in the name of every output file —
 `eventcalc-direct-seed<N>` when every selected row with positive rate is
@@ -95,11 +94,11 @@ in the same directory and are told apart by those names.
 
 ## What the installed cards cover
 
-| Model | Benchmark | Mass support | What exHad generates |
+| EventCalc model | exHad model | Mass support | What exHad generates |
 |---|---|---:|---|
-| `Dark-photons` | `dv` | 1.70–5.00 GeV | The selected $u\bar u$, $d\bar d$, $s\bar s$ and $c\bar c$ rows are one pool. Its light component follows the DeLiVeR exclusive decomposition from 1.70 to 2.00 GeV and the coherent fit to measured cross sections above 2.00 GeV; the measured open-charm channels are generated above the $D\bar D$ threshold; the unresolved light component changes continuously to Pythia fragmentation between 4 and 5 GeV |
-| `ALP-fermion` | `alp` | 1.911–5.00 GeV | One pool of all selected hadronic rows, including the nucleon-pair rows |
-| `Scalar-mixing`, `Scalar-quartic` | `hls`, `hls-lower`, `hls-upper`, `hls-1809` | 2.00–63.0 GeV, of which the SHiP production tables cover masses up to 5.12 GeV | One pool of all selected hadronic rows; the benchmark follows the prescription selected for the rates |
+| `Dark-photons` | `dark-photon` | 1.70–5.00 GeV | The selected $u\bar u$, $d\bar d$, $s\bar s$ and $c\bar c$ rows are one pool. Its light component follows the DeLiVeR exclusive decomposition from 1.70 to 2.00 GeV and the coherent fit to measured cross sections above 2.00 GeV; the measured open-charm channels are generated above the $D\bar D$ threshold; the unresolved light component changes continuously to Pythia fragmentation between 4 and 5 GeV |
+| `ALP-fermion` | `alp-fermion` | 1.911–5.00 GeV | One pool of all selected hadronic rows, including the nucleon-pair rows |
+| `Scalar-mixing`, `Scalar-quartic` | `scalar-central`, `scalar-lower`, `scalar-upper`, `scalar-1809` | 2.00–63.0 GeV, of which the SHiP production tables cover masses up to 5.12 GeV | One pool of all selected hadronic rows; the exHad model follows the prescription selected for the rates |
 | `HNL` | `hnl` | 0.02–40 GeV, of which the SHiP production tables cover masses up to 5.27 GeV | The hadrons of a selected current at the exact invariant mass $W$ of the quark–antiquark pair of each event |
 
 Below the support of a boson portal the hadronic rows are generated as exact
@@ -165,25 +164,23 @@ physical low-$W$ continuum. The hadronic threshold itself is enforced
 separately, by the lightest-hadron floor in the three-body sampler and by the
 charge-aware two-hadron rule in `funcs/thresholds.py`.
 
-### The per-LLP card
+### Internal card names (for maintainers)
 
-`Distributions/<LLP>/exhad.json` names the benchmark of that model:
+The installed `Distributions/<LLP>/exhad.json` files retain older internal
+keys: `dv` maps to `dark-photon`, `alp` to `alp-fermion`, and
+`hls`, `hls-lower`, `hls-upper`, `hls-1809` to the four `scalar-*` models.
+These are compatibility keys, not additional physics models. They also
+appear in existing output filenames. Use the public exHad names for its API
+and CLI; use EventCalc's particle names and `--scalar-prescription` here.
 
-```json
-{ "bench": "hls",
-  "bench_variants": { "2407.13587-Central": "hls",
-                      "2407.13587-Lower": "hls-lower",
-                      "2407.13587-Upper": "hls-upper",
-                      "1809.01876": "hls-1809" } }
-```
+For compatibility, `EXHAD_BENCH` overrides the internal card selection
+(`raw` forces raw Pythia), while `EXHAD_LLP` is a fallback for callers that
+provide no particle selection. An explicit raw-Pythia run takes precedence.
+Leave these overrides unset in ordinary runs.
 
-The adapter reads `bench` and, for the scalars, `bench_variants`, which maps
-the branching-ratio prescription selected for the rates onto the matching
-exHad benchmark. The ALP-fermion card additionally carries the mass boundaries
-`m_start`, `m_edge`, `m_charm` and `m_high`, which its loader reads. Every
-other mass window a card states is checked against the installed release when
-the model is bound, and a disagreement stops the run; the release is the
-authority and the card is never trusted over it.
+The cards also record matching and charm thresholds. These are model inputs,
+not user-selected smoothing intervals; declared matching windows are checked
+against the installed exHad model before generation.
 
 ## Output of a matched run
 
@@ -235,13 +232,19 @@ HepMC3 nor the text event record.
 
 ```bash
 python3 -m pytest tests
-python3 tests/smoke_exhad.py --exhad-root "$EXHAD_ROOT" --events 100
+
+# Also exercise a separately installed, configured exHad release:
+export EXHAD_ROOT=/absolute/path/to/exhad
+python3 -m pytest tests
+python3 tests/smoke_exhad.py --exhad-root "$EXHAD_ROOT" --events 100 \
+  --models ALP-fermion Scalar-mixing Dark-photons HNL --mass 3
 ```
 
-The smoke test generates every matched benchmark, checks laboratory
-four-momentum conservation and the event labels, and prints the yield
-quantities. Use large batches: importing and authenticating a model has a
-one-time cost that a small batch pays in full.
+Without `EXHAD_ROOT`, release-dependent tests are skipped and the HNL sampler
+is checked against EventCalc's own hadronic thresholds. With it, the tests
+also check the release thresholds. The explicit smoke command above generates
+four model samples, checks laboratory four-momentum conservation and event
+labels, and prints yields. It is a correctness check, not a speed benchmark.
 
 ## The interface EventCalc uses
 
@@ -258,9 +261,9 @@ EventCalc setting selects between them.
 ### Model names
 
 `dark-photon`, `alp-fermion`, `scalar-central`, `scalar-lower`,
-`scalar-upper`, `scalar-1809`, `b-l` and `hnl`. A card that names something
-else gets an error that spells out the replacement, never a silent alias. The
-scalar prescription is chosen with `--scalar-prescription
+`scalar-upper`, `scalar-1809`, `b-l` and `hnl`. These are exHad's public names;
+the internal EventCalc card keys are explained above. The scalar prescription
+is chosen in EventCalc with `--scalar-prescription
 central|lower|upper|1809`, default `central`.
 
 ### Mass windows and mother PDG codes

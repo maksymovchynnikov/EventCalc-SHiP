@@ -126,14 +126,10 @@ class ExhadExplicitMultibodyTest(unittest.TestCase):
             *args, seed=1729)
         np.testing.assert_array_equal(raw, matched)
 
-    @unittest.skipUnless(
-        hasattr(exhadDecays, "_load_bridge"),
-        "funcs/exhadDecays.py does not define _load_bridge; this test was "
-        "written against an adapter that did")
-    def test_compatibility_helper_does_not_load_exhad_bridge(self):
+    def test_explicit_phase_space_does_not_load_exhad(self):
         with mock.patch.object(
-                exhadDecays, "_load_bridge",
-                side_effect=AssertionError("bridge must not be loaded")):
+                exhadDecays, "_release",
+                side_effect=AssertionError("release must not be loaded")):
             events = exhadDecays.generate_explicit_multibody_rest_frame(
                 1.7, [211] * 3 + [-211] * 3,
                 [0.13957] * 6, [1] * 3 + [-1] * 3, [1] * 6, 3,

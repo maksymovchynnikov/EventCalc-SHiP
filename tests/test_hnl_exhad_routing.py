@@ -49,6 +49,14 @@ RELEASE_W_MIN = {
 RELEASE_W_TOLERANCE = 2e-6
 
 
+def expected_sampling_floor(pair):
+    """Independent expectation for the hadronizer configured for this run."""
+    physical = thresholds.parton_system_threshold(pair)
+    if os.environ.get("EXHAD_ROOT"):
+        return max(physical, RELEASE_W_MIN[pair])
+    return max(physical, thresholds.string_end_two_hadron_mass(pair))
+
+
 def _parton_pair(pdg_list):
     """The current a row's two partons make, keyed as in ``RELEASE_W_MIN``.
 
@@ -71,11 +79,12 @@ def _parton_pair(pdg_list):
 class SamplingFloorTests(unittest.TestCase):
     """The floor the sampler applies, against what the release accepts."""
 
-    def test_every_parton_pair_reaches_its_release_minimum(self):
-        for pair, needed in RELEASE_W_MIN.items():
+    def test_every_parton_pair_reaches_its_configured_hadronizer_minimum(self):
+        for pair in RELEASE_W_MIN:
             with self.subTest(pair=pair):
                 floor = ThreeBodyDecay.parton_pair_sampling_floor(pair)
-                self.assertGreaterEqual(floor, needed - RELEASE_W_TOLERANCE)
+                self.assertGreaterEqual(
+                    floor, expected_sampling_floor(pair) - RELEASE_W_TOLERANCE)
 
     def test_the_floor_is_never_below_the_physical_two_hadron_bound(self):
         for pair in RELEASE_W_MIN:
@@ -120,7 +129,7 @@ class SampledInvariantMassTests(unittest.TestCase):
             mixing_pattern=np.array([1 / 3., 1 / 3., 1 / 3.]))
         cls.llp.import_particle()
 
-    def test_no_drawn_event_falls_below_the_release_minimum(self):
+    def test_no_drawn_event_falls_below_the_configured_hadronizer_minimum(self):
         llp = self.llp
         rows = [(index, [int(code) for code in np.asarray(row).ravel()
                          if int(code) != -999])
@@ -138,7 +147,7 @@ class SampledInvariantMassTests(unittest.TestCase):
                 pair = _parton_pair(pdg_list)
                 if pair is None:
                     continue
-                needed = RELEASE_W_MIN[pair]
+                needed = expected_sampling_floor(pair)
                 masses = thresholds.daughter_masses(pdg_list, hnl=True)
                 seeding.seed_all(11)
                 events = np.asarray(ThreeBodyDecay.block_random_energies(

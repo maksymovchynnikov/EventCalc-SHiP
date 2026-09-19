@@ -275,19 +275,18 @@ needs `pyhepmc`.
 [Pythia 8](https://pythia.org/) is used for decay channels that contain
 partons or unstable particles. Channels whose products are all stable, such as
 the diphoton decays of `ALP-photon`, `ALP-SU2L` and `ALP-mixed`, run without
-it. EventCalc requires Pythia **8.317** and refuses any other version of the
-binding or of the XML payload: the hadron tables of the exHad generator are
-written against 8.317, and comparing exHad with unmodified Pythia on a
-different version would confound the tune with the model.
-`requirements.txt` pins `pythia8mc==8.317.1`, whose wheel contains the 8.317
-binding and installs its matching XML payload in the environment. The CERN LCG
+it. EventCalc accepts an installed Pythia binding with matching XML data;
+it rejects a binding paired with data from another version.
+`requirements.txt` pins `pythia8mc==8.317.1`, which installs Pythia 8.317 and
+its matching XML data. Use 8.317 for comparisons with the current exHad
+release, so that a version difference does not change the comparison. The CERN LCG
 build exports the same API under the module name `pythia8`, which EventCalc
-also accepts. For a custom 8.317 build, point `PYTHIA8_LIB` at the directory
+also accepts. For a custom build, point `PYTHIA8_LIB` at the directory
 containing `pythia8mc` or `pythia8` and `PYTHIA8DATA` at that installation's
 `share/Pythia8/xmldoc`. To check what was found:
 
 ```bash
-python3 -c 'from funcs import decayProducts as d; p=d.load_pythia8().Pythia("",False); print("Pythia", p.settings.parm("Pythia:versionNumber"), "XML", d._PYTHIA8_XML)'
+python3 -c 'from funcs import decayProducts as d; p=d.load_pythia8().Pythia(d._PYTHIA8_XML or "",False); print("Pythia", p.settings.parm("Pythia:versionNumber"), "XML", d._PYTHIA8_XML)'
 ```
 
 If Pythia rejects a numerically inconsistent hadronization record, EventCalc

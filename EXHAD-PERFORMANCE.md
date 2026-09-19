@@ -1,4 +1,12 @@
-# Measured generation times
+# Historical generation measurements
+
+These measurements predate the unified EventCalc interface. They describe
+the runs listed below, not a benchmark of the current checkout. For a current
+measurement, time the whole command, record both Pythia versions and the worker
+counts, and distinguish requested parent samples from decays that survive the
+geometry selection. Include whether startup and event-file writing are timed.
+The printed `simulateDecays_rest_frame` time alone excludes any exHad sample
+prepared earlier for reuse across lifetimes.
 
 Every number here is a wall time from a separate local run on one macOS
 machine with Pythia 8.317, under ambient load that was not controlled. They
@@ -108,7 +116,7 @@ rather than with a different physics.
   replay after an intervening change of mass. A seed reproduces a batch at
   fixed installation, model, mass and event count.
 
-`EXHAD_PORTABLE_REFERENCE=1` selects the Python implementation of the same
-rejection sampling, with the same matching probabilities and the same bound.
-It is a diagnostic: it is neither the Pythia baseline nor a different
-acceptance rule.
+Sampler comparisons use exHad's own `Generator(..., execution="reference")`
+interface; `execution="auto"` selects its normal accelerated path where
+available. EventCalc's `--rawPythia` instead selects a different hadronization
+model, not an unaccelerated implementation of exHad.
