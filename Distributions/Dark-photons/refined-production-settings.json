@@ -1,0 +1,59 @@
+{
+  "status": "prescription_for_future_regeneration; installed historical tables have not yet been replaced",
+  "working_directory": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/EventCalc-SHiP-main",
+  "source_repository": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Dark-photons-SHiP",
+  "sources": [
+    "primary",
+    "cascade"
+  ],
+  "combined_source": "sum absolute primary and additional cascade yields; primary excluded from cascade",
+  "normalization": "Total-yield: N_AP/(N_POT epsilon^2), inclusive before geometric selection. DoubleDistr: normalized d2P/(dtheta dE), theta in radians, E and mass in GeV. Do not preselect theta_AP < 0.043.",
+  "fixed_parameters": {
+    "lambda_p_GeV": 0.40830633425574114,
+    "nonstrange_vector_fragmentation_coefficient": 1.0641965718667081,
+    "phi_fragmentation_coefficient": 0.8945843977579511
+  },
+  "bremsstrahlung_variation": {
+    "nominal": "central complex F1,F2 pair",
+    "alternatives": [
+      "lower complex F1,F2 pair",
+      "upper complex F1,F2 pair"
+    ],
+    "rule": "Hold Lambda_p and fragmentation coefficients fixed. Use the same pair coherently in primary and cascade. Keep each complete distribution and its integrated yield paired. F1-F2 interference can reorder the rates; table names do not imply pointwise ordering.",
+    "band": "Envelope of observables calculated from the coherent pairs, not an envelope stitched cell by cell into a synthetic distribution.",
+    "not_covered": [
+      "fit parameter uncertainty",
+      "unmeasured small-angle extrapolation",
+      "additional resonance modeling"
+    ]
+  },
+  "drell_yan": {
+    "central": "CT18, muF=muR=m_AP",
+    "variations": "Separate coherent PDF and scale variants, using the manuscript prescription. Do not drop this uncertainty or combine it silently with the form-factor label."
+  },
+  "validation_before_replacing_installed_tables": [
+    "Inclusive normalization and nonnegative interpolated densities",
+    "Primary plus cascade equals combined, including acceptance weights",
+    "Reproduce manuscript theta_AP < 0.043 yields and energy spectra within sampling and interpolation precision",
+    "Resolve the light vector resonances in mass without interpolating over them",
+    "Preserve each source probability with its own angular-energy distribution"
+  ],
+  "target_file_convention": {
+    "primary": [
+      "DoubleDistr-DP-<variation>.txt",
+      "Emax-DP-<variation>.txt",
+      "Total-yield-DP-<variation>.txt"
+    ],
+    "cascade": [
+      "DoubleDistr-DP-cascade-<variation>.txt",
+      "Emax-DP-cascade-<variation>.txt",
+      "Total-yield-DP-cascade-<variation>.txt"
+    ]
+  },
+  "fit_source_sha256": "6083ff6c18f2aeb8fcd881b302da13886e965a1694e66afdb5d561e63725d63d",
+  "inelastic_dark_matter": {
+    "source_samples": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Dark-photons-SHiP/results/idm_production/sources",
+    "calculated_fluxes": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Dark-photons-SHiP/results/idm_production/fluxes.csv",
+    "rule": "Preserve uncut mediator samples. Apply the angular cut to chi-prime after the polarized decay and integrate virtual pair mass with fixed daughter masses. An on-shell mediator table alone misses the finite-width effects."
+  }
+}

@@ -35,6 +35,7 @@ from funcs.simulation_config import (
     load_card,
 )
 from simulate import _load_runtime, _make_llp, _mass_is_tabulated
+from production_model.runtime import CollisionSource, uses_full_source
 
 
 RuntimeMode = Literal["fiducial", "attempted"]
@@ -201,6 +202,7 @@ class EventRecord:
     inside_volume: bool
     decay_weight: float
     status: str = "ok"
+    production_origin: np.ndarray | None = None
 
     @property
     def flat_record(self) -> np.ndarray:
@@ -218,6 +220,9 @@ class EventBatch:
     channels: np.ndarray
     inside_volume: np.ndarray
     decay_weights: np.ndarray
+    production_origins: np.ndarray | None = None
+    production_categories: np.ndarray | None = None
+    production_mechanisms: np.ndarray | None = None
 
     def __len__(self) -> int:
         return self.stop - self.start
@@ -235,6 +240,8 @@ class EventBatch:
             channel=str(self.channels[position]),
             inside_volume=bool(self.inside_volume[position]),
             decay_weight=float(self.decay_weights[position]),
+            production_origin=(None if self.production_origins is None
+                               else self.production_origins[position].copy()),
             status=(
                 "ok" if self.inside_volume[position] else "outside_fiducial"
             ),
@@ -269,6 +276,9 @@ class _ParentSample:
     mother: np.ndarray
     momentum: np.ndarray
     inside_volume: np.ndarray
+    origins: np.ndarray | None = None
+    categories: np.ndarray | None = None
+    mechanisms: np.ndarray | None = None
 
 
 def _mean_and_error(
@@ -548,6 +558,8 @@ class RuntimeModelScan:
         self.runtime: Any = None
         self._llp_template: Any = None
         self._mass_templates: dict[float, Any] = {}
+        self._collision_sources: dict[float, Any] = {}
+        self._production_provider = None
         self._grid_templates: dict[tuple[int, int], Any] = {}
         self._cdf_cache: dict[tuple[float, float, int, int], _ProductionInverseCDF] = {}
         self._initialized = False
@@ -578,12 +590,25 @@ class RuntimeModelScan:
         self._mass_templates[mass] = llp
         return llp
 
+    def _collision_source(self, mass):
+        if mass not in self._collision_sources:
+            if self._production_provider is None:
+                from production_model import ProductionModel
+                self._production_provider = ProductionModel()
+            self._collision_sources[mass] = CollisionSource.build(
+                self.config, mass, self.experiment, self._production_provider)
+        return self._collision_sources[mass]
+
     def _compiled_point(
         self, mass: float, c_tau: float
     ) -> tuple[Any, Any, _ProductionInverseCDF]:
         mass_template = self._mass_template(mass)
         llp = copy.copy(mass_template)
         llp.set_c_tau(float(c_tau))
+        if uses_full_source(self.config):
+            source = self._collision_source(mass)
+            llp.Yield = source.total_yield
+            return llp, None, source
 
         grid_key = (id(llp.Distr), id(llp.Energy_distr))
         grid_template = self._grid_templates.get(grid_key)
@@ -649,6 +674,7 @@ class RuntimeModelScan:
     def cache_info(self) -> dict[str, int]:
         return {
             "masses": len(self._mass_templates),
+            "collision_sources": len(self._collision_sources),
             "dense_grids": len(self._grid_templates),
             "lifetime_cdfs": len(self._cdf_cache),
         }
@@ -677,6 +703,7 @@ class RuntimeEventGenerator:
             raise ValueError("mode must be 'fiducial' or 'attempted'")
 
         self.config = config
+        self.input_mass = float(mass)
         self.mass = float(mass)
         self.c_tau = float(c_tau)
         self.experiment = experiment or ExperimentCard.ship()
@@ -693,7 +720,8 @@ class RuntimeEventGenerator:
         self.runtime: Any = None
         self.llp: Any = None
         self._grid: Any = None
-        self._production_cdf: _ProductionInverseCDF | None = None
+        self._production_cdf: Any = None
+        self._collision_source: CollisionSource | None = None
         self._parent_rng: np.random.Generator | None = None
         self._vertex_rng: np.random.Generator | None = None
         self._initialized = False
@@ -740,6 +768,15 @@ class RuntimeEventGenerator:
             self.llp.set_mass(self.mass)
             self.llp.compute_mass_dependent_properties()
             self.llp.set_c_tau(self.c_tau)
+        if uses_full_source(self.config):
+            source = self._production_cdf if self._scan is not None else CollisionSource.build(
+                self.config, self.input_mass, self.experiment)
+            self._collision_source = source
+            self.llp.Yield = source.total_yield
+            self.mass = source.mass
+            if not np.isclose(self.llp.mass, self.mass):
+                raise ValueError("Decay and production mother masses disagree")
+            self._production_cdf = source.sampler(self.c_tau, self.mode)
         self.selected_decay_indices = self.config.selected_decay_indices(
             tuple(str(item) for item in self.llp.decayChannels)
         )
@@ -798,6 +835,19 @@ class RuntimeEventGenerator:
             or self._vertex_rng is None
         ):
             raise RuntimeError("runtime random streams were not initialized")
+        if self._collision_source is not None:
+            sample = self._production_cdf.sample(
+                count, self._parent_rng, self._vertex_rng,
+                (getattr(self.llp, "LLP_pdg", None) or 4900022))
+            weights = np.where(sample.inside_volume, sample.mother[:, 6], 0.)
+            accepted = weights[sample.inside_volume]
+            self._attempted_count += count
+            self._fiducial_count += int(sample.inside_volume.sum())
+            self._attempt_decay_weight_sum += float(weights.sum())
+            self._attempt_decay_weight_squared_sum += float(np.square(weights).sum())
+            self._accepted_decay_sum += float(accepted.sum())
+            self._accepted_decay_squared_sum += float(np.square(accepted).sum())
+            return sample
         theta, energy = self._production_cdf.sample(count, self._parent_rng)
         rng = self._vertex_rng
         vertex_unit = rng.random((count, 2))
@@ -880,7 +930,8 @@ class RuntimeEventGenerator:
         return _ParentSample(mother, momentum, inside)
 
     def _parents_for_output(self, count: int) -> _ParentSample:
-        if self.mode == "attempted":
+        self._ensure_initialized()
+        if self.mode == "attempted" or self._collision_source is not None:
             return self._sample_attempts(count)
 
         mother_chunks: list[np.ndarray] = []
@@ -913,6 +964,11 @@ class RuntimeEventGenerator:
     ) -> tuple[np.ndarray, np.ndarray]:
         decay_seed = self._block_seeds(2, self._decay_block, count=1)[0]
         self._decay_block += 1
+        if self.llp.LLP_name == "Inelastic-DM":
+            result = self.llp.decay(len(mother), decay_seed)
+            rest = result["particles"].reshape(len(mother), -1)
+            boosted = self.runtime.boost.tab_boosted_decay_products(self.mass, momentum, rest)
+            return boosted, result["channel"]
         output_context = nullcontext() if self.verbose else redirect_stdout(io.StringIO())
         with _legacy_random_seed(decay_seed, seed_numba=True), output_context:
             from funcs.exhad_integration import simulate_decays
@@ -965,6 +1021,9 @@ class RuntimeEventGenerator:
             channels=channels,
             inside_volume=sample.inside_volume.copy(),
             decay_weights=decay_weights,
+            production_origins=sample.origins,
+            production_categories=sample.categories,
+            production_mechanisms=sample.mechanisms,
         )
         self._generated_events = stop
         self._batch_index += 1
@@ -1060,7 +1119,10 @@ class RuntimeEventGenerator:
         """Return generation counters together with :meth:`yields`."""
         from funcs.exhad_integration import metadata
         return {
-            "hadronization": metadata(self.llp),
+            "hadronization": ({"backend": "exHad-inelastic-current"}
+                               if self.llp.LLP_name == "Inelastic-DM" else metadata(self.llp)),
+            "production": (self._collision_source.metadata if self._collision_source is not None else None),
+            "production_origin": "correlated collision" if self._collision_source is not None else "point source",
             "mode": self.mode,
             "resolved_seed": self.resolved_seed,
             "generated_events": self._generated_events,
@@ -1158,7 +1220,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--card", type=Path, required=True)
     add_hadronization_arguments(parser)
     parser.add_argument("--experiment-card", type=Path)
-    parser.add_argument("--mass", type=float, required=True, help="LLP mass in GeV")
+    parser.add_argument("--mass", type=float, required=True, help="LLP mass in GeV; Inelastic-DM: mediator mass")
     parser.add_argument("--ctau", type=float, required=True, help="proper decay length in m")
     parser.add_argument("--events", type=_positive_int, required=True)
     parser.add_argument("--batch-size", type=_positive_int, default=10_000)
@@ -1220,6 +1282,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                     decay_weights=batch.decay_weights,
                     start=np.asarray(batch.start),
                     stop=np.asarray(batch.stop),
+                    **({"production_origins": batch.production_origins,
+                        "production_categories": batch.production_categories,
+                        "production_mechanisms": batch.production_mechanisms}
+                       if batch.production_origins is not None else {}),
                 )
                 files.append(filename)
             if hepmc_writer is not None:
@@ -1230,7 +1296,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     from funcs.exhad_integration import metadata as hadronization_metadata
     metadata = {
-        "hadronization": hadronization_metadata(generator.llp),
+        "hadronization": generator.stat()["hadronization"],
+        "production": generator.stat()["production"],
+        "input_mass_GeV": generator.input_mass,
         "format": "EventCalc Python runtime batches v3",
         "model": generator.config.model,
         "mass_GeV": generator.mass,
@@ -1250,11 +1318,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             "each_final_state_particle": ["px", "py", "pz", "E", "mass", "PDG"],
             "padding_PDG": -999,
         },
-        "decay_weight": "P_decay for fiducial events and zero otherwise",
-        "production_sampler": "precomputed inverse CDF in (theta, u_energy)",
+        "decay_weight": "signed P_decay for the full collision source; P_decay for table sources; zero for misses",
+        "production_sampler": "absolute source weights with correlated positions" if generator._collision_source is not None else "precomputed inverse CDF in (theta, u_energy)",
         "production_cdf": {
-            "theta_nodes": len(generator._production_cdf.theta_nodes),
-            "unit_energy_nodes": len(generator._production_cdf.u_nodes),
+            "theta_nodes": len(getattr(generator._production_cdf, "theta_nodes", [])),
+            "unit_energy_nodes": len(getattr(generator._production_cdf, "u_nodes", [])),
             "nonzero_cells": generator._production_cdf.cell_count,
         },
         "random_streams": {

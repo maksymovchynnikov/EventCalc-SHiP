@@ -178,6 +178,21 @@ class InteractiveInputTest(unittest.TestCase):
                     with self.assertRaises(ValueError):
                         LLP_selection.prompt_mixing_pattern(selection)
 
+    def test_calibrated_defaults_and_explicit_legacy_configuration(self):
+        from funcs.simulation_config import config_from_mapping
+        card=dict(model="Dark-photons", events=10, masses=[1.], c_taus=[10.])
+        config=config_from_mapping(card, check_files=False)
+        self.assertEqual(config.uncertainty, "central")
+        self.assertEqual(config.dp_production_mode, "combined")
+        legacy=config_from_mapping(dict(card, dp_production_mode="legacy-primary", uncertainty="upper"), check_files=False)
+        self.assertEqual(legacy.dp_production_mode, "legacy-primary")
+        self.assertEqual(legacy.uncertainty, "upper")
+        with mock.patch.dict(os.environ, {"EVENTCALC_DP_PRODUCTION":"calibrated"}), mock.patch("builtins.input") as prompt:
+            self.assertEqual(LLP_selection.prompt_uncertainty({"LLP_name":"Dark-photons"}), "central")
+            prompt.assert_not_called()
+        with mock.patch.dict(os.environ, {"EVENTCALC_DP_PRODUCTION":"legacy"}), mock.patch("builtins.input", return_value="2"):
+            self.assertEqual(LLP_selection.prompt_dp_production_mode({"LLP_name":"Dark-photons"}), "legacy-cascade")
+
     def test_combined_production_choices_are_exposed_interactively(self):
         dark_photon = {"LLP_name": "Dark-photons"}
         alp_photon = {"LLP_name": "ALP-photon"}
@@ -304,15 +319,11 @@ class DriverPathAndCliTest(unittest.TestCase):
                 simulate._interactive_seed()
 
     def test_both_drivers_require_the_same_production_choices(self):
-        """A flux choice is physics, so neither driver may default it.
-
-        run_batch and simulate are one program entered two ways; a command
-        that one refuses cannot be silently completed by the other.
-        """
+        """Both drivers enforce the same explicit legacy uncertainty choice."""
         cases = (
-            (["--llp", "Dark-photons", "--dp-production", "primary"],
-             ["--model", "Dark-photons", "--dp-production", "primary"],
-             "Dark-photons requires 'uncertainty'"),
+            (["--llp", "Dark-photons", "--dp-production", "primary", "--uncertainty", "upper"],
+             ["--model", "Dark-photons", "--dp-production", "primary", "--uncertainty", "upper"],
+             "explicit legacy-* production mode"),
             (["--llp", "ALP-photon"],
              ["--model", "ALP-photon"],
              "ALP-photon requires 'alp_production_mode'"),
@@ -343,7 +354,8 @@ class DriverPathAndCliTest(unittest.TestCase):
         cases = {
             "--dp-production": (
                 "primary", "cascade", "brem-cascade", "combined",
-                "primary+cascade", "cascade+primary",
+                "primary+cascade", "cascade+primary", "legacy-primary",
+                "legacy-cascade", "legacy-combined", "legacy-brem-cascade",
             ),
             "--alp-production": (
                 "primary", "cascade", "cascades", "combined",

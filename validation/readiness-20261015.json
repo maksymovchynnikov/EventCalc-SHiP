@@ -1,0 +1,438 @@
+{
+  "date": "2026-10-15",
+  "software_checks_passed": true,
+  "eventcalc_copies": [
+    {
+      "name": "main",
+      "path": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/EventCalc-SHiP-main",
+      "shared_files_verified": 223
+    },
+    {
+      "name": "fragmentation",
+      "path": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Claude-projects/Pythia-fragmentation/EventCalc",
+      "shared_files_verified": 223
+    },
+    {
+      "name": "alps",
+      "path": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Distinguishing-ALPs/EventCalc-SHiP",
+      "shared_files_verified": 223
+    },
+    {
+      "name": "github",
+      "path": "/Users/maksymovchynnikov/Downloads/GitHub desktop/EventCalc-SHiP",
+      "shared_files_verified": 223
+    },
+    {
+      "name": "geant4",
+      "path": "/Users/maksymovchynnikov/Downloads/Geant4/EventCalc-SHiP-temp",
+      "shared_files_verified": 223
+    }
+  ],
+  "exhad_copies": [
+    {
+      "path": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/exHad",
+      "samples": [
+        {
+          "channel": "piPpiMpi0",
+          "raw_value": -7.86139347694944e-06,
+          "absolute_value": 7.86139347694944e-06,
+          "events": 256,
+          "negative_weights": 0
+        },
+        {
+          "channel": "3pi0",
+          "raw_value": -0.00021507277821419812,
+          "absolute_value": 0.00021507277821419812,
+          "events": 256,
+          "negative_weights": 0
+        },
+        {
+          "channel": "KPKMpi0",
+          "raw_value": -0.0017157368067111656,
+          "absolute_value": 0.0017157368067111656,
+          "events": 256,
+          "negative_weights": 0
+        }
+      ],
+      "seconds": 5.544569791993126
+    },
+    {
+      "path": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/exHad-dev",
+      "samples": [
+        {
+          "channel": "piPpiMpi0",
+          "raw_value": -7.86139347694944e-06,
+          "absolute_value": 7.86139347694944e-06,
+          "events": 256,
+          "negative_weights": 0
+        },
+        {
+          "channel": "3pi0",
+          "raw_value": -0.00021507277821419812,
+          "absolute_value": 0.00021507277821442017,
+          "events": 256,
+          "negative_weights": 0
+        },
+        {
+          "channel": "KPKMpi0",
+          "raw_value": -0.0017157368067111656,
+          "absolute_value": 0.0017157368067111656,
+          "events": 256,
+          "negative_weights": 0
+        }
+      ],
+      "seconds": 8.943136374931782
+    },
+    {
+      "path": "/Users/maksymovchynnikov/Downloads/GitHub desktop/exHad",
+      "samples": [
+        {
+          "channel": "piPpiMpi0",
+          "raw_value": -7.86139347694944e-06,
+          "absolute_value": 7.86139347694944e-06,
+          "events": 256,
+          "negative_weights": 0
+        },
+        {
+          "channel": "3pi0",
+          "raw_value": -0.00021507277821419812,
+          "absolute_value": 0.00021507277821419812,
+          "events": 256,
+          "negative_weights": 0
+        },
+        {
+          "channel": "KPKMpi0",
+          "raw_value": -0.0017157368067111656,
+          "absolute_value": 0.0017157368067111656,
+          "events": 256,
+          "negative_weights": 0
+        }
+      ],
+      "seconds": 7.531257416005246
+    }
+  ],
+  "alp_revision": {
+    "date": "2026-10-15",
+    "model": "ALP-fermion",
+    "coupling": "g_Y = 2 v_h / f_a",
+    "matching_scale_GeV": 1000.0,
+    "matching_boundary_GeV": 1.91,
+    "rates_revision": "Regenerated source export 2026-10-14; boundary-aware widths and existing 32-channel roster.",
+    "matrix_revision": "2026-10-15 source export, BaBar removed before squaring, KLKSpi0 unit phase space, omega-pion masses corrected. Absolute-value workaround for three source expressions.",
+    "sha256": {
+      "Emax-ALP-fermion.txt": "61fa3541496db7a2e2472aa466d15f89c834c81fa5d121498494e3273d03b5ca",
+      "coupling.json": "f101819cf2aa4738d6c7ddfda28749a4e1f2ea2fd2ad578b2a202c6de36deffa",
+      "exhad.json": "c1b1cc566382255e61b95437c1a66ad5d06a3b95aa154292f2f4402c3a5d2ceb",
+      "ALP-fermion-decay.json": "2071d6f02d2537d49cd8f768c89b3cb4869bfcbc6d72f2d02398ece93b90664c",
+      "Total-yield-ALP-fermion.txt": "3cd164fd4a03050a1612103dfee0078954ec816a8f6a0a6931403220a21daffe",
+      "DoubleDistr-ALP-fermion.txt": "8f3ac4ce2fd9a9fa1ea8812f63f75eb78ec3f9d07c536440f674cbc8616fbc71",
+      "postprocess_decay_card.py": "4c339e574f91fc1f5a23d49454ecd6c666a62db641a8a8b726fb700b69366ab9",
+      "ctau-ALP-fermion.txt": "46e507fbb01ba512448c74a26d3d96daef6b3df8baf40b138e126af9ed2654d9"
+    },
+    "known_source_issue": "The exported squared matrix elements in the listed channels are negative in parts of physical phase space, confirmed at 60-digit precision.",
+    "matrix_weight_prescription": {
+      "channels": [
+        "piPpiMpi0",
+        "3pi0",
+        "KPKMpi0"
+      ],
+      "expression": "Abs(source_squared_matrix_element)",
+      "underlying_source_issue_resolved": false,
+      "tabulated_lifetime_and_branching_fractions_changed": false
+    },
+    "source_card_sha256": "27e393606c380cdffd6a21a6a2b8f62c96625a28e6ccd727347bec948e4b7ed4"
+  },
+  "checks": [
+    {
+      "name": "main",
+      "kind": "full",
+      "exit_code": 0,
+      "seconds": 45.582178084063344,
+      "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/final-validation/main-full.log",
+      "summary": "\nStarting Pythia processing of 1 events...\n\nStarting Pythia processing of 1 events...\n\nStarting Pythia processing of 1 events...\n\nStarting Pythia processing of 1 events...",
+      "tests": 293,
+      "skipped": 17,
+      "passed": 276
+    },
+    {
+      "name": "main",
+      "kind": "abs",
+      "exit_code": 0,
+      "seconds": 15.59453191596549,
+      "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/final-validation/main-abs.log",
+      "summary": "ABS_OK piPpiMpi0\nABS_OK 3pi0\nABS_OK KPKMpi0"
+    },
+    {
+      "name": "fragmentation",
+      "kind": "full",
+      "exit_code": 0,
+      "seconds": 42.20761499996297,
+      "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/final-validation/fragmentation-full.log",
+      "summary": "\nStarting Pythia processing of 1 events...\n\nStarting Pythia processing of 1 events...\n\nStarting Pythia processing of 1 events...\n\nStarting Pythia processing of 1 events...",
+      "tests": 293,
+      "skipped": 17,
+      "passed": 276
+    },
+    {
+      "name": "fragmentation",
+      "kind": "abs",
+      "exit_code": 0,
+      "seconds": 13.143028874997981,
+      "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/final-validation/fragmentation-abs.log",
+      "summary": "ABS_OK piPpiMpi0\nABS_OK 3pi0\nABS_OK KPKMpi0"
+    },
+    {
+      "name": "alps",
+      "kind": "full",
+      "exit_code": 0,
+      "seconds": 133.12637470802292,
+      "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/alps-final-suite.log",
+      "summary": "581 passed, 18 skipped, 492 subtests passed in 52.29s",
+      "passed": 581,
+      "skipped": 18,
+      "subtests": 492
+    },
+    {
+      "name": "alps",
+      "kind": "abs",
+      "exit_code": 0,
+      "seconds": 11.679572083055973,
+      "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/final-validation/alps-abs.log",
+      "summary": "ABS_OK piPpiMpi0\nABS_OK 3pi0\nABS_OK KPKMpi0"
+    },
+    {
+      "name": "github",
+      "kind": "full",
+      "exit_code": 0,
+      "seconds": 34.50434975000098,
+      "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/final-validation/github-full.log",
+      "summary": "\nStarting Pythia processing of 1 events...\n\nStarting Pythia processing of 1 events...\n\nStarting Pythia processing of 1 events...\n\nStarting Pythia processing of 1 events...",
+      "tests": 293,
+      "skipped": 17,
+      "passed": 276
+    },
+    {
+      "name": "github",
+      "kind": "abs",
+      "exit_code": 0,
+      "seconds": 12.119771875091828,
+      "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/final-validation/github-abs.log",
+      "summary": "ABS_OK piPpiMpi0\nABS_OK 3pi0\nABS_OK KPKMpi0"
+    },
+    {
+      "name": "geant4",
+      "kind": "full",
+      "exit_code": 0,
+      "seconds": 35.5538995830575,
+      "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/final-validation/geant4-full.log",
+      "summary": "\nStarting Pythia processing of 1 events...\n\nStarting Pythia processing of 1 events...\n\nStarting Pythia processing of 1 events...\n\nStarting Pythia processing of 1 events...",
+      "tests": 293,
+      "skipped": 17,
+      "passed": 276
+    },
+    {
+      "name": "geant4",
+      "kind": "abs",
+      "exit_code": 0,
+      "seconds": 15.937780749984086,
+      "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/final-validation/geant4-abs.log",
+      "summary": "ABS_OK piPpiMpi0\nABS_OK 3pi0\nABS_OK KPKMpi0"
+    },
+    {
+      "name": "exhad",
+      "kind": "abs",
+      "exit_code": 0,
+      "seconds": 5.800039499998093,
+      "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/final-validation/exhad-abs.log",
+      "summary": "ABS_OK piPpiMpi0\nABS_OK 3pi0\nABS_OK KPKMpi0"
+    },
+    {
+      "name": "exhad-dev",
+      "kind": "abs",
+      "exit_code": 0,
+      "seconds": 9.349161708028987,
+      "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/final-validation/exhad-dev-abs.log",
+      "summary": "ABS_OK piPpiMpi0\nABS_OK 3pi0\nABS_OK KPKMpi0"
+    },
+    {
+      "name": "exhad-github",
+      "kind": "abs",
+      "exit_code": 0,
+      "seconds": 7.803255792008713,
+      "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/final-validation/exhad-github-abs.log",
+      "summary": "ABS_OK piPpiMpi0\nABS_OK 3pi0\nABS_OK KPKMpi0"
+    }
+  ],
+  "baseline_handoff_and_launcher_checks": [
+    {
+      "name": "main",
+      "path": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/EventCalc-SHiP-main",
+      "shared_runtime_files": 222,
+      "input_release_identical": true,
+      "unit": {
+        "exit_code": 0,
+        "seconds": 36.33088979194872,
+        "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/validation/main/unit-tests.log",
+        "tests": 291,
+        "skipped": 17
+      },
+      "smoke": [
+        {
+          "exit_code": 0,
+          "seconds": 37.407758083892986,
+          "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/validation/main/smoke_handoff.log"
+        },
+        {
+          "exit_code": 0,
+          "seconds": 29.736691124970093,
+          "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/validation/main/smoke_matrix_modes.log"
+        }
+      ],
+      "launcher": {
+        "exit_code": 0,
+        "seconds": 0.6885923339286819,
+        "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/validation/main/launcher.log"
+      }
+    },
+    {
+      "name": "fragmentation",
+      "path": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Claude-projects/Pythia-fragmentation/EventCalc",
+      "shared_runtime_files": 222,
+      "input_release_identical": true,
+      "unit": {
+        "exit_code": 0,
+        "seconds": 42.87107558292337,
+        "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/validation/fragmentation/unit-tests.log",
+        "tests": 291,
+        "skipped": 17
+      },
+      "smoke": [
+        {
+          "exit_code": 0,
+          "seconds": 39.918386542005464,
+          "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/validation/fragmentation/smoke_handoff.log"
+        },
+        {
+          "exit_code": 0,
+          "seconds": 34.45010783395264,
+          "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/validation/fragmentation/smoke_matrix_modes.log"
+        }
+      ],
+      "launcher": {
+        "exit_code": 0,
+        "seconds": 0.7913604589411989,
+        "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/validation/fragmentation/launcher.log"
+      }
+    },
+    {
+      "name": "alps",
+      "path": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Distinguishing-ALPs/EventCalc-SHiP",
+      "shared_runtime_files": 222,
+      "input_release_identical": true,
+      "unit": {
+        "exit_code": 1,
+        "seconds": 67.7114670840092,
+        "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/validation/alps/unit-tests.log",
+        "tests": 298,
+        "skipped": 17
+      },
+      "smoke": [
+        {
+          "exit_code": 0,
+          "seconds": 38.25729850004427,
+          "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/validation/alps/smoke_handoff.log"
+        },
+        {
+          "exit_code": 0,
+          "seconds": 27.936484790989198,
+          "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/validation/alps/smoke_matrix_modes.log"
+        }
+      ],
+      "launcher": {
+        "exit_code": 0,
+        "seconds": 0.6204273749608546,
+        "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/validation/alps/launcher.log"
+      }
+    },
+    {
+      "name": "github",
+      "path": "/Users/maksymovchynnikov/Downloads/GitHub desktop/EventCalc-SHiP",
+      "shared_runtime_files": 222,
+      "input_release_identical": true,
+      "unit": {
+        "exit_code": 0,
+        "seconds": 39.268041874980554,
+        "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/validation/github/unit-tests.log",
+        "tests": 291,
+        "skipped": 17
+      },
+      "smoke": [
+        {
+          "exit_code": 0,
+          "seconds": 37.24899579200428,
+          "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/validation/github/smoke_handoff.log"
+        },
+        {
+          "exit_code": 0,
+          "seconds": 27.940847625024617,
+          "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/validation/github/smoke_matrix_modes.log"
+        }
+      ],
+      "launcher": {
+        "exit_code": 0,
+        "seconds": 0.6917725000530481,
+        "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/validation/github/launcher.log"
+      }
+    },
+    {
+      "name": "geant4",
+      "path": "/Users/maksymovchynnikov/Downloads/Geant4/EventCalc-SHiP-temp",
+      "shared_runtime_files": 222,
+      "input_release_identical": true,
+      "unit": {
+        "exit_code": 0,
+        "seconds": 41.03875687508844,
+        "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/validation/geant4/unit-tests.log",
+        "tests": 291,
+        "skipped": 17
+      },
+      "smoke": [
+        {
+          "exit_code": 0,
+          "seconds": 37.27633779204916,
+          "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/validation/geant4/smoke_handoff.log"
+        },
+        {
+          "exit_code": 0,
+          "seconds": 31.278624500031583,
+          "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/validation/geant4/smoke_matrix_modes.log"
+        }
+      ],
+      "launcher": {
+        "exit_code": 0,
+        "seconds": 0.6470335000194609,
+        "log": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Temp/eventcalc-readiness-20261015/validation/geant4/launcher.log"
+      }
+    }
+  ],
+  "matrix_check_scope": "Each of five EventCalc and three exHad copies: three known negative source points become abs(raw), 256 generated decays per affected channel; exHad also checks 10000 random Dalitz points per channel. The native rejection-envelope tests retain the formerly negative lobe and cover complex modulus bounds.",
+  "upstream_source_issue_resolved": false,
+  "preserved_study_changes": [
+    "Stable decay-position inverse CDF and survival probability, matching the full runtime; cache adapter version 5.",
+    "Two study-era test expectations updated for calibrated DP defaults and case-sensitive named channels."
+  ],
+  "matrix_only_preservation": {
+    "branching_rows_unchanged": true,
+    "unaffected_matrix_elements_unchanged": true,
+    "lifetime_and_production_tables_unchanged_by_abs": true
+  },
+  "documentation": [
+    "README.md Known bugs/problems",
+    "Distributions/ALP-fermion/README.md",
+    "Distributions/ALP-fermion/input_revision.json",
+    "EXHAD.md",
+    "SENSITIVITY.md"
+  ],
+  "validation_notes": "The initial ALP-copy test run found missing pytest on the selected path and obsolete expectations. The final run uses the installed study test environment and current interface expectations. Historical logs are retained.",
+  "prior_production_band_validation": "/Users/maksymovchynnikov/Library/CloudStorage/Dropbox/Codex-projects/Dark-photons-SHiP/results/implementation_checks/automatic_production_bands.json"
+}

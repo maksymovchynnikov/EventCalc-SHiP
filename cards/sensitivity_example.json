@@ -1,0 +1,14 @@
+{
+  "mass_GeV": 1.0,
+  "parameters": [1e-12, 1e-11, 1e-10, 1e-9, 1e-8, 1e-7],
+  "ctau_m": [1000.0, 100.0, 10.0, 1.0, 0.1, 0.01],
+  "production_scales": [1e-12, 1e-11, 1e-10, 1e-9, 1e-8, 1e-7],
+  "exposure": 1e12,
+  "replicas": 2,
+  "event_threshold": 2.3,
+  "source": {
+    "kind": "provider",
+    "callable": "examples.sensitivity_source:batches",
+    "kwargs": {"mass": 1.0, "events": 8192, "seed": 9182}
+  }
+}

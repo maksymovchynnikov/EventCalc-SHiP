@@ -21,7 +21,9 @@ _GENERATOR_TAG_RE = re.compile(
     r"stock-pythia(?:-[A-Za-z0-9.-]+)?|"
     r"exhad-[A-Za-z0-9.-]+"
     r")-seed(?P<seed>\d+)"
-    r"(?:-src(?P<source_digest>[0-9a-fA-F]+))?$"
+    r"(?:-src(?P<source_digest>[0-9a-fA-F]+))?"
+    r"(?:-full-source-(?P<full_source>primary|cascade|combined)-p(?P<production_power>\d+)"
+    r"-s(?P<production_shower_digest>[0-9a-f]{12})(?:-delta(?P<idm_delta>[0-9.eE-]+))?)?$"
 )
 _PORTABLE_EXHAD_ID_RE = re.compile(
     r"^(?P<backend>[A-Za-z0-9.-]+)"
@@ -68,6 +70,10 @@ class OutputFileMetadata:
     channel_count: int | None = None
     channel_digest: str | None = None
     extra_tags: tuple = ()
+    full_source: str | None = None
+    production_power: int | None = None
+    production_shower_digest: str | None = None
+    idm_delta: float | None = None
 
     @property
     def is_legacy(self):
@@ -152,6 +158,10 @@ def _parse_generator_tag(token):
         "backend": backend,
         "seed": int(match.group("seed")),
         "source_digest": match.group("source_digest"),
+        "full_source": match.group("full_source"),
+        "production_power": int(match.group("production_power")) if match.group("production_power") else None,
+        "production_shower_digest": match.group("production_shower_digest"),
+        "idm_delta": float(match.group("idm_delta")) if match.group("idm_delta") else None,
         "hadronization_model": model,
         "hadronization_variant": variant,
         "hadronization_variation": variation,

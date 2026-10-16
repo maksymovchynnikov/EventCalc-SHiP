@@ -208,6 +208,17 @@ class FirstOrderModel:
         squared = half * half
         return squared if power % 2 == 0 else squared * self
 
+    def __abs__(self):
+        """Enclose the complex modulus by distances to its real/imaginary box."""
+        real_spread, imag_spread = self.real.spread(), self.imag.spread()
+        real_centre, imag_centre = np.abs(self.real.centre), np.abs(self.imag.centre)
+        low = np.hypot(np.maximum(real_centre - real_spread, 0.0),
+                       np.maximum(imag_centre - imag_spread, 0.0))
+        high = np.hypot(real_centre + real_spread, imag_centre + imag_spread)
+        low = np.maximum(0.0, np.nextafter(low * (1.0 - _ROUNDING_SLACK), -np.inf))
+        high = np.nextafter(high * (1.0 + _ROUNDING_SLACK), np.inf)
+        return FirstOrderModel(_from_range(low, high, self.real.centre))
+
     def sqrt(self):
         if not self.is_real:
             raise TypeError("the square root of a complex quantity is not supported")
@@ -514,6 +525,8 @@ def _dispatch_ufunc(ufunc, method, inputs, kwargs):
         return -FirstOrderModel.enclose(inputs[0])
     if name == "positive":
         return FirstOrderModel.enclose(inputs[0])
+    if name in {"absolute", "fabs"}:
+        return abs(FirstOrderModel.enclose(inputs[0]))
     if name == "sqrt":
         return FirstOrderModel.enclose(inputs[0]).sqrt()
     if name == "square":

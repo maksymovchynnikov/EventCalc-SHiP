@@ -97,7 +97,7 @@ in the same directory and are told apart by those names.
 | EventCalc model | exHad model | Mass support | What exHad generates |
 |---|---|---:|---|
 | `Dark-photons` | `dark-photon` | 1.70–5.00 GeV | The selected $u\bar u$, $d\bar d$, $s\bar s$ and $c\bar c$ rows are one pool. Its light component follows the DeLiVeR exclusive decomposition from 1.70 to 2.00 GeV and the coherent fit to measured cross sections above 2.00 GeV; the measured open-charm channels are generated above the $D\bar D$ threshold; the unresolved light component changes continuously to Pythia fragmentation between 4 and 5 GeV |
-| `ALP-fermion` | `alp-fermion` | 1.911–5.00 GeV | One pool of all selected hadronic rows, including the nucleon-pair rows |
+| `ALP-fermion` | `alp-fermion` | 1.910–5.00 GeV | One pool of all selected hadronic rows, including the nucleon-pair rows |
 | `Scalar-mixing`, `Scalar-quartic` | `scalar-central`, `scalar-lower`, `scalar-upper`, `scalar-1809` | 2.00–63.0 GeV, of which the SHiP production tables cover masses up to 5.12 GeV | One pool of all selected hadronic rows; the exHad model follows the prescription selected for the rates |
 | `HNL` | `hnl` | 0.02–40 GeV, of which the SHiP production tables cover masses up to 5.27 GeV | The hadrons of a selected current at the exact invariant mass $W$ of the quark–antiquark pair of each event |
 
@@ -271,7 +271,7 @@ central|lower|upper|1809`, default `central`.
 | Model | Mother PDG | Matched support (GeV) | Generation (GeV) | Exclusive rows below the support |
 |---|---|---|---|---|
 | `dark-photon` | 4900022 | 1.70–5.00 | 0.003–5.00 | 41 rows, 0.003–1.70 |
-| `alp-fermion` | 36 | 1.911–5.00 | 0.01–5.00 | 25 rows, 0.01–1.911 |
+| `alp-fermion` | 36 | 1.910–5.00 | 0.01–5.00 | 25 rows, 0.01–1.910 |
 | `scalar-central`, `-lower`, `-upper`, `-1809` | 35 | 2.00–63.0 | 0.01–63.0 | 9 rows, 0.01–2.00 |
 | `b-l` | 32 | 2.00–5.00 | 0.001–5.00 | 32 rows, 0.001–2.00 |
 | `hnl` | 9900012 | 0.02–5.27, a bound on $W$ | 0.02–40.0 | — |

@@ -18,6 +18,53 @@ _EXPECTED_DEFINITION = "2*v_h/f_a"
 _EXPECTED_CTAU_COLUMN = "c_tau_times_g_Y_squared_m"
 _EXPECTED_YIELD_COLUMN = "production_probability_per_POT_per_g_Y_squared"
 
+# Couplings are positive magnitudes in the normalization of the lifetime tables.
+COUPLING_LABELS = {
+    "ALP-photon": "g_agammagamma [GeV^-1]",
+    "ALP-fermion": "g_Y = 2*v_h/f_a (dimensionless)",
+    "ALP-SU2L": "g_W [GeV^-1], C_W = alpha_2*g_W/(4*pi)",
+    "ALP-mixed": "|g_agammagamma_total| [GeV^-1] at fixed xi and interference",
+    "Inelastic-DM": "epsilon (kinetic mixing), at fixed m_Aprime/m_chi=3, alpha_D=0.1 and Delta",
+    "Dark-photons": "epsilon (dimensionless kinetic mixing)",
+    "Scalar-mixing": "sin(theta) (dimensionless scalar mixing)",
+    "Scalar-quartic": "sin(theta) for decay; quartic production is unchanged",
+    "HNL": "U = sqrt(Ue^2 + Umu^2 + Utau^2) at fixed mixing pattern",
+}
+
+
+def coupling_to_squared(value, *, squared=False):
+    """Validate a positive coupling magnitude or an already-squared coupling."""
+    if isinstance(value, bool):
+        raise ValueError("coupling must be a finite positive number, not a boolean")
+    value = float(value)
+    if not math.isfinite(value) or value <= 0:
+        raise ValueError("coupling must be finite and positive")
+    result = value if squared else value * value
+    if not math.isfinite(result) or result <= 0:
+        raise ValueError("squared coupling is outside the representable positive range")
+    return result
+
+
+def ctau_from_coupling(llp_name, ctau_coefficient_m, value, *, squared=False,
+                       metadata=None):
+    """Convert the model's native coupling to c*tau in metres, at fixed mass.
+
+    HNL coefficients must use the normalized flavour pattern. Scalar-quartic
+    inputs control decay mixing, not the separate quartic production coupling.
+    """
+    if llp_name not in COUPLING_LABELS:
+        raise ValueError("unknown coupling convention for %s" % llp_name)
+    strength = coupling_to_squared(value, squared=squared)
+    if llp_name == ALP_FERMION:
+        _resolved_metadata(llp_name, metadata)
+    coefficient = float(ctau_coefficient_m)
+    if not math.isfinite(coefficient) or coefficient <= 0:
+        raise ValueError("ctau coupling coefficient must be finite and positive")
+    result = coefficient / strength
+    if not math.isfinite(result) or result <= 0:
+        raise ValueError("converted c_tau must be finite and positive")
+    return result
+
 
 def _default_metadata_path():
     eventcalc_root = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))

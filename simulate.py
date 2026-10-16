@@ -121,6 +121,9 @@ def _print_ship_setup(runtime: SimpleNamespace) -> None:
 
 def _make_llp(runtime: SimpleNamespace, config):
     """Build the selected LLP and bind it to the configured exHad release."""
+    if config.particle_selection["LLP_name"] == "Inelastic-DM":
+        from funcs.inelastic_llp import InelasticLLP
+        return InelasticLLP(config)
     mixing = getattr(config, "mixing_pattern", None)
     mixing = (
         runtime.np.asarray(mixing, dtype=float) if mixing is not None else None
@@ -155,6 +158,10 @@ def _generate_phenomenology_plots(
     llp,
     selected_decay_indices: Sequence[int],
 ) -> None:
+    if llp.LLP_name == "Inelastic-DM":
+        # A 250-mass full production fold is not a launch-time plot operation.
+        print("Inelastic-DM production and decay distributions are available through ProductionModel and exHad.")
+        return
     from funcs.plot_phenomenology import (
         plot_branching_ratios,
         plot_lifetime,
@@ -456,6 +463,12 @@ def run_scan_point(runtime, config, llp, selected_decay_indices,
 def run_mass_lifetime_grid(runtime, config, llp, selected_decay_indices, *,
                            batch_index_offset=0, fixed_exhad_pools=None):
     """Run every (mass, lifetime) point of one configuration, in order."""
+    config = config.resolve_lifetimes(llp)
+    from production_model.runtime import uses_full_source
+    if uses_full_source(config):
+        from production_model.launcher import run_full_source_scan
+        return run_full_source_scan(runtime, config, llp, selected_decay_indices,
+                                    batch_index_offset=batch_index_offset)
     pools = {} if fixed_exhad_pools is None else fixed_exhad_pools
     total_masses = len(config.masses)
     print(f"\nTotal masses to process: {total_masses}")
@@ -533,7 +546,8 @@ def _interactive_main(*, exhad_mode: str = "auto") -> None:
     # A flag on the command line has already said which generator to use; with
     # no flag, ask, because an interactive user is here to choose.
     exhad = runtime.exhadDecays
-    if exhad_mode == "auto" and sys.stdin.isatty():
+    if (exhad_mode == "auto" and sys.stdin.isatty()
+            and particle_selection["LLP_name"] != "Inelastic-DM"):
         exhad.set_selection(
             particle_selection["LLP_name"], particle_selection["particle_path"],
             inputs["scalar_lifetime"])
@@ -568,6 +582,7 @@ def _interactive_main(*, exhad_mode: str = "auto") -> None:
         alp_production_mode=inputs["alp_production_mode"],
         dp_production_mode=inputs["dp_production_mode"],
         scalar_prescription=inputs["scalar_lifetime"],
+        idm_delta=inputs.get("idm_delta", .1),
         xi=inputs.get("xi"),
         interference=inputs.get("interference"),
         llp_pdg=None,
@@ -577,7 +592,8 @@ def _interactive_main(*, exhad_mode: str = "auto") -> None:
     selected = prompt_decay_channels(llp.decayChannels)
     _generate_phenomenology_plots(runtime, llp, selected)
     masses, c_taus = prompt_masses_and_c_taus(
-        llp.m_min_tabulated, llp.m_max_tabulated)
+        llp.m_min_tabulated, llp.m_max_tabulated,
+        mass_label="mediator m_Aprime" if llp.LLP_name == "Inelastic-DM" else "LLP")
 
     config = config_from_mapping(
         {
@@ -592,6 +608,7 @@ def _interactive_main(*, exhad_mode: str = "auto") -> None:
             "alp_production_mode": inputs["alp_production_mode"],
             "dp_production_mode": inputs["dp_production_mode"],
             "scalar_prescription": inputs["scalar_lifetime"],
+            "idm_delta": inputs.get("idm_delta", .1),
             "xi": inputs.get("xi"),
             "interference": inputs.get("interference"),
             "plots": True,

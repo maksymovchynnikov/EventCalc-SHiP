@@ -1,0 +1,11 @@
+{
+  "model": "Inelastic-DM",
+  "masses": [20.0],
+  "idm_delta": 0.05,
+  "c_taus": [0.1, 1000.0],
+  "events": 10000,
+  "production_power": 15,
+  "dp_production_mode": "combined",
+  "decay_channels": ["all"],
+  "seed": 1
+}

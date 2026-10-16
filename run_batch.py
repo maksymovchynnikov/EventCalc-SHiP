@@ -47,6 +47,7 @@ if HERE not in sys.path:
 import simulate
 from simulate import DEFAULT_SEED, run_mass_lifetime_grid
 from funcs.channel_selection import selected_channel_labels
+from funcs.coupling_conventions import COUPLING_LABELS, coupling_to_squared
 from funcs.LLP_selection import (
     N_pot,
     normalize_hnl_mixing,
@@ -78,7 +79,7 @@ LLP_CHOICES = [spec.name for spec in MODEL_SPECS]
 # --------------------------------------------------------------------------
 # grid builders
 # --------------------------------------------------------------------------
-def _inclusive_linear_grid(lo, hi, step):
+def _inclusive_linear_grid(lo, hi, step, *, round_digits=10):
     """Build ``LO + k*STEP`` points without stepping beyond inclusive ``HI``."""
     span = (hi - lo) / step
     nearest = round(span)
@@ -91,7 +92,7 @@ def _inclusive_linear_grid(lo, hi, step):
     values = lo + step * np.arange(steps + 1, dtype=float)
     if endpoint_is_grid_point:
         values[-1] = hi
-    return list(np.round(values, 10))
+    return list(values if round_digits is None else np.round(values, round_digits))
 
 
 def build_masses(args):
@@ -138,6 +139,28 @@ def resolve_channels(tokens, decay_channels):
         return resolve_decay_channels(list(tokens), list(decay_channels))
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
+
+
+def build_couplings(args):
+    """Return a common g^2 grid, or None when lifetimes were supplied."""
+    for stem, squared in (("coupling", False), ("coupling_squared", True)):
+        values = getattr(args, "couplings_squared" if squared else "couplings", None)
+        linear = getattr(args, stem + "_range", None)
+        logarithmic = getattr(args, stem + "_logrange", None)
+        if linear is not None:
+            lo, hi, step = validate_positive_finite(linear, stem + " range")
+            if hi < lo:
+                raise ValueError("coupling range HI must be at least LO")
+            values = _inclusive_linear_grid(lo, hi, step, round_digits=None)
+        elif logarithmic is not None:
+            lo, hi, count = validate_positive_finite(logarithmic, stem + " logrange")
+            if hi < lo or not float(count).is_integer():
+                raise ValueError("coupling logrange requires HI >= LO and integer N >= 1")
+            values = np.geomspace(lo, hi, int(count))
+        if values is not None:
+            values = validate_positive_finite(values, "couplings")
+            return [coupling_to_squared(value, squared=squared) for value in values]
+    return None
 
 
 def validate_stock_pythia_pool_request(
@@ -280,6 +303,17 @@ def parse_args():
     gc.add_argument("--ctau-logrange", type=float, nargs=3,
                     metavar=("LO", "HI", "N"),
                     help="log-spaced lifetime grid, N points LO..HI.")
+    gc.add_argument("--couplings", type=float, nargs="+",
+                    help="native coupling magnitudes g; converted to c*tau at each mass.")
+    gc.add_argument("--couplings-squared", type=float, nargs="+",
+                    help="already-squared native couplings g^2; HNL: total U^2.")
+    for stem, quantity in (("coupling", "g"), ("coupling-squared", "g^2")):
+        gc.add_argument("--" + stem + "-range", type=float, nargs=3,
+                        metavar=("LO", "HI", "STEP"),
+                        help="linear grid in " + quantity + ".")
+        gc.add_argument("--" + stem + "-logrange", type=float, nargs=3,
+                        metavar=("LO", "HI", "N"),
+                        help="N log-spaced values of " + quantity + ".")
 
     ap.add_argument("--channels", "--decay-channels", "--decays",
                     dest="channels", nargs="+", default=["all"],
@@ -316,15 +350,14 @@ def parse_args():
                     help="HNL mixing pattern (renormalized to 1). Required "
                          "for --llp HNL.")
     ap.add_argument("--uncertainty", choices=["lower", "central", "upper"],
-                    default=None, help="Dark-photon flux variation. Required "
-                                       "for --llp Dark-photons.")
+                    default=None, help="Central by default; lower/upper require an explicit legacy production mode.")
     ap.add_argument("--dp-production",
                     choices=[
                         "primary", "cascade", "brem-cascade", "combined",
                         "primary+cascade", "cascade+primary",
+                        "legacy-primary", "legacy-cascade", "legacy-combined", "legacy-brem-cascade",
                     ],
-                    default=None, help="Dark-photon production source. "
-                                      "Required for --llp Dark-photons.")
+                    default=None, help="Calibrated combined production by default; legacy-* selects the older flux tables.")
     ap.add_argument("--alp-production", choices=[
                         "primary", "cascade", "cascades", "combined",
                         "primary+cascade", "cascade+primary",
@@ -335,6 +368,10 @@ def parse_args():
                     choices=list(SCALAR_PRESCRIPTIONS),
                     help="Scalar decay-table prescription (default for the "
                          "scalar models: %s)." % DEFAULT_SCALAR_PRESCRIPTION)
+    ap.add_argument("--idm-delta", type=float, default=.1,
+                    help="Inelastic-DM splitting; masses are mediator masses, ctaus are chi-prime lifetimes.")
+    ap.add_argument("--production-power", type=int, default=15,
+                    help="2**power full-source points per channel, reused across lifetimes (default 15).")
     ap.add_argument("--xi", type=float, default=None,
                     help="ALP-mixed SU(2)_L operator fraction in [0, 1].")
     ap.add_argument("--interference",
@@ -366,10 +403,15 @@ def _card_from_arguments(args, masses, c_taus, exhad_mode):
         "llp_pdg": args.llp_pdg,
         "batch_index_offset": args.batch_index_offset,
         "stock_pythia_pool": bool(args.stock_pythia_pool),
+        "idm_delta": getattr(args, "idm_delta", .1),
+        "production_power": getattr(args, "production_power", 15),
     }
+    if c_taus is None:
+        card.pop("c_taus")
+        card["couplings_squared"] = build_couplings(args)
     if name == "HNL":
         card["mixing_pattern"] = list(normalize_hnl_mixing(args.mixing))
-    if name == "Dark-photons":
+    if name in {"Dark-photons", "Inelastic-DM"}:
         card["uncertainty"] = args.uncertainty
         card["dp_production_mode"] = args.dp_production
     if name == "ALP-photon":
@@ -390,7 +432,7 @@ def main():
     try:
         validate_event_count(args.nevents)
         masses = build_masses(args)
-        c_taus = build_ctaus(args)
+        c_taus = build_ctaus(args) if build_couplings(args) is None else None
     except ValueError as exc:
         ap.error(str(exc))
 
@@ -430,25 +472,33 @@ def main():
     except ValueError as exc:
         ap.error(str(exc))
     config = replace(config, masses=tuple(masses))
+    try:
+        config = config.resolve_lifetimes(LLP)
+    except ValueError as exc:
+        ap.error(str(exc))
 
     selected_decay_indices = resolve_channels(
         args.channels, list(LLP.decayChannels))
     channel_tag = runtime.mergeResults.channel_selection_tag(
         LLP.decayChannels, selected_decay_indices)
 
-    try:
-        exhad_applicable = exhad_applicable_to_selection(
-            name, decayProducts, LLP.PDGs, selected_decay_indices)
-        resolved_exhad_bench, exhad_status = resolve_exhad_selection(
-            exhad, exhad_mode, name, applicable=exhad_applicable)
-        if resolved_exhad_bench is None and getattr(
-                LLP, "_exhad_binding", None) is not None:
-            config = replace(config, exhad_mode="off")
-            exhad.configure_llp(LLP, config)
-        enforce_hnl_matched_mass_scope(
-            exhad, name, resolved_exhad_bench, config.masses)
-    except Exception as exc:
-        raise SystemExit("exhad configuration failed: %s" % exc) from exc
+    if name == "Inelastic-DM":
+        exhad_status = "exHad exclusive electromagnetic current; chi-prime -> chi + SM"
+        print(f"m_Aprime/m_chi=3, alpha_D=0.1, Delta={config.idm_delta:g}; input masses are m_Aprime.")
+    else:
+        try:
+            exhad_applicable = exhad_applicable_to_selection(
+                name, decayProducts, LLP.PDGs, selected_decay_indices)
+            resolved_exhad_bench, exhad_status = resolve_exhad_selection(
+                exhad, exhad_mode, name, applicable=exhad_applicable)
+            if resolved_exhad_bench is None and getattr(
+                    LLP, "_exhad_binding", None) is not None:
+                config = replace(config, exhad_mode="off")
+                exhad.configure_llp(LLP, config)
+            enforce_hnl_matched_mass_scope(
+                exhad, name, resolved_exhad_bench, config.masses)
+        except Exception as exc:
+            raise SystemExit("exhad configuration failed: %s" % exc) from exc
     if args.stock_pythia_pool:
         exhad_status = (
             "stock Pythia 8.317 applied to the complete ALP hadronic pool"
@@ -459,15 +509,21 @@ def main():
     print("\n=== run_batch configuration ===")
     print("LLP              :", name)
     if config.mixing_pattern is not None:
-        print("mixing (Ue,Umu,Utau2):", list(np.round(config.mixing_pattern, 6)))
-    if name == "Dark-photons":
+        print("mixing fractions (e,mu,tau):",
+              [float(x) for x in np.round(config.mixing_pattern, 6)])
+    if name in {"Dark-photons", "Inelastic-DM"}:
         print("DP production    :", LLP.dp_production_mode)
         print("DP uncertainty   :", LLP.uncertainty)
     if "Scalar" in name:
         print("prescription     :", LLP.scalar_lifetime)
     print("masses [GeV]     :", list(config.masses))
-    print("lifetimes [m]    :", [float(np.round(c, 6)) for c in c_taus],
-          "(applied to every mass)")
+    if config.couplings_squared is None:
+        print("lifetimes [m]    :", c_taus, "(applied to every mass)")
+    else:
+        print("coupling g       :", COUPLING_LABELS[name])
+        print("couplings g^2    :", list(config.couplings_squared[0]))
+        for mass, row in zip(config.masses, config.c_taus):
+            print(f"lifetimes at {mass:g} GeV [m]:", list(row))
     print("channels         :", sel_names)
     print("events/point     :", config.events)
     print("exhad policy/card:", exhad_mode, "-", exhad_status)
@@ -475,7 +531,7 @@ def main():
     print("batch index offset:", config.batch_index_offset,
           "(preceding mass-grid entries)")
     print("channel tag       :", channel_tag)
-    print("points to run    :", len(config.masses) * len(c_taus))
+    print("points to run    :", sum(map(len, config.c_taus)))
     print("================================")
     print("Every random stream is derived from the base seed, so repeating "
           "this command reproduces this run exactly.\n")

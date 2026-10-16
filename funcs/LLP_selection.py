@@ -144,8 +144,11 @@ def select_particle(distributions_dir=None):
 def prompt_uncertainty(selection=None):
     # Always defined. If not Dark-photons, return None.
     selection = selection or particle_selection
-    if selection['LLP_name'] != "Dark-photons":
+    if selection['LLP_name'] not in {'Dark-photons', 'Inelastic-DM'}:
         return None
+    if selection["LLP_name"] == "Inelastic-DM" or os.environ.get('EVENTCALC_DP_PRODUCTION') != 'legacy':
+        print("Using the calibrated central dark-photon production model.")
+        return "central"
     print("\nWhich variation of the dark photon flux within the uncertainty to select?")
     print("1. lower")
     print("2. central")
@@ -167,36 +170,45 @@ def prompt_uncertainty(selection=None):
 
 def prompt_dp_production_mode(selection=None):
     # Always defined. If not Dark-photons, return None.
-    # 'primary' is the standard flux (bremsstrahlung + mixing + meson decays +
-    # Drell-Yan from the first proton-target collision). 'cascade' is the
-    # additional production off *secondary* protons of the hadronic cascade in
-    # the target (hybrid Geant4+Pythia8 proton flux): bremsstrahlung +
-    # fragmentation/meson-decay mixing + Drell-Yan, merged. 'brem-cascade' is
-    # the legacy bremsstrahlung-only cascade channel (kept for reference).
     selection = selection or particle_selection
-    if selection['LLP_name'] != "Dark-photons":
+    if selection['LLP_name'] not in {'Dark-photons', 'Inelastic-DM'}:
         return None
     print("\nWhich dark-photon production source to use?")
     print("1. primary (standard channels from the primary collision)")
-    print("2. cascade (brem + fragmentation + Drell-Yan off secondary protons)")
+    print("2. cascade (all modeled secondary projectiles and production channels)")
     print("3. combined (primary + full cascade)")
-    print("4. brem-cascade (legacy: bremsstrahlung off secondary protons only)")
+    if selection["LLP_name"] != "Inelastic-DM":
+        print("4. brem-cascade (legacy: bremsstrahlung off secondary protons only)")
 
     try:
-        selected_mode = int(input("Select production source (1-4): "))
+        last = 3 if selection["LLP_name"] == "Inelastic-DM" else 4
+        selected_mode = int(input(f"Select production source (1-{last}; default 3): ") or "3")
         if selected_mode == 1:
             dp_production_mode = "primary"
         elif selected_mode == 2:
             dp_production_mode = "cascade"
         elif selected_mode == 3:
             dp_production_mode = "combined"
-        elif selected_mode == 4:
+        elif selected_mode == 4 and selection["LLP_name"] != "Inelastic-DM":
             dp_production_mode = "brem-cascade"
         else:
             raise ValueError("Invalid selection.")
     except ValueError as e:
         raise ValueError(f"Invalid input for dark-photon production source: {e}")
+    if selection["LLP_name"] != "Inelastic-DM" and os.environ.get("EVENTCALC_DP_PRODUCTION") == "legacy":
+        dp_production_mode="legacy-"+dp_production_mode
     return dp_production_mode
+
+def prompt_idm_delta(selection):
+    if selection["LLP_name"] != "Inelastic-DM":
+        return .1
+    print("Inelastic DM: m_Aprime/m_chi = 3, alpha_D = 0.1.")
+    print("Enter mediator masses m_Aprime and chi-prime proper decay lengths below.")
+    delta = float(input("Splitting Delta=(m_chi_prime-m_chi)/m_chi (default 0.1): ") or ".1")
+    if not math.isfinite(delta) or not 0 < delta < 1:
+        raise ValueError("Delta must lie between zero and one.")
+    return delta
+
 
 def prompt_alp_production_mode(selection=None):
     # Always defined. If not ALP-photon, return None.
@@ -302,9 +314,9 @@ def prompt_scalar_lifetime(selection=None):
     else:
         raise ValueError("Invalid selection.")
 
-def prompt_masses_and_c_taus(m_min_tabulated=None, m_max_tabulated=None):
+def prompt_masses_and_c_taus(m_min_tabulated=None, m_max_tabulated=None, *, mass_label="LLP"):
     try:
-        masses_input = input("\nEnter LLP masses in GeV (separated by spaces): ").split()
+        masses_input = input(f"\nEnter {mass_label} masses in GeV (separated by spaces): ").split()
         masses = validate_positive_finite(
             [float(m.rstrip('.')) for m in masses_input], "masses")
         if (m_min_tabulated is None) != (m_max_tabulated is None):
@@ -361,6 +373,7 @@ def configure_interactively():
             "alp_production_mode": prompt_alp_production_mode(selection),
             "mixing_pattern": prompt_mixing_pattern(selection),
             "scalar_lifetime": prompt_scalar_lifetime(selection),
+            "idm_delta": prompt_idm_delta(selection),
         }
         config["xi"], config["interference"] = prompt_alp_mixing(selection)
         globals().update(config)

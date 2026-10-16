@@ -5,8 +5,7 @@ Run this immediately after exporting ``ALP-fermion-decay.json``.  It gives
 every PDG multiset a stable ASCII label, requires the canonical gluon id +21,
 replaces irrelevant non-three-body dispatcher placeholders by ``1.``, requires
 matrix elements (including ``Piecewise`` expressions) to have been exported
-in Python/SymPy syntax, supplies phase space for the one nonzero three-body
-row whose exported expression vanishes identically, zeros kinematically closed
+in Python/SymPy syntax, rejects missing three-body amplitudes, zeros kinematically closed
 rows using EventCalc's own runtime particle masses, rescales the accompanying
 ``ctau`` table by the same surviving-width fraction, and normalizes all listed
 branching fractions point by point.
@@ -78,13 +77,6 @@ NAME_BY_PDGS = {
     key([2212, -2212]): "ppbar",
     key([2112, -2112]): "nnbar",
 }
-
-# Mathematica currently exports zero for this CP-basis component although its
-# tabulated rate is nonzero. No calibrated differential model is supplied for
-# it, so EventCalc uses the documented constant-matrix-element phase-space
-# approximation instead of crashing on an all-zero rejection envelope.
-ISOTROPIC_THREE_BODY = {"KLKSpi0"}
-
 
 def require_python_matrix_syntax(expression, channel):
     """Reject Mathematica containers left by an incomplete source export."""
@@ -185,11 +177,8 @@ def main():
         expression = require_python_matrix_syntax(expression, row[0])
         if expression.strip() in {"0", "0."} and any(
                 float(value) > 0.0 for _, value in row[2]):
-            if row[0] not in ISOTROPIC_THREE_BODY or len(ids) != 3:
-                raise ValueError(
-                    "nonzero row %r has an identically zero matrix element" %
-                    row[0])
-            expression = "1."
+            raise ValueError(
+                "nonzero row %r has an identically zero matrix element" % row[0])
         row[3] = expression
 
     names = [row[0] for row in rows]

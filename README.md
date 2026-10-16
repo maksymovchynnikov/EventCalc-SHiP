@@ -1,5 +1,27 @@
 # EventCalc-SHiP
 
+## Verified scope and current ALP limitation
+
+The calibrated dark-photon/inelastic-DM production and automatic sensitivity
+bands are documented in [SENSITIVITY.md](SENSITIVITY.md). Both mixing
+boundaries are calculated at 2.3 expected events for both ECAL selections.
+
+The 14–15 October 2026 fermion-universal ALP update includes regenerated
+lifetimes and branching ratios, the 1.910 GeV matching boundary, and the new
+squared matrix elements with the corrected omega-pion masses. All five local copies (main, fragmentation, Distinguishing-ALPs,
+GitHub Desktop and Geant4) now contain the current full runtime and the same
+model inputs, including ALP-fermion. Study-specific analysis directories remain
+in place. The previous study README is preserved under `docs/` where needed.
+
+## Known bugs/problems
+
+The ALP-fermion squared matrix elements exported from the ALP phenomenology
+inputs (15 October 2026; [arXiv:2501.04525](https://arxiv.org/abs/2501.04525))
+can be negative in physical phase space for `piPpiMpi0`, `3pi0` and `KPKMpi0`.
+These three entries use `abs(source_squared_matrix_element)` as a sampling
+workaround. The underlying source expressions still require correction;
+the tabulated lifetimes and branching fractions are unchanged.
+
 EventCalc-SHiP generates decays of long-lived particles (LLPs) in the decay
 volume of the [SHiP experiment](https://ship.web.cern.ch/) and calculates the
 expected number of decays. The same calculation can be adapted to another
@@ -12,7 +34,9 @@ detector response.
 
 ## Physical calculation
 
-For each selected mass and proper decay length $c\tau$, EventCalc
+For calibrated dark photons and inelastic DM, both launchers use the full
+collision source described below. For the other tabulated sources, at each
+selected mass and proper decay length $c\tau$, EventCalc
 
 1. interpolates the production probability and the angular–energy density of
    the long-lived particle;
@@ -32,7 +56,7 @@ For each selected mass and proper decay length $c\tau$, EventCalc
    ratio into the number of decays.
 
 The models are named by the launcher as `Scalar-mixing`, `Scalar-quartic`,
-`ALP-photon`, `ALP-fermion`, `Dark-photons`, `HNL`, `ALP-SU2L` and
+`ALP-photon`, `ALP-fermion`, `Dark-photons`, `Inelastic-DM`, `HNL`, `ALP-SU2L` and
 `ALP-mixed`. The production and decay inputs of each one are described in
 [`DETAILS.md`](DETAILS.md); the conventions a user has to know in order to
 read the output are below.
@@ -100,47 +124,63 @@ and in
 
 ### Dark-photon production sources
 
-For `Dark-photons` the production source is chosen independently of the
-flux-uncertainty variation (`lower`, `central`, `upper`):
+The default is the calibrated primary-plus-cascade calculation in
+`production_model/`, using 33 tungsten disks with 1.33 m total W thickness over 1.46 m including
+helium gaps, and a common radius of 0.25 m. The beam follows a 5 cm ring
+with 16 mm Gaussian smearing in each transverse direction. Positions are
+measured from the target front face. It combines meson decays,
+fragmentation, proton bremsstrahlung with the fitted Foroughi-Abari virtuality
+prescription, and Drell–Yan production with hadron–nucleus normalization.
+The saved shower and collision distributions are reused.
 
-- `primary`: the channels initiated by the first proton–target collision —
-  proton bremsstrahlung, mixing with the light vector mesons of the
-  fragmentation chain, decays of $\pi^0$, $\eta$ and $\eta'$, and the
-  Drell–Yan process. The tables are
-  `Distributions/Dark-photons/{DoubleDistr,Emax,Total-yield}-DP-<uncertainty>.txt`,
-  generated with `SensCalc` following
-  [2409.11096](https://arxiv.org/abs/2409.11096).
-- `cascade`: the same channels initiated by the secondary particles of the
-  hadronic cascade in the thick SHiP target, from a combined Geant4 and
-  Pythia 8 simulation of the tungsten target (about 2.35 secondary inelastic
-  proton interactions above a 5 GeV kinetic threshold, about 100 $\pi^0$ and
-  6 $\eta$ per proton on target, with the primary interaction excluded so that
-  nothing is counted twice). Its four contributions are bremsstrahlung off the
-  secondary protons in the quasi-real approximation of
-  [2108.05900](https://arxiv.org/abs/2108.05900) and
-  [2409.11096](https://arxiv.org/abs/2409.11096); mixing with the
-  $\rho^0/\omega/\phi$ mesons of the secondary collisions following
-  [2504.06828](https://arxiv.org/abs/2504.06828); Drell–Yan
-  $q\bar q\to V$ off the secondary protons; and the radiative decays
-  $\pi^0,\eta\to\gamma V$, which dominate below $m_V\simeq0.6$ GeV. The merged
-  tables carry the label `cascade-<uncertainty>`. Their angular–energy
-  distribution is normalized over all directions, so the polar acceptance
-  EventCalc computes accounts for the large fraction of cascade dark photons
-  that miss the decay volume.
-- `brem-cascade`: the bremsstrahlung contribution of the cascade on its own.
-- `combined`: the sum of `primary` and `cascade`. EventCalc keeps both native
-  kinematic grids, sums the absolute production yields, and samples the
-  accepted events of each source with a weight proportional to
-  yield $\times$ polar acceptance.
+`primary`, `cascade` and `combined` select contributions from this calibrated
+calculation; `combined` is the default. To request the older tabulated fluxes,
+use `legacy-primary`, `legacy-cascade`, `legacy-combined` or
+`legacy-brem-cascade`, together with their lower/central/upper table choice.
+Those older flux variations are separate from the automatic accepted-event
+bands of `model_sensitivity.py`.
 
-The `lower`/`central`/`upper` variations act on the bremsstrahlung and
-Drell–Yan components (the proton virtuality scale and the timelike form
-factors for the first, the factorization scale for the second). The
-fragmentation and meson-decay components enter all three variations
-identically.
+The one-mass command propagates form-factor, PDF/scale and Drell–Yan transition
+variations through survival and daughter acceptance for both DP and inelastic
+DM. It reports both lower and upper mixing boundaries, with perfect
+reconstruction after the stated selections. See [SENSITIVITY.md](SENSITIVITY.md)
+for commands, the uncertainty prescription and its omissions. The generic
+`scan_sensitivity.py` instead uses the production provider supplied by its card.
 
-`ALP-photon` takes the same three-way choice between `primary`, `cascades`
-and `combined` for its Primakoff production.
+`simulate.py`, `run_batch.py` and `runtime_generator.py` use this full source
+for calibrated dark photons and `Inelastic-DM`. Each source momentum retains
+its correlated collision position, category and production mechanism. Rays
+are intersected with all faces of the decay volume, and the exponential decay
+law uses the path length from that collision. There is no polar-cone or
+lifetime-dependent energy preselection. Signed production contributions are
+retained; the event weight includes their sign.
+
+The integration sample is built once per mass and reused across lifetimes.
+`--production-power 15` (the default; card key `production_power`) uses
+2**15 integration points per production channel. It is separate from the
+number of output decays. Increase this value and vary `seed` to check source
+integration convergence. No target shower or collision event generator is
+rerun. Compact energy-angle tables remain available for legacy compatibility
+and phenomenology plots; they do not supply these generated events.
+
+The interactive menu now includes `Inelastic-DM`. It asks for Delta, with
+m_Aprime/m_chi=3 and alpha_D=0.1 fixed. **Input masses are mediator masses;
+input proper lifetimes belong to chi-prime.** The inclusive `chi + SM` channel
+uses exHad's full decay chain. Its stable chi daughter stays in the record
+and is invisible to the sensitivity calculation. See [INELASTIC_DM.md](INELASTIC_DM.md).
+
+```sh
+python simulate.py --model Inelastic-DM --masses 20 --idm-delta .05 \
+  --ctaus 0.1 1000 --events 10000 --seed 1
+python run_batch.py --llp Inelastic-DM --masses 20 --idm-delta .05 \
+  --ctaus 0.1 1000 --nevents 10000 --exhad-seed 1
+```
+
+The ordinary launchers produce central weighted decay samples. The one-mass
+sensitivity command continues to calculate the correlated production bands
+automatically, including both mixing boundaries.
+
+`ALP-photon` has its own `primary`, `cascades` and `combined` Primakoff choices.
 
 ### $SU(2)_L$ ALP
 
@@ -258,6 +298,18 @@ signal there.
 
 ## Installation
 
+The DP/iDM one-mass sensitivity command needs the current exHad implementation,
+including `exhad.inelastic_dark_matter`. Publish the corresponding exHad update
+alongside this EventCalc update; an earlier exHad release lacks this module.
+The dependency and installation commands are described in [EXHAD.md](EXHAD.md).
+
+Keep the complete `production_model/data/` package with the code. It is about
+1.4 GB and includes source distributions, correlated collision positions,
+compatibility tables and PDF/scale weights. The relative paths and checksums
+are part of the runtime contract. A normal run needs neither the manuscript
+repository nor CERN access. `run_local.sh` is an ignored personal convenience
+launcher; the portable entry points below use the active Python environment.
+
 The code runs on Linux and macOS. Create an environment and install the
 declared dependencies:
 
@@ -314,10 +366,10 @@ python3 simulate.py
 prints the SHiP geometry and then asks for the number of events to sample in
 the polar range of the experiment, the model, the model-specific parameters
 (HNL mixing pattern, dark-photon uncertainty and production source,
-ALP production source, scalar prescription, ALP-mixed $\xi$ and interference),
-the decay channels, the masses and the proper decay lengths. It writes the
-production-probability, lifetime and branching-ratio figures before the scan
-starts.
+inelastic-DM splitting, ALP production source, scalar prescription, ALP-mixed $\xi$ and interference),
+the decay channels, the masses and the proper decay lengths. For models with compact phenomenology tables it writes the production-probability,
+lifetime and branching-ratio figures before the scan starts. It does not run
+a separate mass scan for inelastic-DM phenomenology plots.
 
 ### JSON launch card
 
@@ -364,8 +416,7 @@ mass. The optional common fields are
 - `scalar_prescription`, for the two scalar models.
 
 Three models require one additional field: `HNL` requires `mixing_pattern`
-with $\xi_e$, $\xi_\mu$ and $\xi_\tau$; `Dark-photons` requires `uncertainty`,
-one of `lower`, `central` and `upper`; `ALP-photon` requires
+with $\xi_e$, $\xi_\mu$ and $\xi_\tau$; `ALP-photon` requires
 `alp_production_mode`. `ALP-mixed` requires `xi` and `interference`:
 
 ```json
@@ -435,12 +486,67 @@ shifts the point index a scan starts from, so that several jobs of one grid
 keep distinct random streams. `python3 run_batch.py --help` lists every option.
 Outputs land in the same place as an interactive run.
 
+### Specify a coupling instead of a lifetime
+
+Use `--couplings` for coupling magnitudes $g$, or `--couplings-squared` for
+values read from a plot of $g^2$. These replace, and cannot be combined with,
+the lifetime options. EventCalc calculates $c\tau(m,g)=c\tau_1(m)/g^2$ at
+**each mass**, using the selected model's installed lifetime table. The
+existing production calculation then uses the same coupling as an equivalent
+$c\tau$ run; no decay tables or normalization factors are changed.
+
+```bash
+# Photon ALP: g_agammagamma in GeV^-1
+python3 run_batch.py --llp ALP-photon --alp-production primary \
+    --masses 0.1 0.3 --couplings 1e-6 3e-6 --nevents 10000 --exhad off
+
+# HNL: total U^2, with Ue^2:Umu^2:Utau^2 = 1:1:0
+python3 run_batch.py --llp HNL --mixing 1 1 0 --masses 1 2 \
+    --coupling-squared-logrange 1e-10 1e-7 15 --nevents 10000 --exhad off
+```
+
+`--coupling-range LO HI STEP` and `--coupling-logrange LO HI N` build grids
+in $g$. The corresponding `--coupling-squared-range` and
+`--coupling-squared-logrange` build grids in $g^2$ without squaring again.
+`--dry-run` prints the coupling convention and the derived lifetimes before
+any events are generated. Inputs must be finite and positive.
+
+| Model | Quantity supplied to `--couplings` |
+|---|---|
+| `ALP-photon` | $|g_{a\gamma\gamma}|$ in GeV$^{-1}$, with $\mathcal L\supset(g_{a\gamma\gamma}/4)aF\widetilde F$ |
+| `ALP-fermion` | $|g_Y|=2v_h/f_a$, dimensionless, at the fixed benchmark matching scale |
+| `ALP-SU2L` | $|g_W|$ in GeV$^{-1}$, with $C_W=\alpha_2g_W/(4\pi)$; **not** the induced photon coupling |
+| `ALP-mixed` | $|g_{a\gamma\gamma}^{\rm tot}|$ in GeV$^{-1}$, at fixed `xi` and `interference` |
+| `Dark-photons` | $|\epsilon|$, dimensionless kinetic mixing |
+| `Scalar-mixing`, `Scalar-quartic` | $|\sin\theta|$, dimensionless decay mixing |
+| `HNL` | $U=\sqrt{U_e^2+U_\mu^2+U_\tau^2}$, with the flavour ratios fixed by `--mixing` |
+
+For `Scalar-quartic`, changing this input changes the lifetime, **not** the
+separate quartic production parameter, which retains its existing setting.
+For HNLs, `--couplings-squared` gives total $U^2$; the normalized mixing
+fractions multiply that total to give each flavour's mixing squared.
+
+`simulate.py` accepts the same `--couplings` and `--couplings-squared` lists.
+A JSON launch card can replace `c_taus` with either `couplings` or
+`couplings_squared`: a flat list applies to every mass; a nested list gives
+one list per mass. This supports ranges that follow a sensitivity plot.
+[examples/coupling_scan.py](examples/coupling_scan.py) implements the example
+photon-ALP scan, interpolating the supplied lower and upper edges in log-log
+space. With `alpha < 1` it concentrates points toward the upper coupling
+edge; `alpha > 1` concentrates them toward the lower edge. It rejects
+out-of-range masses instead of silently extending the endpoint values.
+
+From Python, after selecting the mass on an `LLP` object, use
+`LLP.set_coupling(g)` or `LLP.set_coupling(g_squared, squared=True)`. The
+method returns and sets $c\tau$ in metres, using that mass's lifetime
+coefficient rather than a coefficient left over from the previous mass.
+
 A scan reuses one exHad event pool for every lifetime at one mass: the
 rest-frame decay does not depend on $c\tau$. `simulate.py` does the same.
 
 ### Decay channels
 
-A channel is selected by name, by `all`, or by `jets`. `jets` (with the alias
+A channel is selected by name, by `all`, or by `jets`. Channel names are case-sensitive. `jets` (with the alias
 `all-jets`) is the single aggregate choice that expands to every `Jets-*` row
 of the model's decay table; an individual `Jets-*` name cannot be selected,
 because those rows are the partonic decomposition of one inclusive rate and
@@ -478,7 +584,7 @@ The installed exHad cards cover:
 | Model | exHad mass support | What exHad replaces |
 |---|---:|---|
 | `Dark-photons` | 1.70–5.00 GeV | The selected $u\bar u$, $d\bar d$, $s\bar s$ and $c\bar c$ rows are one pool: their summed event count is generated once as complete hadronic final states |
-| `ALP-fermion` | 1.911–5.00 GeV | All selected hadronic rows, including the nucleon-pair rows, are one pool. Leptonic and diphoton rows are unchanged |
+| `ALP-fermion` | 1.910–5.00 GeV | All selected hadronic rows, including the nucleon-pair rows, are one pool. Leptonic and diphoton rows are unchanged |
 | `Scalar-mixing`, `Scalar-quartic` | 2.00–63.0 GeV (the SHiP production tables end at 5.12 GeV and bound a run) | All selected hadronic rows are one pool; the prescription selected for the rates selects the matching exHad input |
 | `HNL` | 0.02–40 GeV (the SHiP production tables end at 5.27 GeV) | The hadrons of a selected current, at the invariant mass $W$ of the quark–antiquark pair of each event. The charged lepton or neutrino, the sampled four-momentum and $W$ are kept |
 
@@ -498,7 +604,9 @@ chunks of `EVENT_WRITE_CHUNK_SIZE` rows (default 10000).
 
 ### Python runtime generator
 
-`runtime_generator.py` is an event-by-event interface over the same tables. It
+For calibrated dark photons and inelastic DM, `runtime_generator.py` uses
+the full collision source and preserves production origins in each batch.
+For other models it is an event-by-event interface over the tables. It
 initializes the chosen model once, constructs a two-dimensional inverse CDF
 for the tabulated $(\theta,E)$ density, and then offers `next()`,
 `next_event()`, `generate()`, `yields()` and `stat()`. It works for every
@@ -536,6 +644,10 @@ records the resolved configuration and the running yield estimate.
 writes the NumPy batches as well. HepMC events use GeV and mm, carry the
 displaced decay vertex, the incoming LLP with its own PDG code and the
 final-state particles, and carry `decay_weight` as the named event weight.
+For full sources, HepMC also carries the correlated production coordinates
+as `eventcalc_production_x_mm`, `eventcalc_production_y_mm` and
+`eventcalc_production_z_mm` attributes. Its clock starts at that collision
+because absolute shower times are not stored.
 
 The API performs no per-event file input or output:
 
@@ -591,7 +703,7 @@ separate Philox streams and do not change when the batch partition changes.
 
 ## Event yields and output
 
-For each mass and lifetime, EventCalc samples `events * 10` interpolation
+For the other tabulated sources, EventCalc samples `events * 10` interpolation
 candidates and resamples `events` momenta inside the polar range. The
 azimuthal selection then keeps a fraction of order 0.6–1 of them for the
 current geometry, which is why an output file holds fewer decays than the
@@ -647,16 +759,31 @@ p_x,LLP p_y,LLP p_z,LLP E_LLP mass_LLP PDG_LLP P_decay,LLP x_decay,LLP y_decay,L
 
 The first ten numbers describe the LLP: its four-momentum, mass, identifier,
 decay probability and decay position. The identifier column of this file holds
-the placeholder 12345678; the HepMC3 output of the runtime generator carries
+the physical mother PDG for the full collision source (4900022 for DP,
+4900102 for chi-prime), and the placeholder 12345678 for older table routes; the HepMC3 output of the runtime generator carries
 the LLP's own PDG code. Each further group of six describes one
 final-state particle: four-momentum, mass and PDG code. Momenta, energies and
-masses are in GeV and positions are in metres, with the origin at the centre
+masses are in GeV and positions are in metres, with the origin at the front face
 of the SHiP target. Rows of a channel with fewer products are padded with
 `0. 0. 0. 0. 0. -999.` so that one channel's events form a rectangular array.
 The weight of an event is its `P_decay,LLP`; the expected number of decays is
 the product of the total number of produced LLPs, the polar and azimuthal
 acceptance, the mean of `P_decay,LLP` and the visible branching ratio, all of
 which stand in the header.
+
+For full collision sources, column 6 is the **signed** decay probability.
+The header's `Polar acceptance` field is the absolute weight of rays that
+intersect the volume divided by the signed total production integral. It is a
+sampling normalization, not a polar-angle cut. `Azimuthal acceptance` is one
+in fiducial mode because the exact intersection is already included. The
+header product above still gives the physical yield; do not drop negative rows.
+Each text event file has a `.production.npz` companion, in the same row order,
+with the collision origins, production momenta, categories, mechanisms and
+normalized signed event weights per incident proton. Multiplying the sum of
+`event_weights_per_pot` by `n_pot` reproduces the reported yield. The
+`.production.json` companion records the target, source seed, integration
+power and normalization. A separate JSON record accompanies each total-table
+mass/lifetime coordinate, including points below the export threshold.
 
 With `plots` in a card or `--plots` on the command line, EventCalc writes the
 mass dependence of the production probability, of the proper decay length and
@@ -752,3 +879,11 @@ Further details of the production and decay models are in
 
 This repository completes [Josue Jaramillo's CERN student
 project](https://github.com/josuejaramillo/summer_school_2024_SHiP).
+
+## Perfect-reconstruction sensitivity scans
+
+Use `scan_sensitivity.py` to scan all lifetimes at one mass while generating
+production and decays once. The model-independent API accepts weighted primary
+and cascade decays, arbitrary lifetime/coupling laws and configurable energy,
+aperture and impact-parameter cuts. See [SENSITIVITY.md](SENSITIVITY.md) for
+normalization, runtime/provider adapters, compact outputs and examples.

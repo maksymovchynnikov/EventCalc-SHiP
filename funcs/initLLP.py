@@ -59,7 +59,8 @@ def _normalize_dp_production_mode(mode):
     aliases = {
         "primary": "primary",
         "cascade": "cascade",
-        "brem-cascade": "brem-cascade",
+        "brem-cascade": "legacy-brem-cascade",
+        **{f"legacy-{v}":f"legacy-{v}" for v in ("primary","cascade","combined","brem-cascade")},
         "combined": "combined",
         "primary+cascade": "combined",
         "cascade+primary": "combined",
@@ -226,18 +227,15 @@ class LLP:
         self.mass = mass
         self.particle_path = particle_selection['particle_path']
         self.MixingPatternArray = mixing_pattern if mixing_pattern is not None else None
-        self.uncertainty = uncertainty if self.LLP_name == "Dark-photons" else None
+        self.uncertainty = (uncertainty or "central") if self.LLP_name == "Dark-photons" else None
         self.alp_production_mode = (
             _normalize_alp_production_mode(alp_production_mode)
             if self.LLP_name == "ALP-photon"
             and alp_production_mode is not None else None)
-        # Dark-photon production source: ``primary`` uses the standard
-        # first-collision channels; ``cascade`` combines bremsstrahlung,
-        # fragmentation/meson mixing, and Drell--Yan from secondary protons;
-        # ``brem-cascade`` retains the legacy secondary-proton
-        # bremsstrahlung-only sample.
+        # Calibrated production defaults to primary plus all modeled cascade
+        # projectiles. Explicit legacy-* modes retain the older flux tables.
         self.dp_production_mode = (
-            _normalize_dp_production_mode(dp_production_mode or "primary")
+            _normalize_dp_production_mode(dp_production_mode or "combined")
             if self.LLP_name == "Dark-photons" else None)
         # Both scalar production models share the prescription-specific
         # Scalar-mixing lifetime/BR cards.  Missing prescriptions resolve to
@@ -282,6 +280,18 @@ class LLP:
 
     def set_c_tau(self, c_tau_input):
         self.c_tau_input = c_tau_input
+
+    def set_coupling(self, value, *, squared=False):
+        """Set c*tau from the native coupling at the current mass (README).
+
+        Pass squared=True for a plot of g^2, including total U^2 for HNLs.
+        """
+        if self.mass is None:
+            raise ValueError("Mass must be set before setting a coupling.")
+        self.set_c_tau(coupling_conventions.ctau_from_coupling(
+            self.LLP_name, self.get_ctau(self.mass), value, squared=squared,
+            metadata=self.coupling_metadata))
+        return self.c_tau_input
 
     def mark_kinematics_source_changed(self):
         """Advance the explicit cache revision for ``Distr/Energy_distr``.
@@ -744,36 +754,46 @@ class LLP:
         self.m_max_tabulated = tables.mass_max
 
     def import_dark_photons(self):
-        # 'primary': historic file names; 'cascade': merged secondary-proton
-        # production (bremsstrahlung + fragmentation/meson-decay mixing +
-        # Drell-Yan; produced by secondary-channels/merge_cascade_channels.py
-        # from the hybrid Geant4+Pythia8 proton flux inside the SHiP target);
-        # 'brem-cascade': legacy bremsstrahlung-only cascade tables
-        if self.dp_production_mode in ("cascade", "brem-cascade"):
-            suffix = f"{self.dp_production_mode}-{self.uncertainty}"
+        legacy=self.dp_production_mode.startswith('legacy-')
+        mode=self.dp_production_mode.removeprefix('legacy-')
+        self.production_profile='legacy' if legacy else 'calibrated'
+        if legacy:
+            production_path=self.particle_path
+        else:
+            if self.uncertainty != 'central':
+                raise ValueError('The calibrated default uses central production. Use production_model for correlated model variations, or dp_production_mode="legacy-primary" for the old Lower/Central/Upper fluxes.')
+            production_path=os.path.join(os.path.dirname(__file__),'..','production_model','data','tables')
+            if not os.path.isfile(os.path.join(production_path,'manifest.json')):
+                raise FileNotFoundError('Calibrated SHiP production tables are not installed; no fallback to legacy fluxes is allowed.')
+        if mode in ("cascade", "brem-cascade"):
+            suffix = f"{mode}-{self.uncertainty}"
         else:
             suffix = self.uncertainty
         ctau_path = os.path.join(self.particle_path, "ctau-DP.txt")
         decay_json_path = os.path.join(self.particle_path, "DP-decay.json")
 
-        if self.dp_production_mode == "combined":
+        if mode == "combined":
             source_rows = []
             source_limits = []
             source_yield_data = {}
             for label, source_suffix in (
                     ("primary", self.uncertainty),
                     ("cascade", f"cascade-{self.uncertainty}")):
-                tables = _read_production_tables(
-                    os.path.join(
-                        self.particle_path,
-                        f"DoubleDistr-DP-{source_suffix}.txt"),
-                    os.path.join(
-                        self.particle_path,
-                        f"Emax-DP-{source_suffix}.txt"),
-                    os.path.join(
-                        self.particle_path,
-                        f"Total-yield-DP-{source_suffix}.txt"),
-                )
+                if legacy:
+                    tables = _read_production_tables(
+                        os.path.join(
+                            production_path,
+                            f"DoubleDistr-DP-{source_suffix}.txt"),
+                        os.path.join(
+                            production_path,
+                            f"Emax-DP-{source_suffix}.txt"),
+                        os.path.join(
+                            production_path,
+                            f"Total-yield-DP-{source_suffix}.txt"),
+                    )
+                else:
+                    from production_model.tables import load
+                    tables=load(label)
                 distribution, maximum_energy, yield_data, yield_function, limits = tables
                 source_rows.append(
                     (label, distribution, maximum_energy, yield_function))
@@ -784,25 +804,29 @@ class LLP:
             self.Yield_data = source_yield_data
             self.production_component_labels = ("primary", "cascade")
         else:
-            distribution_file_path = os.path.join(
-                self.particle_path, f"DoubleDistr-DP-{suffix}.txt")
-            energy_file_path = os.path.join(
-                self.particle_path, f"Emax-DP-{suffix}.txt")
-            yield_path = os.path.join(
-                self.particle_path, f"Total-yield-DP-{suffix}.txt")
-            self.Distr = pd.read_csv(
-                distribution_file_path, header=None, sep="\t")
-            self.Energy_distr = pd.read_csv(
-                energy_file_path, header=None, sep="\t")
-            self.Yield_data = pd.read_csv(
-                yield_path, header=None, sep="\t")
+            if legacy:
+                distribution_file_path = os.path.join(
+                    production_path, f"DoubleDistr-DP-{suffix}.txt")
+                energy_file_path = os.path.join(
+                    production_path, f"Emax-DP-{suffix}.txt")
+                yield_path = os.path.join(
+                    production_path, f"Total-yield-DP-{suffix}.txt")
+                self.Distr = pd.read_csv(
+                    distribution_file_path, header=None, sep="\t")
+                self.Energy_distr = pd.read_csv(
+                    energy_file_path, header=None, sep="\t")
+                self.Yield_data = pd.read_csv(
+                    yield_path, header=None, sep="\t")
+            else:
+                from production_model.tables import load
+                self.Distr,self.Energy_distr,self.Yield_data,_,_=load(mode)
         self.ctau_data = pd.read_csv(ctau_path, header=None, sep="\t")
 
         mass_ctau = self.ctau_data.iloc[:, 0].to_numpy()
         ctau_values = self.ctau_data.iloc[:, 1].to_numpy()
         self.ctau_interpolator = RegularGridInterpolator((mass_ctau,), ctau_values, bounds_error=True)
 
-        if self.dp_production_mode != "combined":
+        if mode != "combined":
             mass_yield = self.Yield_data.iloc[:, 0].to_numpy()
             yield_values = self.Yield_data.iloc[:, 1].to_numpy()
             self.yield_interpolator = RegularGridInterpolator(
@@ -819,7 +843,7 @@ class LLP:
         self.Matrix_elements = self.compile_matrix_elements(self.Matrix_elements_raw)
 
         self.get_ctau = lambda m: self.ctau_interpolator([m])[0]
-        if self.dp_production_mode == "combined":
+        if mode == "combined":
             self.get_total_yield = self.Distr.total_yield
         else:
             self.get_total_yield = lambda m: self.yield_interpolator([m])[0]
@@ -828,7 +852,7 @@ class LLP:
         self.get_MatrixElements = lambda m: self.Matrix_elements
 
         # define tabulated range
-        if self.dp_production_mode == "combined":
+        if mode == "combined":
             _set_combined_tabulated_range(
                 self, source_limits, self.ctau_data)
         else:

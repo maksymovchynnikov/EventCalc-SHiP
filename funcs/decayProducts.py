@@ -63,7 +63,7 @@ HNL_CURRENT_QUARK_MASS = thresholds.HNL_CURRENT_QUARK_MASSES
 # preserves the total hadronic allocation and, consequently, the exact parent
 # records shared with the matched sample.
 ALP_STOCK_PYTHIA_PROCESS_LABEL = "Jets-stock"
-ALP_STOCK_PYTHIA_MIN_MASS_GEV = 1.911
+ALP_STOCK_PYTHIA_MIN_MASS_GEV = 1.910
 _ALP_STOCK_POOLED_ROW_BY_SIGNATURE = {
     (21, 21): "Jets-GG",
     (-3, 3): "Jets-ss",

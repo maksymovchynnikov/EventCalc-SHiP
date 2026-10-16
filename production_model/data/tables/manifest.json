@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "name": "Joint meson/dimuon calibration with primary and cascade production",
+  "target": {
+    "length_m": 1.46,
+    "tungsten_length_m": 1.33,
+    "diameter_m": 0.5,
+    "z_origin": "front face",
+    "beam_ring_radius_m": 0.05,
+    "beam_sigma_xy_m": 0.016,
+    "geometry_version": "ship-2026-ring-v1"
+  },
+  "incident_protons": 20000,
+  "primary_inelastic": 19996,
+  "shower_sha256": "f8eaa5e0de16f35537ce0f75b4bfa6150175b545063046545bbbce4b680e77da",
+  "geant4": "11.4.0",
+  "pythia8": "8.317",
+  "lambda_p_GeV": 0.40830633425574114,
+  "virtuality_prescription": "Foroughi-Abari 2021/2024; fixed fitted single-scale suppression",
+  "nuclear_dy": "A*sigma_hN_inelastic/sigma_hW_inelastic per recorded target collision",
+  "continuum_transition_GeV": [
+    1.5,
+    2.0
+  ],
+  "normalization": "per POT and epsilon^2; density normalized above the physical mass threshold",
+  "omitted_uncertainties": "Alternative virtuality descriptions, heavier vector fragmentation excitations, nuclear modifications, finite shower/source statistics and detector reconstruction",
+  "sha256": {
+    "primary.npz": "32bdbd63de2010289e3756f3f34e1ebff4f837e20ce152bb60f92bf1bded4397",
+    "cascade.npz": "8c0db804f07f40ba1835858aa2a71b7bcdef0fbc2935c29f87aef82e0f11d412"
+  },
+  "uncertainty_package": {
+    "manifest": "uncertainties/manifest.json",
+    "sha256": "dab7670fe4379cd40d938cc9671160e7f20d1b23167bf39e610c957a73f0ba94",
+    "default_in_one_mass_command": true
+  },
+  "masses": 206,
+  "power": 17,
+  "theta_nodes": 114,
+  "energy_nodes": 162,
+  "position_marginalized": true,
+  "cone_relative_error_max": 0.0057540459907308595
+}

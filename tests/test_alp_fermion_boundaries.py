@@ -19,22 +19,7 @@ from funcs.alp_fermion import (CHARM_PARTONIC, LIGHT_PARTONIC, NONHADRONIC,
                                load_exhad_boundaries, prepare_decay_rows)
 from funcs import PDG, exhadDecays
 
-try:
-    import exhad_matched
-    from exhad_matched.inputs.alp_fermion_authority import (
-        build_alp_fermion_rate_authority)
-    # the root of the exHad installation the imported package came from
-    EXHAD_ROOT = os.fspath(
-        pathlib.Path(exhad_matched.__file__).resolve().parents[3])
-except ImportError:
-    build_alp_fermion_rate_authority = None
-    EXHAD_ROOT = None
-
-NO_MATCHED = (
-    "exhad_matched belongs to the exHad installation and is not part of this "
-    "repository; put the directory that contains it on PYTHONPATH to run "
-    "this test"
-)
+EXHAD_ROOT = os.environ.get("EXHAD_ROOT")
 
 
 class ALPFermionBoundaryTest(unittest.TestCase):
@@ -63,9 +48,6 @@ class ALPFermionBoundaryTest(unittest.TestCase):
             cls.ctau_rows,
         ))
         cls.idx = {name: i for i, name in enumerate(cls.labels)}
-        cls.authority = (
-            None if build_alp_fermion_rate_authority is None
-            else build_alp_fermion_rate_authority(project_root=EXHAD_ROOT))
         cls.exclusive = (set(cls.labels) - NONHADRONIC - LIGHT_PARTONIC -
                          CHARM_PARTONIC - PERSISTENT_EXCLUSIVE)
         cls.saved_env = {key: os.environ.pop(key, None)
@@ -94,7 +76,7 @@ class ALPFermionBoundaryTest(unittest.TestCase):
 
     def source_value(self, mass, label):
         table = self.tables[self.idx[label]]
-        return next(float(v) for m, v in table if abs(float(m) - mass) < 1e-9)
+        return next(float(v) for m, v in table if abs(float(m) - mass) < 1e-12)
 
     def source_interpolated_value(self, mass, label):
         table = [(float(m), float(v)) for m, v in
@@ -125,19 +107,20 @@ class ALPFermionBoundaryTest(unittest.TestCase):
         return self.value(mass, label) / self.ctau_value(mass)
 
     def test_low_midpoint_is_exclusive_only(self):
-        br = self.get_br(1.9105)
+        mass = self.m_start - 0.0005
+        br = self.get_br(mass)
         self.assertTrue(all(br[self.idx[c]] == 0.0
                             for c in LIGHT_PARTONIC | CHARM_PARTONIC))
         source_active = math.fsum(
-            self.source_value(1.910, channel)
+            self.source_interpolated_value(mass, channel)
             for channel in self.exclusive)
         active = math.fsum(
             br[self.idx[channel]] for channel in self.exclusive)
         scale = active / source_active
         for channel in self.exclusive:
             self.assertAlmostEqual(br[self.idx[channel]],
-                                   scale * self.source_value(
-                                       1.910, channel),
+                                   scale * self.source_interpolated_value(
+                                       mass, channel),
                                    places=15)
 
     def test_exact_nucleon_rows_persist_across_partonic_handoff(self):
@@ -168,7 +151,7 @@ class ALPFermionBoundaryTest(unittest.TestCase):
         br = self.get_br(self.m_start)
         self.assertTrue(all(br[self.idx[c]] == 0.0 for c in self.exclusive))
         source_active = math.fsum(
-            self.source_value(1.915, channel)
+            self.source_value(self.m_start, channel)
             for channel in LIGHT_PARTONIC)
         active = math.fsum(
             br[self.idx[channel]] for channel in LIGHT_PARTONIC)
@@ -176,7 +159,7 @@ class ALPFermionBoundaryTest(unittest.TestCase):
         for channel in LIGHT_PARTONIC:
             self.assertAlmostEqual(br[self.idx[channel]],
                                    scale * self.source_value(
-                                       1.915, channel),
+                                       self.m_start, channel),
                                    places=15)
 
     def test_high_midpoint_has_no_charm(self):
@@ -198,80 +181,33 @@ class ALPFermionBoundaryTest(unittest.TestCase):
             self.assertAlmostEqual(br[self.idx[channel]],
                                    self.source_value(3.741, channel), places=14)
 
-    def test_deleted_source_gap_bridges_only_the_nucleon_widths(self):
+    def test_regenerated_grid_has_no_deleted_mass_interval(self):
         masses = [round(float(m), 12) for m, _ in self.tables[0]]
-        self.assertIn(1.910, masses)
-        self.assertIn(1.915, masses)
-        self.assertFalse(any(m in masses for m in
-                             (1.911, 1.912, 1.913, 1.914)))
-        first_complete = {
-            channel: self.source_value(1.915, channel)
-            for channel in self.labels
-        }
-        first_hadronic = math.fsum(
-            value for channel, value in first_complete.items()
-            if channel not in NONHADRONIC
-        )
-        first_active = math.fsum(
-            first_complete[channel] for channel in LIGHT_PARTONIC
-        )
-        for mass in (self.m_start, 1.912, 1.913, 1.914):
+        self.assertIn(round(self.m_start - 1e-9, 12), masses)
+        for mass in (1.910, 1.911, 1.912, 1.913, 1.914, 1.915):
+            self.assertIn(mass, masses)
             br = self.get_br(mass)
-            self.assertEqual(math.fsum(br), 1.0)
-            self.assertAlmostEqual(
-                math.fsum(
-                    br[index] for index, channel in enumerate(self.labels)
-                    if channel not in NONHADRONIC),
-                first_hadronic,
-                places=15,
-            )
-            active = math.fsum(
-                br[self.idx[channel]] for channel in LIGHT_PARTONIC)
-            scale = active / first_active
-            for channel in LIGHT_PARTONIC:
+            self.assertAlmostEqual(math.fsum(br), 1.0, places=14)
+            for channel in self.labels:
                 self.assertAlmostEqual(
-                    br[self.idx[channel]],
-                    scale * first_complete[channel],
-                    places=15,
-                )
-            for channel in NONHADRONIC:
-                self.assertEqual(
-                    br[self.idx[channel]], first_complete[channel])
-        self.assertEqual(
-            self.get_br(1.915),
-            [first_complete[channel] for channel in self.labels],
-        )
+                    br[self.idx[channel]], self.source_value(mass, channel), places=14)
 
-    def test_nucleon_width_bridge_matches_both_endpoint_tangents(self):
-        step = 1.0e-7
+    def test_nucleon_widths_follow_the_regenerated_nodes(self):
+        # Both sides now have source values. Do not impose the tangents of
+        # the former 1.910--1.915 GeV interpolation across deleted nodes.
         for channel in PERSISTENT_EXCLUSIVE:
-            for mass in (1.910, 1.915):
-                left = (
-                    self.reduced_width(mass, channel)
-                    - self.reduced_width(mass - step, channel)
-                ) / step
-                right = (
-                    self.reduced_width(mass + step, channel)
-                    - self.reduced_width(mass, channel)
-                ) / step
+            for mass in (self.m_start - 1e-9, self.m_start, 1.911, 1.915):
+                self.assertGreater(self.reduced_width(mass, channel), 0.)
                 self.assertAlmostEqual(
-                    left,
-                    right,
-                    delta=max(abs(left), abs(right)) * 2.0e-5,
-                )
+                    self.value(mass, channel), self.source_value(mass, channel), places=14)
 
-    @unittest.skipIf(build_alp_fermion_rate_authority is None, NO_MATCHED)
-    def test_eventcalc_and_matched_authority_agree_through_source_gap(self):
-        for mass in (1.9105, 1.911, 1.912, 1.913, 1.914, 1.9145, 1.915):
-            with self.subTest(mass_gev=mass):
-                observed = self.get_br(mass)
-                expected = self.authority.point_at(mass)
-                for index, channel in enumerate(expected.channels):
-                    self.assertAlmostEqual(
-                        observed[index],
-                        channel.branching_fraction,
-                        places=15,
-                    )
+    @unittest.skipUnless(EXHAD_ROOT, "set EXHAD_ROOT to check the installed exHad inputs")
+    def test_eventcalc_and_exhad_use_identical_decay_inputs(self):
+        folder = pathlib.Path(ROOT) / "Distributions/ALP-fermion"
+        release = pathlib.Path(EXHAD_ROOT) / "data/alp-fermion"
+        for host, installed in (("ALP-fermion-decay.json", "eventcalc_branching_ratios.json"),
+                                ("ctau-ALP-fermion.txt", "eventcalc_ctau.txt")):
+            self.assertEqual((folder / host).read_bytes(), (release / installed).read_bytes())
 
     def test_production_numpy_label_array_is_supported(self):
         pdgs = np.empty(len(self.pdgs), dtype=object)
@@ -340,8 +276,8 @@ class ALPFermionBoundaryTest(unittest.TestCase):
         if not exhadDecays.can_use_exhad():
             self.skipTest("no exHad release is configured, so the mass gate "
                           "is closed at every mass")
-        self.assertFalse(exhadDecays.enabled(1.9105))
-        self.assertTrue(exhadDecays.enabled(1.911))
+        self.assertFalse(exhadDecays.enabled(self.m_start - 0.0005))
+        self.assertTrue(exhadDecays.enabled(self.m_start))
         self.assertTrue(exhadDecays.enabled(3.7405))
         self.assertTrue(exhadDecays.enabled(3.741))
         self.assertTrue(exhadDecays.enabled(4.999))
@@ -358,6 +294,7 @@ class ALPFermionBoundaryTest(unittest.TestCase):
         by_label = dict(zip(labels, matrix_elements))
         self.assertEqual(by_label["ePeM"], "1.")
         self.assertEqual(by_label["piPpiM2pi0"], "1.")
+        # BaBar is omitted from exported shapes; this channel then uses phase space.
         self.assertEqual(by_label["KLKSpi0"], "1.")
         self.assertIn("UnitStep", by_label["piPpiMpi0"])
 

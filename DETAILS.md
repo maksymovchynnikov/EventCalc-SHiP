@@ -83,6 +83,21 @@ When producing LLP fluxes, the following setups have been used to get the fluxes
 
 ### How LLP's kinematics and decay vertices are sampled
 
+For calibrated dark photons and inelastic DM, all launchers use the full
+`ProductionModel` source. Each signed contribution retains the collision
+position paired with its momentum. The ray is clipped against all six faces
+of the truncated pyramid. If its entry and exit path lengths from the
+collision are s_in and s_out, its decay probability is
+`exp(-m*s_in/(p*ctau)) - exp(-m*s_out/(p*ctau))`.
+The source is reused across lifetimes. Sampling uses absolute source weights
+and keeps their signs in the event weights; the README states the exact output
+normalization. There is no polar-angle or survival-energy cutoff on this path.
+Inelastic input masses denote the mediator, whereas the propagated particle
+has mass `(1+Delta)*m_Aprime/3`.
+
+The following table-based procedure applies to the other production sources,
+including explicit `legacy-*` dark-photon fluxes.
+
 - The code starts with sampling the LLP's kinematics within the polar angle coverage of the SHiP experiment. To improve the quality of sampling, it is done in the following way. The code first randomly samples polar angles `theta_random` within the SHiP coverage. It then samples energies within the range `[E_min,E_max(theta_random)]`. Here: 
   - `E_min = max(m_LLP, E_min(l_decay))`, where `E_min(m_LLP, c tau_LLP)` is the minimal energy for which the LLP decay probability is not too exponentially suppressed (it is very important for short lifetimes `ctau << z_{to SHiP}`); Exp[-15] is taken as this boundary.
   - `E_max(theta_random)` is the maximal LLP energy for the given polar angles. It is needed to take into account as for some LLP production channels (e.g., the proton bremsstrahlung, etc.), this dependence is very steep.
@@ -138,7 +153,7 @@ The rates are matched as follows:
 The hadrons themselves come either from unmodified `pythia8`, which fragments the selected partonic state, or from the exHad generator, which matches the composition of the final states to exclusive calculations and to measured cross sections. The installed coverage is:
 
 - **Dark photon:** $1.70\leq m_{A'}\leq5.00$ GeV. The selected $u\bar u$, $d\bar d$, $s\bar s$ and $c\bar c$ rows form one pool. Its light-hadron composition follows the DeLiVeR exclusive decomposition from 1.70 to 2.00 GeV and the coherent fit to measured $e^+e^-$ cross sections above 2.00 GeV; the measured open-charm channels and the inclusive charm remainder are generated separately above the $D\bar D$ threshold. The unresolved light component changes continuously to Pythia fragmentation between 4 and 5 GeV.
-- **Fermion-coupled ALP:** $1.911\leq m_a\leq5.00$ GeV. The selected hadronic rows, including `ppbar` and `nnbar`, form one pool. Leptonic and two-photon rows are unchanged.
+- **Fermion-coupled ALP:** $1.910\leq m_a\leq5.00$ GeV. The selected hadronic rows, including `ppbar` and `nnbar`, form one pool. Leptonic and two-photon rows are unchanged.
 - **Higgs-like scalar:** $2.00\leq m_S\leq63.0$ GeV, of which the SHiP production tables cover $m_S\leq5.12$ GeV, which bounds a run. All selected hadronic rows form one pool. The decay tables use the C-even neutral-kaon rows `KLKL` and `KSKS` with equal rates and carry `ppbar` and `nnbar` as separate rows. The four prescriptions are those listed in `README.md`; their lifetime files keep a `.txt` suffix and are JSON arrays of `[mass_GeV, c_tau_times_sin_theta_squared_m]` pairs.
 - **HNL:** $0.02\leq m_N\leq40$ GeV, of which the SHiP production tables cover $m_N\leq5.27$ GeV. The hadrons of a selected current are generated at the exact invariant mass $W$ of the quark-antiquark pair of each event. The six currents are `NC_ud`, `NC_s`, `CC_ud`, `CC_us`, `CC_cd` and `CC_cs`. Every explicit pole and exclusive HNL row stays an EventCalc decay.
 

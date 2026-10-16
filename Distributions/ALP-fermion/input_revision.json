@@ -1,0 +1,31 @@
+{
+  "date": "2026-10-15",
+  "model": "ALP-fermion",
+  "coupling": "g_Y = 2 v_h / f_a",
+  "matching_scale_GeV": 1000.0,
+  "matching_boundary_GeV": 1.91,
+  "rates_revision": "Regenerated source export 2026-10-14; boundary-aware widths and existing 32-channel roster.",
+  "matrix_revision": "2026-10-15 source export, BaBar removed before squaring, KLKSpi0 unit phase space, omega-pion masses corrected. Absolute-value workaround for three source expressions.",
+  "sha256": {
+    "Emax-ALP-fermion.txt": "61fa3541496db7a2e2472aa466d15f89c834c81fa5d121498494e3273d03b5ca",
+    "coupling.json": "f101819cf2aa4738d6c7ddfda28749a4e1f2ea2fd2ad578b2a202c6de36deffa",
+    "exhad.json": "c1b1cc566382255e61b95437c1a66ad5d06a3b95aa154292f2f4402c3a5d2ceb",
+    "ALP-fermion-decay.json": "2071d6f02d2537d49cd8f768c89b3cb4869bfcbc6d72f2d02398ece93b90664c",
+    "Total-yield-ALP-fermion.txt": "3cd164fd4a03050a1612103dfee0078954ec816a8f6a0a6931403220a21daffe",
+    "DoubleDistr-ALP-fermion.txt": "8f3ac4ce2fd9a9fa1ea8812f63f75eb78ec3f9d07c536440f674cbc8616fbc71",
+    "postprocess_decay_card.py": "4c339e574f91fc1f5a23d49454ecd6c666a62db641a8a8b726fb700b69366ab9",
+    "ctau-ALP-fermion.txt": "46e507fbb01ba512448c74a26d3d96daef6b3df8baf40b138e126af9ed2654d9"
+  },
+  "known_source_issue": "The exported squared matrix elements in the listed channels are negative in parts of physical phase space, confirmed at 60-digit precision.",
+  "matrix_weight_prescription": {
+    "channels": [
+      "piPpiMpi0",
+      "3pi0",
+      "KPKMpi0"
+    ],
+    "expression": "Abs(source_squared_matrix_element)",
+    "underlying_source_issue_resolved": false,
+    "tabulated_lifetime_and_branching_fractions_changed": false
+  },
+  "source_card_sha256": "27e393606c380cdffd6a21a6a2b8f62c96625a28e6ccd727347bec948e4b7ed4"
+}

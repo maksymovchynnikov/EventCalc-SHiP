@@ -64,17 +64,14 @@ class HepMC3Writer:
             self._closed = True
 
     @staticmethod
-    def _decay_time_mm(mother: Any) -> float:
+    def _decay_time_mm(mother: Any, origin: Any = None) -> float:
         momentum = math.sqrt(
             float(mother[0]) ** 2
             + float(mother[1]) ** 2
             + float(mother[2]) ** 2
         )
-        distance_m = math.sqrt(
-            float(mother[7]) ** 2
-            + float(mother[8]) ** 2
-            + float(mother[9]) ** 2
-        )
+        origin = (0., 0., 0.) if origin is None else origin
+        distance_m = math.sqrt(sum((float(mother[7+i])-float(origin[i]))**2 for i in range(3)))
         if momentum <= 0.0:
             return 0.0
         return 1000.0 * distance_m * float(mother[3]) / momentum
@@ -109,12 +106,13 @@ class HepMC3Writer:
         event.attributes["eventcalc_decay_channel"] = str(record.channel)
         event.attributes["eventcalc_status"] = str(record.status)
 
+        origin = getattr(record, "production_origin", None)
         vertex = hepmc.GenVertex(
             hepmc.FourVector(
                 1000.0 * float(mother[7]),
                 1000.0 * float(mother[8]),
                 1000.0 * float(mother[9]),
-                self._decay_time_mm(mother),
+                self._decay_time_mm(mother, origin),
             )
         )
         parent = hepmc.GenParticle(
@@ -123,6 +121,13 @@ class HepMC3Writer:
             2,
         )
         parent.generated_mass = float(mother[4])
+        if origin is not None:
+            # HepMC ASCII readers reject a source vertex with no incoming
+            # particles. Keep the measured origin as event attributes rather
+            # than inventing incoming particles for the unrecorded collision.
+            for axis, value in zip("xyz", origin):
+                event.attributes[f"eventcalc_production_{axis}_mm"] = 1000.*float(value)
+            event.attributes["eventcalc_time_origin"] = "LLP production collision (absolute shower time not stored)"
         vertex.add_particle_in(parent)
 
         for daughter in record.daughters:

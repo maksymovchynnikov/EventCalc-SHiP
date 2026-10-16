@@ -333,7 +333,7 @@ class MassWindowTests(unittest.TestCase):
         from funcs import alp_fermion
         path = os.path.join(ROOT, 'Distributions', 'ALP-fermion')
         self.assertEqual(alp_fermion.load_exhad_boundaries(path),
-                         (1.911, 3.741))
+                         (1.910, 3.741))
 
     def test_photon_alp_does_not_borrow_the_fermion_benchmark(self):
         """The photon-coupled ALP is a different benchmark and has no card."""

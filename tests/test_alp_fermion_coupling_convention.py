@@ -3,6 +3,7 @@
 
 import copy
 import json
+import math
 import os
 from pathlib import Path
 import sys
@@ -72,9 +73,9 @@ class ALPFermionCouplingConventionTest(unittest.TestCase):
             self.folder / "ctau-ALP-fermion.txt", 2.0)
         production_per_g_y_squared = self.table_value(
             self.folder / "Total-yield-ALP-fermion.txt", 2.0)
-        self.assertAlmostEqual(coefficient, 5.3033717550756286e-10)
-        self.assertAlmostEqual(
-            production_per_g_y_squared, 3.13914471831389e-6)
+        self.assertTrue(math.isclose(coefficient, 6.886677132399704e-10, rel_tol=1e-12))
+        self.assertTrue(math.isclose(
+            production_per_g_y_squared, 3.1381193480142407e-6, rel_tol=1e-12))
 
         # g_Y=1 returns the tabulated lifetime; g_Y=2 gives c_tau=C/4
         # and four times the tabulated production probability.
@@ -89,9 +90,9 @@ class ALPFermionCouplingConventionTest(unittest.TestCase):
                 "ALP-fermion", coefficient, requested_ctau,
                 metadata=self.metadata),
             4.0)
-        self.assertAlmostEqual(
+        self.assertTrue(math.isclose(
             production_per_g_y_squared * 4.0,
-            1.255657887325556e-5)
+            1.2552477392056963e-5, rel_tol=1e-12))
 
     def test_alp_outputs_are_annotated_and_have_sidecars(self):
         mothers = np.zeros((1, 10), dtype=float)

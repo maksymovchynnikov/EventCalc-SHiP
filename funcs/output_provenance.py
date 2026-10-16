@@ -159,6 +159,8 @@ def effective_generator_identity(
     been established, so a below-boundary/direct point never receives a
     portable-model label accidentally.
     """
+    if llp.LLP_name == "Inelastic-DM":
+        return "inelastic-current", f"exhad-inelastic-current-seed{int(exhad_seed)}", None
     effective_exhad_bench = decay_products.effective_exhad_bench(
         llp.mass,
         llp.PDGs,

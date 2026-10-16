@@ -30,3 +30,6 @@ tests/*.pdf
 tests/*.csv
 tests/*summary.txt
 tests/dNevdEa-*.txt
+
+# Personal machine-specific launcher; documented Python commands are portable.
+/run_local.sh

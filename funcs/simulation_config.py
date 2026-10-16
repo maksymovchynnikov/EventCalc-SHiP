@@ -8,7 +8,7 @@ without importing any module that prompts for user input.
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import json
 import math
 from pathlib import Path
@@ -17,6 +17,7 @@ from typing import Any, Mapping, Sequence
 
 from funcs.ALPmerging import SIN2_THETA_W
 from funcs.channel_selection import ALL_JETS_TOKEN, resolve_channel_tokens
+from funcs.coupling_conventions import coupling_to_squared, ctau_from_coupling
 
 
 DEFAULT_N_POT = 6.0e20
@@ -133,6 +134,8 @@ MODEL_SPECS: tuple[ModelSpec, ...] = (
     ),
 )
 
+MODEL_SPECS += (ModelSpec("Inelastic-DM", "Inelastic-DM", "decays.json", ()),)
+
 SCALAR_MODEL_NAMES = frozenset({"Scalar-mixing", "Scalar-quartic"})
 
 #: The models an exHad release carries a matched hadronic description for.
@@ -148,7 +151,8 @@ _EXHAD_INAPPLICABLE_MODEL_NAMES = frozenset({"ALP-photon"})
 _DP_PRODUCTION_MODES = {
     "primary": "primary",
     "cascade": "cascade",
-    "brem-cascade": "brem-cascade",
+    "brem-cascade": "legacy-brem-cascade",
+    **{f"legacy-{v}":f"legacy-{v}" for v in ("primary","cascade","combined","brem-cascade")},
     "combined": "combined",
     "primary+cascade": "combined",
     "cascade+primary": "combined",
@@ -173,6 +177,7 @@ _MODEL_BY_KEY.update(
         "alpsu2": _MODEL_BY_KEY["alpsu2l"],
         "alpmix": _MODEL_BY_KEY["alpmixed"],
         "darkphoton": _MODEL_BY_KEY["darkphotons"],
+        "idm": _MODEL_BY_KEY["inelasticdm"],
         "scalar": _MODEL_BY_KEY["scalarmixing"],
     }
 )
@@ -261,25 +266,25 @@ def _number_list(value: Any, field: str) -> tuple[float, ...]:
     return tuple(_finite_float(item, field, positive=True) for item in raw)
 
 
-def _lifetime_grid(value: Any, number_of_masses: int) -> tuple[tuple[float, ...], ...]:
+def _lifetime_grid(value: Any, number_of_masses: int, field="c_taus") -> tuple[tuple[float, ...], ...]:
     if not isinstance(value, (list, tuple)):
-        common = _number_list(value, "c_taus")
+        common = _number_list(value, field)
         return tuple(common for _ in range(number_of_masses))
     if not value:
-        raise ConfigurationError("'c_taus' must contain at least one value.")
+        raise ConfigurationError(f"'{field}' must contain at least one value.")
 
     nested = any(isinstance(item, (list, tuple)) for item in value)
     if not nested:
-        common = _number_list(value, "c_taus")
+        common = _number_list(value, field)
         return tuple(common for _ in range(number_of_masses))
     if not all(isinstance(item, (list, tuple)) for item in value):
-        raise ConfigurationError("'c_taus' cannot mix scalar values and per-mass lists.")
+        raise ConfigurationError(f"'{field}' cannot mix scalar values and per-mass lists.")
     if len(value) != number_of_masses:
         raise ConfigurationError(
-            "Nested 'c_taus' must provide exactly one lifetime list per mass "
+            f"Nested '{field}' must provide exactly one list per mass "
             f"({number_of_masses} expected, {len(value)} received)."
         )
-    return tuple(_number_list(item, "c_taus") for item in value)
+    return tuple(_number_list(item, field) for item in value)
 
 
 def _decay_selection(value: Any) -> tuple[str | int, ...]:
@@ -342,6 +347,8 @@ _CONFIG_KEYS = {
     "events",
     "masses",
     "c_taus",
+    "couplings",
+    "couplings_squared",
     "decay_channels",
     "mixing_pattern",
     "uncertainty",
@@ -358,6 +365,7 @@ _CONFIG_KEYS = {
     "llp_pdg",
     "batch_index_offset",
     "stock_pythia_pool",
+    "idm_delta", "production_power",
 }
 
 #: Card and command-line spellings of the three hadronization routes.
@@ -427,6 +435,24 @@ class SimulationConfig:
     #: Retain the complete ALP hadronic allocation and hadronize it with
     #: unmodified Pythia, as the comparator sample.
     stock_pythia_pool: bool = False
+    # Alternative to c_taus; the model's native squared coupling per mass.
+    couplings_squared: tuple[tuple[float, ...], ...] | None = None
+
+    idm_delta: float = 0.1
+    production_power: int = 15
+
+    def resolve_lifetimes(self, llp):
+        """Resolve coupling inputs using the selected model's loaded tables."""
+        if self.couplings_squared is None:
+            return self
+        lifetimes = tuple(
+            tuple(ctau_from_coupling(
+                self.model, llp.get_ctau(mass), value, squared=True,
+                metadata=getattr(llp, "coupling_metadata", None))
+                for value in row)
+            for mass, row in zip(self.masses, self.couplings_squared)
+        )
+        return replace(self, c_taus=lifetimes)
 
     @property
     def n_events(self) -> int:
@@ -447,12 +473,14 @@ class SimulationConfig:
         return resolve_decay_channels(self.decay_channels, channels)
 
     def as_dict(self) -> dict[str, Any]:
-        common_lifetimes = all(item == self.c_taus[0] for item in self.c_taus)
+        grid = self.c_taus if self.couplings_squared is None else self.couplings_squared
+        field = "c_taus" if self.couplings_squared is None else "couplings_squared"
+        common_lifetimes = all(item == grid[0] for item in grid)
         lifetimes: list[Any]
         if common_lifetimes:
-            lifetimes = list(self.c_taus[0])
+            lifetimes = list(grid[0])
         else:
-            lifetimes = [list(item) for item in self.c_taus]
+            lifetimes = [list(item) for item in grid]
         return {
             "exhad_mode": self.exhad_mode,
             "exhad_root": self.exhad_root,
@@ -460,7 +488,7 @@ class SimulationConfig:
             "model": self.model,
             "events": self.events,
             "masses": list(self.masses),
-            "c_taus": lifetimes,
+            field: lifetimes,
             "decay_channels": list(self.decay_channels),
             "mixing_pattern": list(self.mixing_pattern) if self.mixing_pattern is not None else None,
             "uncertainty": self.uncertainty,
@@ -477,6 +505,8 @@ class SimulationConfig:
             "llp_pdg": self.llp_pdg,
             "batch_index_offset": self.batch_index_offset,
             "stock_pythia_pool": self.stock_pythia_pool,
+            "idm_delta": self.idm_delta,
+            "production_power": self.production_power,
         }
 
 
@@ -497,6 +527,11 @@ def _required_files(spec: ModelSpec, uncertainty: str | None, alp_mode: str | No
     elif spec.name == "Dark-photons":
         assert uncertainty is not None
         assert dp_mode is not None
+        legacy=dp_mode.startswith("legacy-")
+        dp_mode=dp_mode.removeprefix("legacy-")
+        production_dir=Path(__file__).resolve().parents[1]/"production_model/data/tables"
+        if not legacy:files.append(str(production_dir/"manifest.json"))
+        start=len(files)
         if dp_mode == "combined":
             suffixes = (uncertainty, f"cascade-{uncertainty}")
         elif dp_mode == "primary":
@@ -511,6 +546,11 @@ def _required_files(spec: ModelSpec, uncertainty: str | None, alp_mode: str | No
                     f"Total-yield-DP-{suffix}.txt",
                 )
             )
+        if not legacy:
+            parts=("primary","cascade") if dp_mode=="combined" else (dp_mode,)
+            files[start:]=[str(production_dir/(part+".npz")) for part in parts]
+    if spec.name in {"Dark-photons", "Inelastic-DM"} and (spec.name == "Inelastic-DM" or not legacy):
+        files.append(str(Path(__file__).resolve().parents[1]/"production_model/data/manifest.json"))
     files.append(spec.decay_file)
     return tuple(files)
 
@@ -564,14 +604,29 @@ def config_from_mapping(
 ) -> SimulationConfig:
     """Validate and normalize a launch-card-like mapping."""
     values = _canonical_card_mapping(mapping)
-    missing = [key for key in ("model", "events", "masses", "c_taus") if values.get(key) is None]
+    missing = [key for key in ("model", "events", "masses") if values.get(key) is None]
     if missing:
         raise ConfigurationError(f"Missing required launch field(s): {', '.join(missing)}.")
 
     spec = resolve_model(values["model"])
     events = _positive_int(values["events"], "events")
     masses = _number_list(values["masses"], "masses")
-    c_taus = _lifetime_grid(values["c_taus"], len(masses))
+    scan_fields = [key for key in ("c_taus", "couplings", "couplings_squared")
+                   if values.get(key) is not None]
+    if len(scan_fields) != 1:
+        raise ConfigurationError(
+            "Specify exactly one of 'c_taus', 'couplings', or 'couplings_squared'.")
+    field = scan_fields[0]
+    grid = _lifetime_grid(values[field], len(masses), field)
+    c_taus, couplings_squared = grid, None
+    if field != "c_taus":
+        try:
+            couplings_squared = tuple(tuple(coupling_to_squared(
+                value, squared=field == "couplings_squared") for value in row)
+                for row in grid)
+        except ValueError as exc:
+            raise ConfigurationError(str(exc)) from exc
+        c_taus = ()  # Mass-dependent conversion happens after the LLP is loaded.
     decays = _decay_selection(values.get("decay_channels", "all"))
     mixing = _mixing_pattern(values.get("mixing_pattern"))
 
@@ -609,21 +664,40 @@ def config_from_mapping(
     elif mixing is not None:
         raise ConfigurationError(f"'mixing_pattern' applies only to HNL, not {spec.name}.")
 
-    if spec.name == "Dark-photons":
+    if spec.name in {"Dark-photons", "Inelastic-DM"}:
+        uncertainty = "central" if uncertainty is None else uncertainty
         if uncertainty not in {"lower", "central", "upper"}:
             raise ConfigurationError("Dark-photons requires 'uncertainty': lower, central, or upper.")
-        dp_mode = "primary" if dp_mode is None else dp_mode
+        dp_mode = "combined" if dp_mode is None else dp_mode
         if dp_mode not in _DP_PRODUCTION_MODES:
             choices = ", ".join(sorted(_DP_PRODUCTION_MODES))
             raise ConfigurationError(
                 f"Dark-photons requires 'dp_production_mode': one of {choices}.")
         dp_mode = _DP_PRODUCTION_MODES[dp_mode]
+        if not dp_mode.startswith("legacy-") and uncertainty != "central":
+            raise ConfigurationError("Use production_model for calibrated variations, or an explicit legacy-* production mode for old Lower/Central/Upper fluxes.")
     else:
         if uncertainty is not None:
             raise ConfigurationError(f"'uncertainty' applies only to Dark-photons, not {spec.name}.")
         if dp_mode is not None:
             raise ConfigurationError(
                 f"'dp_production_mode' applies only to Dark-photons, not {spec.name}.")
+
+    if spec.name == "Inelastic-DM" and dp_mode.startswith("legacy-"):
+        raise ConfigurationError("Inelastic-DM requires calibrated primary/cascade/combined production.")
+    delta = _finite_float(values.get("idm_delta", .1), "idm_delta", positive=True)
+    if spec.name != "Inelastic-DM" and values.get("idm_delta", .1) != .1:
+        raise ConfigurationError("idm_delta applies only to Inelastic-DM.")
+    if spec.name == "Inelastic-DM":
+        if delta >= 1:
+            raise ConfigurationError("Inelastic-DM requires 0 < idm_delta < 1 (open mediator benchmark).")
+        if any(not 2*.00051099895 < m*delta/3 < 1.7 for m in masses):
+            raise ConfigurationError("Inelastic-DM requires 2 m_e < Delta*m_A'/3 < 1.7 GeV.")
+        if values.get("exhad_mode") == "off":
+            raise ConfigurationError("Inelastic-DM decays require exHad; --exhad off is unsupported.")
+    power = _positive_int(values.get("production_power", 15), "production_power")
+    if not 4 <= power <= 24:
+        raise ConfigurationError("production_power must be an integer from 4 to 24.")
 
     if spec.name == "ALP-photon":
         if alp_mode not in _ALP_PRODUCTION_MODES:
@@ -714,11 +788,14 @@ def config_from_mapping(
     exhad_mode = _EXHAD_MODE_ALIASES.get(exhad_value.strip().casefold())
     if exhad_mode is None:
         raise ConfigurationError("'exhad_mode' must be auto, on, or off.")
-    if (exhad_mode == "on" and spec.name not in _EXHAD_MODEL_NAMES
+    if (exhad_mode == "on" and spec.name not in _EXHAD_MODEL_NAMES | {"Inelastic-DM"}
             and spec.name not in _EXHAD_INAPPLICABLE_MODEL_NAMES):
         raise ConfigurationError(
             f"No exHad release model is bound to {spec.name}; "
             "run it with --exhad off, or leave the default --exhad auto.")
+
+    if spec.name == "Inelastic-DM" and exhad_mode == "off":
+        raise ConfigurationError("Inelastic-DM requires exHad; an explicit raw/off route is unsupported.")
 
     stock_pythia_pool = _strict_bool(
         values.get("stock_pythia_pool", False), "stock_pythia_pool")
@@ -739,9 +816,12 @@ def config_from_mapping(
         exhad_root=values.get("exhad_root"),
         exhad_python=values.get("exhad_python"),
         model=spec.name,
+        idm_delta=delta,
+        production_power=power,
         events=events,
         masses=masses,
         c_taus=c_taus,
+        couplings_squared=couplings_squared,
         decay_channels=decays,
         mixing_pattern=mixing,
         uncertainty=uncertainty,
@@ -874,9 +954,14 @@ def build_argument_parser() -> argparse.ArgumentParser:
     add_hadronization_arguments(parser)
     parser.add_argument("--model", help="LLP model name, for example ALP-SU2L")
     parser.add_argument("--events", type=int, help="number of accepted decay events to sample")
-    parser.add_argument("--masses", nargs="+", type=float, help="LLP masses in GeV")
-    parser.add_argument("--c-taus", "--ctaus", dest="c_taus", nargs="+", type=float,
+    parser.add_argument("--masses", nargs="+", type=float, help="LLP masses in GeV; Inelastic-DM: mediator masses m_Aprime")
+    scan = parser.add_mutually_exclusive_group()
+    scan.add_argument("--c-taus", "--ctaus", dest="c_taus", nargs="+", type=float,
                         help="proper decay lengths in metres, applied to every mass")
+    scan.add_argument("--couplings", nargs="+", type=float,
+                      help="native coupling magnitudes (see README for each model)")
+    scan.add_argument("--couplings-squared", nargs="+", type=float,
+                      help="already-squared native couplings; HNL: total U^2")
     parser.add_argument("--decay-channels", "--decays", "--channels", dest="decay_channels", nargs="+",
                         help="channel names, 'jets', or 'all' (default)")
     parser.add_argument("--mixing-pattern", nargs=3, type=float, metavar=("XI_E", "XI_MU", "XI_TAU"))
@@ -884,7 +969,9 @@ def build_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--alp-production-mode", "--alp-production", dest="alp_production_mode",
                         choices=("primary", "cascade", "cascades", "combined"))
     parser.add_argument("--dp-production-mode", "--dp-production", dest="dp_production_mode",
-                        choices=("primary", "cascade", "brem-cascade", "combined"))
+                        choices=tuple(_DP_PRODUCTION_MODES))
+    parser.add_argument("--idm-delta", type=float, help="Inelastic-DM splitting (m_chi_prime-m_chi)/m_chi; default 0.1")
+    parser.add_argument("--production-power", type=int, help="Full-source integration: 2**power points per channel, cached across lifetimes (default 15)")
     parser.add_argument("--xi", type=float, help="ALP-mixed SU(2)_L operator fraction in [0, 1]")
     parser.add_argument(
         "--interference",
@@ -911,7 +998,7 @@ def build_argument_parser() -> argparse.ArgumentParser:
                              "original ordered scan (default: 0)")
     parser.add_argument("--stock-pythia-pool", dest="stock_pythia_pool", action="store_const",
                         const=True, default=None,
-                        help="ALP-fermion comparator above 1.911 GeV: retain the complete "
+                        help="ALP-fermion comparator above 1.910 GeV: retain the complete "
                              "hadronic event allocation and hadronize it with unmodified "
                              "Pythia. Requires --channels all --exhad off.")
 
@@ -940,6 +1027,12 @@ def config_from_command_line(
     namespace = parser.parse_args(list(argv))
     try:
         values: dict[str, Any] = load_card(namespace.card) if namespace.card is not None else {}
+        values = _canonical_card_mapping(values)
+        # An explicit scan flag replaces, rather than mixes with, the card's choice.
+        if any(getattr(namespace, key) is not None
+               for key in ("c_taus", "couplings", "couplings_squared")):
+            for key in ("c_taus", "couplings", "couplings_squared"):
+                values.pop(key, None)
         for key in _CONFIG_KEYS:
             cli_value = getattr(namespace, key, None)
             if cli_value is not None:

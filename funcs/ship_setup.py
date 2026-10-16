@@ -2,6 +2,7 @@
 
 import numpy as np
 
+# Distances are measured from the centre of the target front face (z=0).
 # Define constants
 z_min = 32      # Minimum z-coordinate in meters
 z_max = 82      # Maximum z-coordinate in meters

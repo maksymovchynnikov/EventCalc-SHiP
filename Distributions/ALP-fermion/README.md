@@ -98,7 +98,7 @@ production yields, branching ratios, partial widths, or lifetime.
 ## Matched hadronic event generation
 
 The installed matched ALP model is active for
-$1.911\leq m_a\leq5.00$ GeV. At each mass, EventCalc combines the selected
+$1.910\leq m_a\leq5.00$ GeV. At each mass, EventCalc combines the selected
 `Jets-GG`, `Jets-ss`, `Jets-cc`, `ppbar`, and `nnbar` branching fractions
 and requests that number of events once from the pseudoscalar event measure.
 The generator therefore samples the aggregate hadronic composition rather
@@ -121,3 +121,32 @@ event-file headers retain their generic names for compatibility, but both
 mean $g_Y^2$ for `ALP-fermion`. Each generated ALP event or total file also
 has a sibling `<output>.coupling.json` sidecar containing this complete
 coupling and table-normalization contract.
+
+
+## Input revision: 14–15 October 2026
+
+The lifetime and branching tables use the regenerated fermion-universal
+benchmark at the matching scale Lambda = 1 TeV. The exclusive-to-partonic
+handoff is at 1.910 GeV. Unmasked partial widths are interpolated before that
+handoff is applied; their sum defines the total width. The grid includes the
+one-sided boundary node and the 1.910–1.915 GeV nodes. The physical matching
+step is retained. The existing 32-channel roster and its threshold corrections
+are retained, with branching fractions normalized over the listed channels.
+The accompanying production yield, angular-energy distribution and maximum
+energy tables come from the same regenerated export.
+
+The squared matrix elements use the latest source export: the BaBar term is
+removed at amplitude level before squaring, the approved KLKSpi0 phase-space
+expression is supplied by the exporter, and omega-pion masses are consistent
+with the runtime values (0.78265, 0.13957, 0.13957 GeV). The matrix-element-only
+update did not modify the regenerated lifetime or branching fractions.
+`input_revision.json` records hashes of the installed input files.
+
+## Known bugs/problems
+
+The ALP-fermion squared matrix elements exported from the ALP phenomenology
+inputs (15 October 2026; [arXiv:2501.04525](https://arxiv.org/abs/2501.04525))
+can be negative in physical phase space for `piPpiMpi0`, `3pi0` and `KPKMpi0`.
+These three entries use `abs(source_squared_matrix_element)` as a sampling
+workaround. The underlying source expressions still require correction;
+the tabulated lifetimes and branching fractions are unchanged.
