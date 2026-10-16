@@ -234,11 +234,11 @@ the lifetime options. EventCalc calculates $c\tau(m,g)=c\tau_1(m)/g^2$ at
 ```bash
 # Photon ALP: g_agammagamma in GeV^-1
 python3 run_batch.py --llp ALP-photon --alp-production primary \
-    --masses 0.1 0.3 --couplings 1e-6 3e-6 --nevents 10000 --exhad off
+    --masses 0.1 0.3 --couplings 1e-6 3e-6 --nevents 10000
 
 # HNL: total U^2, with Ue^2:Umu^2:Utau^2 = 1:1:0
 python3 run_batch.py --llp HNL --mixing 1 1 0 --masses 1 2 \
-    --coupling-squared-logrange 1e-10 1e-7 15 --nevents 10000 --exhad off
+    --coupling-squared-logrange 1e-10 1e-7 15 --nevents 10000
 ```
 
 `--coupling-range LO HI STEP` and `--coupling-logrange LO HI N` build grids
@@ -307,7 +307,8 @@ states to exclusive calculations and to measured $e^+e^-$ cross sections.
 - `--exhad on` (or a bare `--exhad`) requires a usable exHad installation and
   stops the run when the selection has a matched route and none is available;
 - `--exhad off` (aliases `--rawPythia` and `--raw-pythia`) forces the Pythia8
-  baseline.
+  baseline for hadronic decays. Nonhadronic channels are generated directly
+  and need no such flag.
 
 The card key `hadronization` sets the same switch, and an explicit flag
 overrides the card. The route that was actually used is recorded in the output

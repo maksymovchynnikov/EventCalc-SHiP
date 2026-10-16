@@ -42,8 +42,9 @@ the same interpreter setting. Prepared cards also exist for `Dark-photons`,
 `--exhad auto` follows the selected model's configuration and uses exHad where
 it is installed; otherwise it uses unmodified [Pythia8](https://pythia.org/).
 `--exhad on` requires exHad for a selected hadronic channel.
-`--exhad off` selects unmodified Pythia8. Channels containing only stable
-particles are generated directly. `Inelastic-DM` always requires exHad.
+`--exhad off` selects unmodified Pythia8 for hadronic decays. Nonhadronic
+channels are generated directly and need no such flag.
+`Inelastic-DM` always requires exHad.
 The card field `hadronization` accepts `exhad` or `rawPythia`; explicit command
 options take precedence.
 

@@ -24,13 +24,17 @@ Pythia8 dependencies. For a run without prompts:
 
 ```sh
 python run_batch.py --llp Dark-photons --masses 0.3 --ctaus 100 \
-  --nevents 10000 --channels e-pair --exhad off
+  --nevents 10000 --channels e-pair
 ```
 
 This generates dark photon decays to an electron pair, with mass in GeV and
 proper decay length in metres. Output files contain laboratory momenta, decay
 positions and weights. The [user guide](docs/user-guide.md) describes their
 normalization, input cards and coupling scans.
+
+Hadronic decays use configured exHad by default. Nonhadronic channels are
+generated directly. Use `--exhad off` to select baseline Pythia8 for hadronic
+decays.
 
 ## Models and production
 

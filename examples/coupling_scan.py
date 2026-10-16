@@ -48,7 +48,6 @@ def example_card():
         "couplings": [coupling_grid(m, lower, upper).tolist() for m in masses],
         "alp_production_mode": "primary",
         "decay_channels": "all",
-        "exhad_mode": "off",
         "seed": 12345,
     }
 
