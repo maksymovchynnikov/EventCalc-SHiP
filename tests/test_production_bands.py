@@ -1,4 +1,4 @@
-"""Production envelopes, correlated acceptance and both sensitivity boundaries."""
+"""Production envelopes, correlated acceptance and both eventcalc.sensitivity boundaries."""
 from dataclasses import replace
 import json
 from pathlib import Path
@@ -6,10 +6,10 @@ import tempfile
 import unittest
 from unittest.mock import patch
 import numpy as np
-from sensitivity import DecayBatch,Geometry,Selection,prepare,ship_selections
-from production_model.uncertainties import (FAMILIES,SCALES,PDFWeights,VariationBatch,
+from eventcalc.sensitivity import DecayBatch,Geometry,Selection,prepare,ship_selections
+from eventcalc.production.dark_photon.uncertainties import (FAMILIES,SCALES,PDFWeights,VariationBatch,
                                            pdf_envelope,validate_labels)
-from production_bands import (boundary_bands,combine_envelopes,coherent_intervals,
+from eventcalc.production_bands import (boundary_bands,combine_envelopes,coherent_intervals,
                               integrate_variations)
 
 

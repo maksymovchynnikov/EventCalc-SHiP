@@ -22,7 +22,7 @@ _GENERATOR_TAG_RE = re.compile(
     r"exhad-[A-Za-z0-9.-]+"
     r")-seed(?P<seed>\d+)"
     r"(?:-src(?P<source_digest>[0-9a-fA-F]+))?"
-    r"(?:-full-source-(?P<full_source>primary|cascade|combined)-p(?P<production_power>\d+)"
+    r"(?:-(?:full|compact)-source-(?P<full_source>primary|cascade|combined)(?:-p(?P<production_power>\d+))?"
     r"-s(?P<production_shower_digest>[0-9a-f]{12})(?:-delta(?P<idm_delta>[0-9.eE-]+))?)?$"
 )
 _PORTABLE_EXHAD_ID_RE = re.compile(

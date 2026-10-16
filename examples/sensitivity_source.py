@@ -1,6 +1,6 @@
 """Small analytic toy source for testing the scan command, not a physics model."""
 import numpy as np
-from sensitivity import DecayBatch
+from eventcalc.sensitivity import DecayBatch
 
 
 def batches(*, replica, events=8192, chunk_size=1024, mass=1., seed=9182):

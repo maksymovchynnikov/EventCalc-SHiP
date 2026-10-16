@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 from scipy.integrate import solve_ivp
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from sensitivity import Geometry,Selection,DecayBatch,prepare,dipole_displacement,charges_from_pdg
+from eventcalc.sensitivity import Geometry,Selection,DecayBatch,prepare,dipole_displacement,charges_from_pdg
 
 def run():
  g=Geometry();rng=np.random.default_rng(12015);errors=[]

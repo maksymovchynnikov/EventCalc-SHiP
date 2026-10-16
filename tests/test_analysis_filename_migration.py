@@ -191,12 +191,12 @@ class OutputFilenameParserTest(unittest.TestCase):
 class AnalysisConsumerMigrationTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.total_plots = _load_script("eventcalc_total_plots", "total-plots.py")
+        cls.total_plots = _load_script("eventcalc_total_plots", "eventcalc/analysis/total_plots.py")
         cls.cascade = _load_script(
-            "eventcalc_cascade_analysis", "analyze_cascade_vs_primary.py"
+            "eventcalc_cascade_analysis", "eventcalc/analysis/analyze_cascade_vs_primary.py"
         )
         cls.distributions = _load_script(
-            "eventcalc_event_distributions", "plot_event_distributions.py"
+            "eventcalc_event_distributions", "eventcalc/analysis/plot_event_distributions.py"
         )
 
     def test_total_plots_extracts_legacy_and_tagged_files(self):

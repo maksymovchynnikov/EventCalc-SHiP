@@ -365,7 +365,7 @@ _CONFIG_KEYS = {
     "llp_pdg",
     "batch_index_offset",
     "stock_pythia_pool",
-    "idm_delta", "production_power",
+    "idm_delta", "production_power", "production_backend",
 }
 
 #: Card and command-line spellings of the three hadronization routes.
@@ -440,6 +440,7 @@ class SimulationConfig:
 
     idm_delta: float = 0.1
     production_power: int = 15
+    production_backend: str = "compact"
 
     def resolve_lifetimes(self, llp):
         """Resolve coupling inputs using the selected model's loaded tables."""
@@ -507,6 +508,7 @@ class SimulationConfig:
             "stock_pythia_pool": self.stock_pythia_pool,
             "idm_delta": self.idm_delta,
             "production_power": self.production_power,
+            "production_backend": self.production_backend,
         }
 
 
@@ -529,7 +531,7 @@ def _required_files(spec: ModelSpec, uncertainty: str | None, alp_mode: str | No
         assert dp_mode is not None
         legacy=dp_mode.startswith("legacy-")
         dp_mode=dp_mode.removeprefix("legacy-")
-        production_dir=Path(__file__).resolve().parents[1]/"production_model/data/tables"
+        production_dir=Path(__file__).resolve().parents[1]/"Distributions/Dark-photons/production"
         if not legacy:files.append(str(production_dir/"manifest.json"))
         start=len(files)
         if dp_mode == "combined":
@@ -550,7 +552,7 @@ def _required_files(spec: ModelSpec, uncertainty: str | None, alp_mode: str | No
             parts=("primary","cascade") if dp_mode=="combined" else (dp_mode,)
             files[start:]=[str(production_dir/(part+".npz")) for part in parts]
     if spec.name in {"Dark-photons", "Inelastic-DM"} and (spec.name == "Inelastic-DM" or not legacy):
-        files.append(str(Path(__file__).resolve().parents[1]/"production_model/data/manifest.json"))
+        files.append(str(Path(__file__).resolve().parents[1]/"Distributions/Dark-photons/production/manifest.json"))
     files.append(spec.decay_file)
     return tuple(files)
 
@@ -675,7 +677,7 @@ def config_from_mapping(
                 f"Dark-photons requires 'dp_production_mode': one of {choices}.")
         dp_mode = _DP_PRODUCTION_MODES[dp_mode]
         if not dp_mode.startswith("legacy-") and uncertainty != "central":
-            raise ConfigurationError("Use production_model for calibrated variations, or an explicit legacy-* production mode for old Lower/Central/Upper fluxes.")
+            raise ConfigurationError("Use eventcalc.production.dark_photon for calibrated variations, or an explicit legacy-* production mode for old Lower/Central/Upper fluxes.")
     else:
         if uncertainty is not None:
             raise ConfigurationError(f"'uncertainty' applies only to Dark-photons, not {spec.name}.")
@@ -695,6 +697,13 @@ def config_from_mapping(
             raise ConfigurationError("Inelastic-DM requires 2 m_e < Delta*m_A'/3 < 1.7 GeV.")
         if values.get("exhad_mode") == "off":
             raise ConfigurationError("Inelastic-DM decays require exHad; --exhad off is unsupported.")
+    backend=values.get("production_backend", "compact")
+    if backend not in {"compact", "correlated"}:
+        raise ConfigurationError("production_backend must be compact or correlated")
+    if backend=="correlated" and (spec.name not in {"Dark-photons","Inelastic-DM"} or dp_mode.startswith("legacy-")):
+        raise ConfigurationError("Correlated production applies only to calibrated dark photons and inelastic DM")
+    if spec.name=="Inelastic-DM" and backend=="compact" and delta not in {.05,.1}:
+        raise ConfigurationError("Compact iDM tables cover Delta=0.05 and 0.1; select --production-backend correlated for other splittings")
     power = _positive_int(values.get("production_power", 15), "production_power")
     if not 4 <= power <= 24:
         raise ConfigurationError("production_power must be an integer from 4 to 24.")
@@ -818,6 +827,7 @@ def config_from_mapping(
         model=spec.name,
         idm_delta=delta,
         production_power=power,
+        production_backend=backend,
         events=events,
         masses=masses,
         c_taus=c_taus,
@@ -970,6 +980,7 @@ def build_argument_parser() -> argparse.ArgumentParser:
                         choices=("primary", "cascade", "cascades", "combined"))
     parser.add_argument("--dp-production-mode", "--dp-production", dest="dp_production_mode",
                         choices=tuple(_DP_PRODUCTION_MODES))
+    parser.add_argument("--production-backend", choices=["compact","correlated"], help="Production representation: compact tables (default) or optional correlated EOS data")
     parser.add_argument("--idm-delta", type=float, help="Inelastic-DM splitting (m_chi_prime-m_chi)/m_chi; default 0.1")
     parser.add_argument("--production-power", type=int, help="Full-source integration: 2**power points per channel, cached across lifetimes (default 15)")
     parser.add_argument("--xi", type=float, help="ALP-mixed SU(2)_L operator fraction in [0, 1]")

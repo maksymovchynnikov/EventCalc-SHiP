@@ -2,7 +2,7 @@
 
 Run: python3 examples/coupling_scan.py > cards/alp_photon_couplings.json
 Then: python3 simulate.py --card cards/alp_photon_couplings.json
-The edges below are illustrative scan choices, not calculated sensitivity limits.
+The edges below are illustrative scan choices, not calculated eventcalc.sensitivity limits.
 """
 
 import json

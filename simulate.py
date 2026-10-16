@@ -138,6 +138,7 @@ def _make_llp(runtime: SimpleNamespace, config):
         scalar_lifetime=getattr(config, "scalar_prescription", None),
         xi=getattr(config, "xi", None),
         interference=getattr(config, "interference", None),
+        defer_production_tables=True,
     )
 
     exhad = runtime.exhadDecays
@@ -464,9 +465,9 @@ def run_mass_lifetime_grid(runtime, config, llp, selected_decay_indices, *,
                            batch_index_offset=0, fixed_exhad_pools=None):
     """Run every (mass, lifetime) point of one configuration, in order."""
     config = config.resolve_lifetimes(llp)
-    from production_model.runtime import uses_full_source
+    from eventcalc.production.dark_photon.runtime import uses_full_source
     if uses_full_source(config):
-        from production_model.launcher import run_full_source_scan
+        from eventcalc.production.dark_photon.launcher import run_full_source_scan
         return run_full_source_scan(runtime, config, llp, selected_decay_indices,
                                     batch_index_offset=batch_index_offset)
     pools = {} if fixed_exhad_pools is None else fixed_exhad_pools

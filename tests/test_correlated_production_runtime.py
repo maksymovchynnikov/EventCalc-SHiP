@@ -9,9 +9,9 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from production_model.model import ProductionBatch
-from production_model.runtime import CollisionSource, trajectory_intervals, uses_full_source
-from runtime_generator import ExperimentCard, RuntimeModelScan
+from eventcalc.production.dark_photon.model import ProductionBatch
+from eventcalc.production.dark_photon.runtime import CollisionSource, trajectory_intervals, uses_full_source
+from eventcalc.runtime_generator import ExperimentCard, RuntimeModelScan
 from funcs.simulation_config import config_from_mapping, MODEL_SPECS
 from funcs import LLP_selection
 
@@ -76,8 +76,8 @@ class PhysicalSourceTest(unittest.TestCase):
             self.skipTest("optional pyhepmc is not installed")
         import pyhepmc
         import tempfile
-        from hepmc_export import HepMC3Writer
-        from runtime_generator import EventRecord
+        from eventcalc.hepmc_export import HepMC3Writer
+        from eventcalc.runtime_generator import EventRecord
         mother=np.array([0,0,10,np.sqrt(101),1,4900102,.2,.1,.2,32.])
         event=EventRecord(0,mother,np.array([[0,0,10,np.sqrt(101),1,4900101]]),
                           "test",True,.2,production_origin=np.array([.1,.2,1.]))
@@ -95,16 +95,16 @@ class PhysicalSourceTest(unittest.TestCase):
         self.assertEqual(out.weights,[.2])
 
     def test_hepmc_clock_starts_at_collision(self):
-        from hepmc_export import HepMC3Writer
+        from eventcalc.hepmc_export import HepMC3Writer
         mother=np.array([0,0,10,np.sqrt(101),1,4900022,1,0,0,32.])
         self.assertAlmostEqual(HepMC3Writer._decay_time_mm(mother,[0,0,2]),
                                30000*np.sqrt(101)/10)
 
     def test_source_reused_across_lifetimes(self):
-        scan=RuntimeModelScan(config())
+        scan=RuntimeModelScan(config(production_backend="correlated"))
         source=synthetic_source()
         with patch.object(CollisionSource,"build",return_value=source) as build, \
-             patch("production_model.ProductionModel"):
+             patch("eventcalc.production.dark_photon.ProductionModel"):
             self.assertIs(scan._collision_source(1.8),scan._collision_source(1.8))
             self.assertIs(scan._collision_source(1.8).sampler(1.,"fiducial").source,
                           scan._collision_source(1.8).sampler(100.,"fiducial").source)

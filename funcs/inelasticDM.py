@@ -1,11 +1,11 @@
 """Compatibility interface to the shared exHad inelastic-dark-matter current.
 
-Use production_model.ProductionModel for the calibrated finite-width source,
+Use eventcalc.production.dark_photon.ProductionModel for the calibrated finite-width source,
 and model_sensitivity.py for direct in-memory event-yield scans.
 """
 import os
 import numpy as np
-from model_sensitivity import configure_exhad
+from eventcalc.model_sensitivity import configure_exhad
 
 _root=os.environ.get('EXHAD_ROOT') or os.environ.get('DP_EXHAD_ROOT')
 configure_exhad(_root)

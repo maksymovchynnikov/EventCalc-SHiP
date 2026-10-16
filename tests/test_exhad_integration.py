@@ -481,7 +481,7 @@ class HadronizationModeTests(unittest.TestCase):
             interactive.assert_called_once_with(exhad_mode='off')
 
     def test_runtime_helpers_override_card(self):
-        import runtime_generator as runtime
+        import eventcalc.runtime_generator as runtime
         for helper in ('generator_from_card', 'scan_from_card'):
             constructor = ('RuntimeEventGenerator'
                            if helper == 'generator_from_card'
@@ -506,7 +506,7 @@ class HadronizationModeTests(unittest.TestCase):
                                      expected)
 
     def test_runtime_cli_forwards_the_mode(self):
-        import runtime_generator as runtime
+        import eventcalc.runtime_generator as runtime
         with patch.object(runtime, 'generator_from_card',
                           side_effect=RuntimeError('test stop')) as factory:
             with self.assertRaisesRegex(RuntimeError, 'test stop'):

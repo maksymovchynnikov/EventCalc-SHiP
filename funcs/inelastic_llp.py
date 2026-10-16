@@ -23,7 +23,7 @@ class InelasticLLP:
     uncertainty = "central"
 
     def __init__(self, config):
-        from model_sensitivity import configure_exhad
+        from eventcalc.model_sensitivity import configure_exhad
         configure_exhad(getattr(config, "exhad_root", None))
         from exhad import inelastic_dark_matter as current
         self.current = current
@@ -34,9 +34,14 @@ class InelasticLLP:
         self.uncertainty_label = f"{self.dp_production_mode}-delta{self.delta:g}"
         self.m_min_tabulated = np.nextafter(6*current.ME/self.delta, np.inf)
         self.m_max_tabulated = np.nextafter(3*current.MAX_CURRENT_MASS/self.delta, 0.)
+        if config.production_backend == "compact":
+            from eventcalc.production.dark_photon.compact import table
+            t,_=table("idm","primary",self.delta)
+            self.m_min_tabulated=max(self.m_min_tabulated,float(t["mass"][0]))
+            self.m_max_tabulated=min(self.m_max_tabulated,float(t["mass"][-1]))
         self.mass = None
         self.mediator_mass = None
-        self.Yield = None  # Filled from the full source, never a guessed table.
+        self.Yield = None  # Filled by the selected compact or correlated source.
 
     def set_mass(self, mediator_mass):
         self.mediator_mass = float(mediator_mass)

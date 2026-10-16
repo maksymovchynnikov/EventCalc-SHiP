@@ -6,8 +6,8 @@ import json,sys,time
 from pathlib import Path
 import numpy as np
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from production_model import ProductionModel
-from production_model.uncertainties import ProductionVariations,FORM_FACTORS
+from eventcalc.production.dark_photon import ProductionModel
+from eventcalc.production.dark_photon.uncertainties import ProductionVariations,FORM_FACTORS
 
 
 def run():

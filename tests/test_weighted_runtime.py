@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import MagicMock,Mock,patch
 import numpy as np
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from weighted_runtime import WeightedEventBatch,HadronizationNormalization,export_weighted
+from eventcalc.weighted_runtime import WeightedEventBatch,HadronizationNormalization,export_weighted
 from funcs import decayProducts
 
 
@@ -19,7 +19,9 @@ def batch(start,weights,groups,key=('alp',3.,'central',.1,'release')):
     records[:,16:]=[0.,0.,-1.5,1.5,0.,22.]
     label=f'{decayProducts.MATCHED_PROCESS_LABEL}:Jets-cc'
     return WeightedEventBatch(0,start,start+n,records,np.full(n,label),
-        np.ones(n,dtype=bool),np.full(n,.25),np.asarray(weights,dtype=float),np.asarray(groups),key)
+        np.ones(n,dtype=bool),np.full(n,.25),
+        raw_hadronization_weights=np.asarray(weights,dtype=float),
+        hadronization_groups=np.asarray(groups),normalization_key=key)
 
 
 class WeightedTests(unittest.TestCase):

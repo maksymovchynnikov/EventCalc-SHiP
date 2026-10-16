@@ -105,7 +105,7 @@ The generator therefore samples the aggregate hadronic composition rather
 than treating these five table rows as separate fragmentation sources.
 The `ePeM`, `muPmuM`, `tauPtauM`, and `2gamma` rows remain native EventCalc
 decays. The unresolved component changes continuously to source-conditioned
-default fragmentation from 4 to 5 GeV; see [EXHAD.md](../../EXHAD.md).
+default fragmentation from 4 to 5 GeV; see [EXHAD.md](../../docs/EXHAD.md).
 
 ## Runtime mapping
 

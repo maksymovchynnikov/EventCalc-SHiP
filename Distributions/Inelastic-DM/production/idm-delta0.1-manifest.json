@@ -1,0 +1,41 @@
+{
+  "schema": 1,
+  "name": "Joint meson/dimuon calibration with primary and cascade production",
+  "target": {
+    "length_m": 1.46,
+    "tungsten_length_m": 1.33,
+    "diameter_m": 0.5,
+    "z_origin": "front face",
+    "beam_ring_radius_m": 0.05,
+    "beam_sigma_xy_m": 0.016,
+    "geometry_version": "ship-2026-ring-v1"
+  },
+  "incident_protons": 20000,
+  "primary_inelastic": 19996,
+  "shower_sha256": "f8eaa5e0de16f35537ce0f75b4bfa6150175b545063046545bbbce4b680e77da",
+  "geant4": "11.4.0",
+  "pythia8": "8.317",
+  "lambda_p_GeV": 0.40830633425574114,
+  "virtuality_prescription": "Foroughi-Abari 2021/2024; fixed fitted single-scale suppression",
+  "nuclear_dy": "A*sigma_hN_inelastic/sigma_hW_inelastic per recorded target collision",
+  "continuum_transition_GeV": [
+    1.5,
+    2.0
+  ],
+  "normalization": "per POT and epsilon^2; density normalized above chi-prime mass",
+  "omitted_uncertainties": "Alternative virtuality descriptions, heavier vector fragmentation excitations, nuclear modifications, finite shower/source statistics and detector reconstruction",
+  "model": "idm",
+  "delta": 0.1,
+  "ratio": 3.0,
+  "alpha_D": 0.1,
+  "masses": 165,
+  "power": 17,
+  "position_marginalized": true,
+  "origin_convention": "point source at target front face",
+  "mass_coordinate": "mediator pole mass; energy and angle describe chi-prime",
+  "sha256": {
+    "idm-delta0.1-primary.npz": "c8160da9f0a0ece750b4f898f01d6b0a49b42e19a42b970c3e2b0ed3c82837d4",
+    "idm-delta0.1-cascade.npz": "84e5bb4cdfa1e80d4255816a5dac653c16d46e5621e02517a5c8b129c0a0e6de"
+  },
+  "cone_relative_error_max": 0.003095228278852514
+}

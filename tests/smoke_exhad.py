@@ -8,7 +8,7 @@ import time
 import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from runtime_generator import RuntimeEventGenerator
+from eventcalc.runtime_generator import RuntimeEventGenerator
 from funcs import decayProducts
 from funcs.simulation_config import config_from_mapping
 from funcs.exhadDecays import close_generators

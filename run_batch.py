@@ -368,6 +368,7 @@ def parse_args():
                     choices=list(SCALAR_PRESCRIPTIONS),
                     help="Scalar decay-table prescription (default for the "
                          "scalar models: %s)." % DEFAULT_SCALAR_PRESCRIPTION)
+    ap.add_argument("--production-backend",choices=["compact","correlated"],default="compact",help="Compact tables (default) or correlated EOS data")
     ap.add_argument("--idm-delta", type=float, default=.1,
                     help="Inelastic-DM splitting; masses are mediator masses, ctaus are chi-prime lifetimes.")
     ap.add_argument("--production-power", type=int, default=15,
@@ -405,6 +406,7 @@ def _card_from_arguments(args, masses, c_taus, exhad_mode):
         "stock_pythia_pool": bool(args.stock_pythia_pool),
         "idm_delta": getattr(args, "idm_delta", .1),
         "production_power": getattr(args, "production_power", 15),
+        "production_backend": args.production_backend,
     }
     if c_taus is None:
         card.pop("c_taus")

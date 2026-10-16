@@ -215,12 +215,13 @@ class LLP:
       from DistrHNL_e (distribution), HNL_yield_e (yield), DW_e (decay width)
     """
 
-    def __init__(self, mass, particle_selection, mixing_pattern=None, uncertainty=None, alp_production_mode=None, dp_production_mode=None, scalar_lifetime=None, xi=None, interference=None):
+    def __init__(self, mass, particle_selection, mixing_pattern=None, uncertainty=None, alp_production_mode=None, dp_production_mode=None, scalar_lifetime=None, xi=None, interference=None, defer_production_tables=False):
         # Dense kinematics grids may be reused only under this explicit,
         # caller-owned source revision.  The namespace prevents accidental
         # collisions between separately loaded LLP objects; the revision is
         # advanced whenever the source distribution is replaced.
         self._kinematics_cache_namespace = object()
+        self.defer_production_tables = defer_production_tables
         self._kinematics_source_revision = 0
         self.main_folder = "./Distributions"
         self.LLP_name = particle_selection['LLP_name']
@@ -761,8 +762,8 @@ class LLP:
             production_path=self.particle_path
         else:
             if self.uncertainty != 'central':
-                raise ValueError('The calibrated default uses central production. Use production_model for correlated model variations, or dp_production_mode="legacy-primary" for the old Lower/Central/Upper fluxes.')
-            production_path=os.path.join(os.path.dirname(__file__),'..','production_model','data','tables')
+                raise ValueError('The calibrated default uses central production. Use eventcalc.production.dark_photon for correlated model variations, or dp_production_mode="legacy-primary" for the old Lower/Central/Upper fluxes.')
+            production_path=os.path.join(os.path.dirname(__file__),'..','Distributions','Dark-photons','production')
             if not os.path.isfile(os.path.join(production_path,'manifest.json')):
                 raise FileNotFoundError('Calibrated SHiP production tables are not installed; no fallback to legacy fluxes is allowed.')
         if mode in ("cascade", "brem-cascade"):
@@ -772,7 +773,16 @@ class LLP:
         ctau_path = os.path.join(self.particle_path, "ctau-DP.txt")
         decay_json_path = os.path.join(self.particle_path, "DP-decay.json")
 
-        if mode == "combined":
+        compact_deferred = not legacy and self.defer_production_tables
+        if compact_deferred:
+            from eventcalc.production.dark_photon.compact import table, at_mass
+            a,_=table('dp','primary')
+            mass_yield=a['mass'];yield_values=a['yield_per_pot_epsilon2']
+            parts=('primary','cascade') if mode=='combined' else (mode,)
+            self.get_total_yield=lambda m: sum(at_mass('dp',m,c)[3] for c in parts)
+            self.Distr=None;self.Energy_distr=None;self.Yield_data=None
+            source_limits=[(float(mass_yield[0]),float(mass_yield[-1]))]
+        elif mode == "combined":
             source_rows = []
             source_limits = []
             source_yield_data = {}
@@ -792,7 +802,7 @@ class LLP:
                             f"Total-yield-DP-{source_suffix}.txt"),
                     )
                 else:
-                    from production_model.tables import load
+                    from eventcalc.production.dark_photon.tables import load
                     tables=load(label)
                 distribution, maximum_energy, yield_data, yield_function, limits = tables
                 source_rows.append(
@@ -818,7 +828,7 @@ class LLP:
                 self.Yield_data = pd.read_csv(
                     yield_path, header=None, sep="\t")
             else:
-                from production_model.tables import load
+                from eventcalc.production.dark_photon.tables import load
                 self.Distr,self.Energy_distr,self.Yield_data,_,_=load(mode)
         self.ctau_data = pd.read_csv(ctau_path, header=None, sep="\t")
 
@@ -826,7 +836,7 @@ class LLP:
         ctau_values = self.ctau_data.iloc[:, 1].to_numpy()
         self.ctau_interpolator = RegularGridInterpolator((mass_ctau,), ctau_values, bounds_error=True)
 
-        if mode != "combined":
+        if mode != "combined" and not compact_deferred:
             mass_yield = self.Yield_data.iloc[:, 0].to_numpy()
             yield_values = self.Yield_data.iloc[:, 1].to_numpy()
             self.yield_interpolator = RegularGridInterpolator(
@@ -843,7 +853,9 @@ class LLP:
         self.Matrix_elements = self.compile_matrix_elements(self.Matrix_elements_raw)
 
         self.get_ctau = lambda m: self.ctau_interpolator([m])[0]
-        if mode == "combined":
+        if compact_deferred:
+            pass
+        elif mode == "combined":
             self.get_total_yield = self.Distr.total_yield
         else:
             self.get_total_yield = lambda m: self.yield_interpolator([m])[0]
@@ -852,7 +864,7 @@ class LLP:
         self.get_MatrixElements = lambda m: self.Matrix_elements
 
         # define tabulated range
-        if mode == "combined":
+        if mode == "combined" or compact_deferred:
             _set_combined_tabulated_range(
                 self, source_limits, self.ctau_data)
         else:

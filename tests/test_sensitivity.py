@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 import numpy as np
-from sensitivity import (DecayBatch as _DecayBatch, Geometry, Selection, prepare, integrate,
+from eventcalc.sensitivity import (DecayBatch as _DecayBatch, Geometry, Selection, prepare, integrate,
                          scan_replicas, threshold_intervals, ship_selections)
 
 
@@ -167,12 +167,12 @@ class SensitivityTests(unittest.TestCase):
         exact=integrate([b],ct)
         response=integrate([b],ct,response_nodes=8192)
         np.testing.assert_allclose(response,exact,rtol=1e-3,atol=1e-10)
-        from sensitivity import ResponseAccumulator
+        from eventcalc.sensitivity import ResponseAccumulator
         acc=ResponseAccumulator(ship_selections(),Geometry(),distance_range=(1e-20,1e-19))
         with self.assertRaises(ValueError):acc.add(prepare(b))
 
     def test_npz_card_matches_api(self):
-        from scan_sensitivity import run
+        from eventcalc.scan_sensitivity import run
         b = sample(6)
         with tempfile.TemporaryDirectory() as tmp:
             base = Path(tmp)

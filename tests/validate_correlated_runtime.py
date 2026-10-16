@@ -8,7 +8,7 @@ import time
 import numpy as np
 ROOT=Path(__file__).resolve().parents[1];sys.path.insert(0,str(ROOT))
 from funcs.simulation_config import config_from_mapping
-from runtime_generator import RuntimeModelScan
+from eventcalc.runtime_generator import RuntimeModelScan
 
 
 def validate():
