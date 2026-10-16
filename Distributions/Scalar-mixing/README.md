@@ -1,11 +1,9 @@
 # Higgs-mixed scalar input tables
 
-The four branching-ratio/lifetime pairs were refreshed from the supplied
-exports on 15 September 2026. Each covers 0.01--63 GeV on the same 11,012-node
-mass grid. No rates were extrapolated or renormalized during import; channel
-labels and PDG padding were converted to EventCalc's existing conventions.
-exHad generates scalar decays from 2 to 63 GeV (showered above 5 GeV); this
-input coverage does not extend any production distribution (5.12 GeV end).
+These tables contain branching fractions and proper decay lengths for the
+Higgs-mixed scalar calculations listed in the [model guide](../../docs/models.md#higgs-like-scalar).
+Decay inputs cover 0.01 to 63 GeV; the [generation guide](../../docs/EXHAD.md#model-coverage)
+gives the production limits and supported hadronic calculations.
 
 ## Coupling convention
 
@@ -24,10 +22,8 @@ $$
 N_{\rm prod}(m_S,g_S)=g_S^2 P(m_S).
 $$
 
-The branching ratios are independent of the common mixing factor. This
-convention applies to `Scalar-mixing`; it does not apply to the independent
-Higgs-quartic production coupling used by the separate `Scalar-quartic`
-model.
+The branching ratios are independent of the common mixing factor. For `Scalar-quartic`, the same mixing controls decay widths; production
+has an independent normalization fixed by its yield table.
 
 ## Lifetime tables
 
@@ -40,10 +36,10 @@ ctau-Scalar-2407.13587-Upper.txt
 ctau-Scalar-1809.01876.txt
 ```
 
-retain their historical `.txt` names but contain strict JSON arrays. Each
+contain JSON arrays despite their `.txt` suffix. Each
 element is one two-number row,
 
-```json
+```text
 [mass_GeV, c_tau_times_sin_theta_squared_m]
 ```
 
@@ -81,57 +77,24 @@ $$
 f_{\mu\mu}(m_S)=\operatorname{BR}_{\mu\mu}(m_S)f_{\rm tot}(m_S).
 $$
 
-The `Central`, `Lower`, and `Upper` labels identify the three scalar-width
-prescriptions from arXiv:2407.13587. They are model choices, not guaranteed
-to be pointwise ordered numerical envelopes. The `1809.01876` choice is the
-corrected Boiarska--Winkler/1904 prescription and provides an independent
-prescription check.
+The `Central`, `Lower` and `Upper` tables represent the mean and one-standard-deviation
+scalar-width choices of [arXiv:2407.13587](https://arxiv.org/abs/2407.13587).
+Their ordering can depend on mass and channel. The `1809.01876` choice uses
+[arXiv:1809.01876](https://arxiv.org/abs/1809.01876) with the corrections of
+[arXiv:1904.10447](https://arxiv.org/abs/1904.10447).
+Each lifetime table must be used with its corresponding branching fractions.
 
-## Matched hadronic event generation
+## Hadronic channels
 
-The channel labels are `ePeM`, `muPmuM`, `tauPtauM`, `PipPim`, `2Pi0`,
-`2Kch`, `KLKL`, `KSKS`, `ppbar`, `nnbar`, `2Pip2Pim`, `PipPim2Pi0`,
-`Jets-cc`, `Jets-GG`, `Jets-bb`, and `Jets-ss`. In particular, the neutral
-kaon rate is represented by equal `KLKL` and `KSKS` rows; there is no
-mixed-CP `KLKS` row. The proton and neutron pairs are explicit rate-owning
-rows.
-
-The installed matched scalar model is active for
-$2.00\leq m_S\leq5.00$ GeV for each of the four prescriptions. At each mass,
-EventCalc combines all thirteen selected hadronic rows--the two-pion,
-two-kaon, nucleon-pair, four-pion, gluon, strange, charm, and bottom
-entries--and requests the complete scalar event measure once. The three
-leptonic rows remain native EventCalc decays. The selected branching-ratio
-and lifetime prescription continues to own the absolute rate; exhad changes
-only the composition and kinematics of the pooled hadronic events. The
-unresolved component changes continuously to source-conditioned default
-fragmentation from 4 to 5 GeV.
-
-## Input validation
-
-The refreshed tables have finite, nonnegative branching fractions that sum
-to one to floating-point precision at every mass node. The malformed pion
-and kaon threshold rows in the older exports, and the artificial strange,
-charm and gluon cutoffs, are absent. No threshold nodes need to be dropped
-from these inputs. Lifetime values are finite and positive throughout.
-
-The installed lifetime and branching-ratio tables use the same mass grid.
-Near thresholds, interpolate
-
-$$
-f_{\rm tot}=\hbar c/c\tau_1
-\quad\text{and}\quad
-f_{\mu\mu}=\operatorname{BR}_{\mu\mu}f_{\rm tot},
-$$
-
-not $c\tau_1$ itself. This preserves positive widths and a branching ratio in
-$[0,1]$. The experimental LHC package in
-`output/lhc_absolute_yield_package` implements and validates this procedure.
+The neutral-kaon contribution contains equal $K_LK_L$ and $K_SK_S$ rates.
+Proton and neutron pairs are separate final states. The selected hadronic
+branching fractions set the total number of events; the
+[hadronic generation model](../../docs/EXHAD.md#model-coverage) determines their
+momenta and composition. Leptonic channels retain their exclusive kinematics.
 
 ## Interpretation of unit coupling
 
 The production table evaluated formally at $\sin\theta=1$ is a quadratic
-normalisation coefficient. Some unit-mixing branching coefficients used to
-construct production exceed one, so it must not be interpreted as a
-physically realisable large-mixing event count. In the small-mixing regime of
-interest, multiply the coefficient by $\sin^2\theta$.
+normalisation coefficient. Multiply that coefficient by $\sin^2\theta$ in the small-mixing regime
+where the calculation applies. Formal unit-mixing coefficients can exceed
+one because they extract the leading quadratic term in this expansion.

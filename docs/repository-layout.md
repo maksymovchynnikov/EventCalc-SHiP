@@ -16,24 +16,26 @@ imports and data paths resolve consistently.
 | `tests/` | Unit tests and numerical validation scripts |
 | `docs/` | Detailed physics, usage and performance guides |
 
-## Updated commands and imports
+## Commands and Python interfaces
 
-| Previous command or import | Current command or import |
+| Task | Command or import |
 | --- | --- |
-| `python runtime_generator.py` | `python -m eventcalc.runtime_generator` |
-| `python weighted_runtime.py` | `python -m eventcalc.weighted_runtime` |
-| `python model_sensitivity.py` | `python -m eventcalc.model_sensitivity` |
-| `python scan_sensitivity.py` | `python -m eventcalc.scan_sensitivity` |
-| `python events_analysis.py` | `python -m eventcalc.analysis.events_analysis` |
-| `python events_pointing_analysis.py` | `python -m eventcalc.analysis.events_pointing_analysis` |
-| `python event_display.py` | `python -m eventcalc.analysis.event_display` |
-| `python analyze_cascade_vs_primary.py` | `python -m eventcalc.analysis.analyze_cascade_vs_primary` |
-| `python plot_event_distributions.py` | `python -m eventcalc.analysis.plot_event_distributions` |
-| `python total-plots.py` | `python -m eventcalc.analysis.total_plots` |
-| `python LLP-two-body-decay.py` | `python examples/llp_two_body_decay.py` |
-| `from runtime_generator import RuntimeModelScan` | `from eventcalc.runtime_generator import RuntimeModelScan` |
-| `from sensitivity import DecayBatch` | `from eventcalc.sensitivity import DecayBatch` |
-| `from production_model import ProductionModel` | `from eventcalc.production.dark_photon import ProductionModel` |
+| Interactive or card-based simulation | `python simulate.py` |
+| Mass and lifetime grid | `python run_batch.py` |
+| Generate event batches | `python -m eventcalc.runtime_generator` |
+| Weighted ALP decays | `python -m eventcalc.weighted_runtime` |
+| Automatic production bands | `python -m eventcalc.model_sensitivity` |
+| General model sensitivity | `python -m eventcalc.scan_sensitivity` |
+| Distributions and acceptance | `python -m eventcalc.analysis.events_analysis` |
+| Daughter pointing | `python -m eventcalc.analysis.events_pointing_analysis` |
+| Event display | `python -m eventcalc.analysis.event_display` |
+| Cascade/primary comparison | `python -m eventcalc.analysis.analyze_cascade_vs_primary` |
+| Parent kinematic distributions | `python -m eventcalc.analysis.plot_event_distributions` |
+| Scan plots | `python -m eventcalc.analysis.total_plots` |
+| Two-body decay example | `python examples/llp_two_body_decay.py` |
+| Scan API | `from eventcalc.runtime_generator import RuntimeModelScan` |
+| Acceptance API | `from eventcalc.sensitivity import DecayBatch` |
+| Full production API | `from eventcalc.production.dark_photon import ProductionModel` |
 
 The default compact distributions live in
 `Distributions/Dark-photons/production/` and
@@ -44,6 +46,3 @@ the checkout. Fetch it with:
 ```sh
 python -m eventcalc.production.dark_photon.datasets fetch --ssh-user YOUR_CERN_USERNAME
 ```
-
-This directory change does not change the tabulated physics, event-weight
-normalization, target description, decay models or uncertainty prescription.

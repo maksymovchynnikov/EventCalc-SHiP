@@ -1,16 +1,17 @@
 # Perfect-reconstruction sensitivities
 
-`sensitivity.py` folds complete LLP decays with the SHiP decay volume and ECAL
+`eventcalc.sensitivity` folds complete LLP decays with the SHiP decay volume and ECAL
 aperture. It computes acceptance with magnetic transport once and integrates the
 exponential decay law over the allowed flight intervals for every lifetime.
-The direct API is exact; the command-line scan uses a reusable interpolated
+For fixed sampled decays, the direct API evaluates the exponential integral
+analytically; the command-line scan uses a interpolated lifetime
 response by default (8192 nodes). Increase this resolution for a tighter
 interpolation tolerance and check it against exact endpoint evaluation.
 Set `response_nodes` to `null` for exact endpoint evaluation. There is no decay-vertex Monte Carlo and no event regeneration per
-coupling value. Reconstruction efficiency is one; this is not a detector
-simulation or a background estimate.
+coupling value. Reconstruction efficiency is one. Detector response and backgrounds require
+separate calculations.
 
-Run the supplied **toy** example from the repository root:
+Run the **toy** example from the repository root:
 
 ```sh
 python -m eventcalc.scan_sensitivity cards/sensitivity_example.json --output /tmp/toy-reach
@@ -40,8 +41,7 @@ its production generator. Supply `DecayBatch` objects containing:
 | `charges` | `[N,K]` charges in units of the positron charge; required when the field is nonzero |
 
 For N unweighted generated decays, a usual event weight is
-`production_per_incident * selected_branching_fraction / N`. The denominator
-is the total sample size, not the chunk size. Importance weights must include
+`production_per_incident * selected_branching_fraction / N`. The denominator is the total sample size across all chunks. Importance weights must include
 their sampling density. Signed weights are supported. Include invisible
 daughters in four-momentum conservation even though their visibility is false.
 The input must describe the full production spectrum, without lifetime-dependent
@@ -69,15 +69,15 @@ squared, one can supply `production_scales=epsilon2` and
 `ctau_m=ctau_at_unit_epsilon2/epsilon2`. This shortcut is valid only when the
 normalized production and decay distributions stay fixed throughout the scan.
 Regenerate inputs when couplings change branching fractions, mediator widths,
-polarization or spectral shapes. Model variations should be separate coherent
-scans, not an integration-error band.
+polarization or spectral shapes. Evaluate each physical variation consistently through production, decay and
+acceptance before comparing its reach with the central prediction.
 
 Primary and cascade batches use the same API; concatenate their correctly
 normalized streams to obtain the total. For inelastic DM the propagated mother
 is the excited state, with its mass, momentum, production position and lifetime.
 Generate the polarized mediator decay in the source provider and include the
 stable dark particle among the invisible daughters of the excited-state decay.
-The acceptance integrator does not change the supplied angular correlations.
+The acceptance integrator does not change the input angular correlations.
 
 ## Selections
 
@@ -114,7 +114,7 @@ Three source types are available:
 - `provider`: `callable` is an importable `module:function`; optional `kwargs`
   are passed along with `replica`. It returns a stream of `DecayBatch` objects.
   This supports any production/decay model, polarized sources and target cascades.
-- `runtime` (copies with `runtime_generator.py`): `card` names an existing EventCalc simulation card, relative to the
+- `runtime`: `card` names an existing EventCalc simulation card, relative to the
   sensitivity card. Set `mass_GeV` at the top level. Optional `events`, `seed`,
   `chunk_size` and `invisible_pdgs` configure the source. The adapter shares
   `RuntimeModelScan`, samples its full tabulated energy range, and uses its
@@ -147,7 +147,7 @@ three-body decays with invisible particles, energy/IP cuts, lab/rest boosts,
 streaming normalization, replica errors and disconnected contours.
 
 With warm compiled kernels, 100,000 complete decays, both ECAL selections and
-241 lifetimes took about 0.21 s (two particles), 0.25 s (four), and 0.32–0.41 s
+241 lifetimes took about 0.21 s (two particles), 0.25 s (four), and 0.32 to 0.41 s
 (eight) on the development machine. These timings include array validation,
 magnetic transport, interval construction and the cached lifetime response.
 They exclude source generation and first-call compilation. Independent
@@ -176,15 +176,12 @@ response with lifetime weights. Empty selections and origins inside the decay
 volume are supported. This interpolation error is distinct from finite event
 statistics and physics uncertainties.
 
-## Calibrated production default
+## Dark photon and inelastic dark matter sensitivity
 
-The default dark-photon source combines primary and cascade production in 33 tungsten disks with 1.33 m total W thickness over 1.46 m including helium
-gaps, using a common radius of 0.25 m. The beam follows a 5 cm ring with
-16 mm Gaussian smearing in each transverse direction. It uses the joint meson/dimuon
-calibration, the fitted Foroughi-Abari proton virtuality prescription, and the
-Drell–Yan continuum with hadron–nucleus normalization. Existing single-collision
-samples are reused. Changing a lifetime, selection or mass does not rerun the
-hadronic shower.
+The [production guide](PRODUCTION_DATA.md) defines the calibrated target model,
+compact inputs and full dataset. One-mass scans use the full calculation with
+correlated positions. Their conservative baseline keeps the small, nonzero
+bremsstrahlung contribution fitted within the single-scale virtuality model.
 
 Run a complete DP or inelastic-DM mass point without HepMC:
 
@@ -193,7 +190,7 @@ python -m eventcalc.model_sensitivity --model dp --mass 1.1 --exhad-root /path/t
 python -m eventcalc.model_sensitivity --model idm --mass 20 --delta 0.1 --exhad-root /path/to/exHad --output /tmp/idm-m20
 ```
 
-The supplied inelastic adapter uses m_A/m_chi=3 and alpha_D=0.1. The generic
+The inelastic parameters follow the [model definition](INELASTIC_DM.md). The generic
 `DecayBatch` interface supports other parameters and models. Each command scans
 the full epsilon-squared grid for the inclusive energy/IP selection and the
 fully contained energy selection and reports
@@ -203,7 +200,7 @@ Use `--central-only` only when a scan without production variations is intended.
 
 The default varies three timelike proton form-factor pairs at the fixed fitted
 Foroughi-Abari virtuality scale, all CT18/MSHT20/NNPDF members and seven scale
-pairs per family, and the Drell–Yan continuum endpoint between 1.75 and 2.5 GeV.
+pairs per family, and the Drell-Yan continuum endpoint between 1.75 and 2.5 GeV.
 The same choice applies to every primary and cascade collision and throughout
 the inelastic virtual-mass integral. For inelastic DM, form-factor variations
 also update the mediator polarization weight. Decay kinematics and accepted
@@ -213,10 +210,10 @@ the accepted energy and angular spectra on both lifetime branches.
 The calculation first sums accepted yields for each variation. It then forms
 the PDF intervals: asymmetric Hessian errors for CT18 (converted from 90% to
 68%) and MSHT20, and 16th/84th replica percentiles for NNPDF. It envelopes these
-with the scale, family, form-factor and transition choices. This prescription
-matches the manuscript; it is not a joint statistical confidence interval.
+with the scale, family, form-factor and transition choices. The result spans these specified production choices; the individual PDF error
+conventions apply within each family.
 Alternative virtuality models, heavier fragmentation excitations, nuclear and
-shower modeling, source-pool statistics, and reconstruction remain outside it.
+shower modeling, finite production-sample statistics, and reconstruction remain outside it.
 
 `events.npz` contains:
 
@@ -224,7 +221,7 @@ shower modeling, source-pool statistics, and reconstruction remain outside it.
   production-envelope yields, after summing primary and cascade production;
 - `fixed_events`, `brem_variation_events`, `dy_variation_events`: the unvaried
   contribution, three form-factor choices, and `[transition, PDF/scale, epsilon2,
-  selection]` Drell–Yan contributions, respectively;
+  selection]` Drell-Yan contributions, respectively;
 - `integration_error_events` and component variation integration errors:
   numerical errors across independent replicas, separate from production bands.
 
@@ -258,17 +255,6 @@ python -m unittest discover -s tests -p test_production_bands.py -v
 python tests/validate_production_variations.py
 ```
 
-Modern simulation cards select the older fluxes only with an explicit
-`dp_production_mode: legacy-primary` (or `legacy-cascade`, `legacy-combined`,
-`legacy-brem-cascade`), together with `uncertainty: lower`, `central` or `upper`.
-The interactive launcher exposes the older choices when
-`EVENTCALC_DP_PRODUCTION=legacy` is set. All five copies now use the current
-runtime, with the same production provider, NPZ interface, and one-mass
-`model_sensitivity.py` command.
-Neither production representation silently falls back to old distributions if
-its inputs are absent. Compatibility tables marginalize the collision position and
-azimuth. Ordinary calibrated `simulate.py`, `run_batch.py` and `runtime_generator.py`
-use these compact tables. Their explicit `correlated` option, the direct
-`ProductionModel` provider and `model_sensitivity.py` use the full EOS dataset.
-Automatic uncertainty bands on both boundaries remain part of that full scan;
-compact central-only tables do not imply zero production uncertainty.
+Compact production tables contain the central prediction. A generic scan using
+those tables must receive additional physical variations to produce uncertainty
+bands. The complete one-mass commands above perform this propagation automatically.
