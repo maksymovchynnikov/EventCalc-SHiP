@@ -20,7 +20,7 @@ Override yield_per_incident for another explicitly chosen normalization.
 All selected decay branching fractions are included exactly once. Invisible
 new particles must be named in invisible_pdgs in addition to neutrinos.
 """
-    from eventcalc.runtime_generator import _ProductionInverseCDF
+    from eventcalc.runtime_generator import _production_cdf
     for n in (events, chunk_size):
         if isinstance(n, bool) or int(n) != n or n <= 0:
             raise ValueError('events and chunk_size must be positive integers')
@@ -64,9 +64,16 @@ new particles must be named in invisible_pdgs in addition to neutrinos.
                 charges=charges_from_pdg(products[:,:,5],visible=visible))
         return
     grid = copy.copy(generator._grid)
-    grid.survival_energy_floor = 0.
-    grid.theta_max = min(float(grid.Distr[1].max()), float(grid.grid_a[-1]))
-    cdf = _ProductionInverseCDF(grid)
+    components = [grid]
+    if grid.production_mixture is not None:
+        grid._mixture_components = tuple(
+            (label, source_yield, copy.copy(component))
+            for label, source_yield, component in grid._mixture_components)
+        components = [component for _, _, component in grid._mixture_components]
+    for component in components:
+        component.survival_energy_floor = 0.
+        component.theta_max = min(float(component.Distr[1].max()), float(component.grid_a[-1]))
+    cdf = _production_cdf(grid)
     production = generator.llp.Yield if yield_per_incident is None else yield_per_incident
     if not np.isfinite(production) or production < 0:
         raise ValueError('Invalid production normalization')

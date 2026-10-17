@@ -567,6 +567,9 @@ def _validate_installed_files(config: SimulationConfig) -> None:
     missing = []
     for name in required:
         path = _model_file(model_dir, name, config.scalar_prescription)
+        if path.name.startswith("DoubleDistr-"):
+            from .production_tables import distribution_path
+            path = distribution_path(path)
         if not path.is_file():
             try:
                 missing.append(str(path.relative_to(config.project_root)))
@@ -589,7 +592,9 @@ def _validate_installed_files(config: SimulationConfig) -> None:
             distributions / "ALP-photon" / "Emax-ALP-photon_cascades.txt",
             distributions / "ALP-photon" / "Total-yield-ALP-photon_cascades.txt",
         )
-        missing_sources = [str(path.relative_to(config.project_root)) for path in source_files if not path.is_file()]
+        from .production_tables import distribution_path
+        missing_sources = [str(path.relative_to(config.project_root)) for path in source_files
+                           if not (distribution_path(path) if path.name.startswith("DoubleDistr-") else path).is_file()]
         if missing_sources:
             raise ConfigurationError(
                 "Model ALP-mixed is missing installed source table(s): "

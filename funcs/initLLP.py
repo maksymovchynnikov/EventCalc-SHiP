@@ -4,8 +4,9 @@ import os
 import re  # Added for regex operations
 import numpy as np
 import pandas as pd
-from funcs import ALPmerging, HNLmerging
+from funcs import ALPmerging, HNLmerging, PDG
 from funcs import coupling_conventions
+from funcs.production_tables import read_distribution
 from funcs.alp_fermion import (build_br_interpolator, load_exhad_boundaries,
                                prepare_decay_rows)
 from funcs.kinematics import ProductionMixture
@@ -74,7 +75,7 @@ def _normalize_dp_production_mode(mode):
 
 
 def _read_production_tables(distribution_path, energy_path, yield_path):
-    distribution = pd.read_csv(distribution_path, header=None, sep="\t")
+    distribution = read_distribution(distribution_path)
     maximum_energy = pd.read_csv(energy_path, header=None, sep="\t")
     yield_data = pd.read_csv(yield_path, header=None, sep="\t")
     masses = yield_data.iloc[:, 0].to_numpy()
@@ -301,6 +302,8 @@ class LLP:
         changes intentionally leave the revision untouched, allowing the
         expensive dense grids to be reused throughout a fixed-source scan.
         """
+        # Shallow-copied mass points can share a revision, but not a new source.
+        self._kinematics_cache_namespace = object()
         self._kinematics_source_revision += 1
 
     def kinematics_cache_token(self):
@@ -477,7 +480,7 @@ class LLP:
             raise FileNotFoundError(
                 f"Scalar BrRatio table not found: {decay_json_path}")
 
-        self.Distr = pd.read_csv(distribution_file_path, header=None, sep="\t")
+        self.Distr = read_distribution(distribution_file_path)
         self.Energy_distr = pd.read_csv(energy_file_path, header=None, sep="\t")
         self.Yield_data = pd.read_csv(yield_path, header=None, sep="\t")
         self.ctau_data = _load_scalar_ctau_json(ctau_path)
@@ -625,7 +628,7 @@ class LLP:
         decay_json_path = os.path.join(
             self.particle_path, "ALP-fermion-decay.json")
 
-        self.Distr = pd.read_csv(distribution_file_path, header=None, sep="\t")
+        self.Distr = read_distribution(distribution_file_path)
         self.Energy_distr = pd.read_csv(energy_file_path, header=None, sep="\t")
         self.Yield_data = pd.read_csv(yield_path, header=None, sep="\t")
         self.ctau_data = pd.read_csv(ctau_path, header=None, sep="\t")
@@ -677,7 +680,7 @@ class LLP:
         ctau_path = os.path.join(self.particle_path, "ctau-ALP-SU2L.txt")
         decay_json_path = os.path.join(self.particle_path, "ALP-SU2L-decay.json")
 
-        self.Distr = pd.read_csv(distribution_file_path, header=None, sep="\t")
+        self.Distr = read_distribution(distribution_file_path)
         self.Energy_distr = pd.read_csv(energy_file_path, header=None, sep="\t")
         self.Yield_data = pd.read_csv(yield_path, header=None, sep="\t")
         self.ctau_data = pd.read_csv(ctau_path, header=None, sep="\t")
@@ -821,8 +824,7 @@ class LLP:
                     production_path, f"Emax-DP-{suffix}.txt")
                 yield_path = os.path.join(
                     production_path, f"Total-yield-DP-{suffix}.txt")
-                self.Distr = pd.read_csv(
-                    distribution_file_path, header=None, sep="\t")
+                self.Distr = read_distribution(distribution_file_path)
                 self.Energy_distr = pd.read_csv(
                     energy_file_path, header=None, sep="\t")
                 self.Yield_data = pd.read_csv(
@@ -924,7 +926,7 @@ class LLP:
             return self.create_Msquared_triple_functions(
                 self.func_e, self.func_mu, self.func_tau,
                 Ue2, Umu2, Utau2,
-                self.DWe_func, self.DWmu_func, self.DWtau_func
+                self.DWe_func, self.DWmu_func, self.DWtau_func, mass=m
             )
         self.get_MatrixElements = get_MatrixElements
 
@@ -1042,22 +1044,35 @@ class LLP:
             Msquared_list.append(MsqFactory(f_))
         return Msquared_list
 
-    def create_Msquared_triple_functions(self, func_e, func_mu, func_tau, Ue2, Umu2, Utau2, DWe_func, DWmu_func, DWtau_func):
+    def create_Msquared_triple_functions(self, func_e, func_mu, func_tau, Ue2, Umu2, Utau2, DWe_func, DWmu_func, DWtau_func, *, mass):
+        weights = np.array([Ue2 * DWe_func(mass), Umu2 * DWmu_func(mass),
+                            Utau2 * DWtau_func(mass)])
         Msquared_list = []
-        for fe_, fmu_, ftau_ in zip(func_e, func_mu, func_tau):
-            def MsqFactory(fe_, fmu_, ftau_):
+        for index, functions in enumerate(zip(func_e, func_mu, func_tau)):
+            coefficients = weights.copy()
+            pdgs = [int(p) for p in self.PDGs[index] if int(p) != -999]
+            if len(pdgs) == 3 and all(11 <= abs(p) <= 16 for p in pdgs):
+                partials = weights * np.array([
+                    np.interp(mass, np.asarray(self.BrRatios_raw[a][index])[:, 0],
+                              np.asarray(self.BrRatios_raw[a][index])[:, 1])
+                    for a in range(3)])
+                if (mass > sum(PDG.get_mass(p) for p in pdgs)
+                        and np.count_nonzero(partials) > 1):
+                    # Mix normalized shapes with channel partial widths,
+                    # as in SensCalc's pure-flavour acceptance mixture.
+                    norms = HNLmerging.leptonic_shape_integrals(mass, pdgs, functions)
+                    if np.any((partials > 0) & ((norms <= 0) | ~np.isfinite(norms))):
+                        raise ValueError("Open HNL channel has a zero matrix-element integral")
+                    coefficients = np.divide(partials, norms, out=np.zeros(3), where=norms > 0)
+                    coefficients /= coefficients.max()
+            def MsqFactory(functions, coefficients):
                 def Msquared3BodyLLP(m_val, E_1_val, E_3_val,
                                      m1_val=0., m2_val=0., m3_val=0.):
                     args = (m_val, E_1_val, E_3_val, m1_val, m2_val, m3_val)
-                    val_e = fe_(*args) if fe_ is not None else 0.0
-                    val_mu = fmu_(*args) if fmu_ is not None else 0.0
-                    val_tau = ftau_(*args) if ftau_ is not None else 0.0
-                    DWe = DWe_func(m_val)
-                    DWmu = DWmu_func(m_val)
-                    DWtau = DWtau_func(m_val)
-                    return Ue2 * DWe * val_e + Umu2 * DWmu * val_mu + Utau2 * DWtau * val_tau
+                    return sum(c * f(*args) for c, f in zip(coefficients, functions)
+                               if c != 0 and f is not None)
                 return Msquared3BodyLLP
-            Msquared_list.append(MsqFactory(fe_, fmu_, ftau_))
+            Msquared_list.append(MsqFactory(functions, coefficients))
         return Msquared_list
 
     def print_matrix_elements(self):

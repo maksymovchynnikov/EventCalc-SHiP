@@ -34,7 +34,8 @@ from funcs.simulation_config import (
     config_from_mapping,
     load_card,
 )
-from simulate import _load_runtime, _make_llp, _mass_is_tabulated
+from simulate import _load_runtime, _make_llp
+from funcs.LLP_selection import validate_masses_in_domain
 from eventcalc.production.dark_photon.runtime import CollisionSource, uses_full_source
 
 
@@ -321,6 +322,10 @@ def _sample_linear_density(
     return np.clip(result, 0.0, 1.0)
 
 
+class _NoProduction(ValueError):
+    """A valid source has no support in the requested sampling region."""
+
+
 class _ProductionInverseCDF:
     """Direct sampler for the tabulated density at one mass and lifetime.
 
@@ -428,6 +433,8 @@ class _ProductionInverseCDF:
         cell_mass = np.maximum(cell_mass, 0.0)
         flat_mass = cell_mass.reshape(-1)
         total = float(flat_mass.sum())
+        if total == 0.0:
+            raise _NoProduction("inverse-CDF production density has zero integral")
         if not math.isfinite(total) or total <= 0.0:
             raise ValueError("inverse-CDF production density has zero integral")
 
@@ -463,7 +470,7 @@ class _ProductionInverseCDF:
         maximum = self._max_energy(scan_theta)
         is_open = maximum >= self.energy_floor
         if not is_open.any():
-            raise ValueError(
+            raise _NoProduction(
                 "no LLP of mass %g GeV is produced in the requested angular "
                 "interval: the tabulated maximum energy reaches %g GeV, below "
                 "the sampling floor %g GeV"
@@ -502,7 +509,9 @@ class _ProductionInverseCDF:
     def sample(
         self, count: int, rng: np.random.Generator
     ) -> tuple[np.ndarray, np.ndarray]:
-        unit = rng.random((count, 3))
+        return self._sample_unit(rng.random((count, 3)))
+
+    def _sample_unit(self, unit: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         targets = unit[:, 0] * self.integral
         flat_index = np.searchsorted(self.cdf, targets, side="right")
         flat_index = np.minimum(flat_index, len(self.cdf) - 1)
@@ -537,6 +546,54 @@ class _ProductionInverseCDF:
         return theta, energy
 
 
+class _MixtureInverseCDF:
+    """Add sources on their native grids, with weights Y_i * acceptance_i."""
+
+    def __init__(self, grid: Any, **options) -> None:
+        self.components = []
+        weights = []
+        for label, source_yield, component in grid._mixture_components:
+            try:
+                sampler = _ProductionInverseCDF(component, **options)
+            except _NoProduction:
+                continue
+            self.components.append((label, sampler))
+            weights.append(source_yield * sampler.integral)
+        weights = np.asarray(weights, dtype=float)
+        total = float(weights.sum())
+        if not math.isfinite(total) or total <= 0.0:
+            raise _NoProduction("combined production sources have zero polar acceptance")
+        self.integral = total / grid._mixture_total_yield
+        self.cell_count = sum(cdf.cell_count for _, cdf in self.components)
+        self.cdf = np.cumsum(weights / total)
+        self.cdf[-1] = 1.0
+
+    def sample(self, count: int, rng: np.random.Generator):
+        # Split the first uniform between source and cell selection. Every
+        # parent still uses three uniforms, independently of batch boundaries.
+        unit = rng.random((count, 3))
+        sources = np.searchsorted(self.cdf, unit[:, 0], side="right")
+        theta, energy = np.empty(count), np.empty(count)
+        lower = 0.0
+        for index, (_, sampler) in enumerate(self.components):
+            mask = sources == index
+            if mask.any():
+                local = unit[mask].copy()
+                local[:, 0] = np.minimum(
+                    (local[:, 0] - lower) / (self.cdf[index] - lower),
+                    np.nextafter(1.0, 0.0),
+                )
+                theta[mask], energy[mask] = sampler._sample_unit(local)
+            lower = self.cdf[index]
+        return theta, energy
+
+
+def _production_cdf(grid: Any, **options):
+    if grid.production_mixture is not None:
+        return _MixtureInverseCDF(grid, **options)
+    return _ProductionInverseCDF(grid, **options)
+
+
 class RuntimeModelScan:
     """Shared model state for many mass--lifetime runtime generators.
 
@@ -561,7 +618,7 @@ class RuntimeModelScan:
         self._collision_sources: dict[float, Any] = {}
         self._production_provider = None
         self._grid_templates: dict[tuple[int, int], Any] = {}
-        self._cdf_cache: dict[tuple[float, float, int, int], _ProductionInverseCDF] = {}
+        self._cdf_cache: dict[tuple[float, float, int, int], Any] = {}
         self._initialized = False
 
     def init(self) -> bool:
@@ -574,16 +631,12 @@ class RuntimeModelScan:
 
     def _mass_template(self, mass: float) -> Any:
         self.init()
-        mass = float(mass)
+        mass = validate_masses_in_domain(
+            [mass], self._llp_template.m_min_tabulated,
+            self._llp_template.m_max_tabulated)[0]
         cached = self._mass_templates.get(mass)
         if cached is not None:
             return cached
-        if not _mass_is_tabulated(mass, self._llp_template):
-            raise ValueError(
-                f"mass {mass:g} GeV lies outside the installed range "
-                f"[{self._llp_template.m_min_tabulated:g}, "
-                f"{self._llp_template.m_max_tabulated:g}] GeV"
-            )
         llp = copy.copy(self._llp_template)
         llp.set_mass(mass)
         llp.compute_mass_dependent_properties()
@@ -605,7 +658,7 @@ class RuntimeModelScan:
 
     def _compiled_point(
         self, mass: float, c_tau: float
-    ) -> tuple[Any, Any, _ProductionInverseCDF]:
+    ) -> tuple[Any, Any, Any]:
         mass_template = self._mass_template(mass)
         llp = copy.copy(mass_template)
         llp.set_c_tau(float(c_tau))
@@ -616,7 +669,9 @@ class RuntimeModelScan:
 
         grid_key = (id(llp.Distr), id(llp.Energy_distr))
         grid_template = self._grid_templates.get(grid_key)
-        if grid_template is None:
+        # Mixture components have mass-dependent yields and point-specific
+        # energy bounds. Rebuild their wrappers, reusing the dense source grids.
+        if grid_template is None or grid_template.production_mixture is not None:
             grid_template = self.runtime.kinematics.Grids(
                 Distr=llp.Distr,
                 Energy_distr=llp.Energy_distr,
@@ -632,11 +687,12 @@ class RuntimeModelScan:
             self._grid_templates[grid_key] = grid_template
 
         grid = copy.copy(grid_template)
-        grid.m = float(mass)
+        grid.m = float(llp.mass)
         grid.c_tau = float(c_tau)
-        grid.theta_max = min(
-            float(grid.Distr[1].max()), self.experiment.theta_max_rad
-        )
+        if grid.production_mixture is None:
+            grid.theta_max = min(
+                float(grid.Distr[1].max()), self.experiment.theta_max_rad
+            )
         grid.survival_energy_floor = (
             self.experiment.z_min_m / self.experiment.survival_cutoff
         )
@@ -644,7 +700,7 @@ class RuntimeModelScan:
         cdf_key = (float(mass), float(c_tau), *grid_key)
         cdf = self._cdf_cache.get(cdf_key)
         if cdf is None:
-            cdf = _ProductionInverseCDF(grid)
+            cdf = _production_cdf(grid)
             self._cdf_cache[cdf_key] = cdf
         return llp, grid, cdf
 
@@ -762,16 +818,13 @@ class RuntimeEventGenerator:
         else:
             self.runtime = _load_runtime(headless=True)
             self.llp = _make_llp(self.runtime, self.config)
-            if not _mass_is_tabulated(self.mass, self.llp):
-                raise ValueError(
-                    f"mass {self.mass:g} GeV lies outside the installed range "
-                    f"[{self.llp.m_min_tabulated:g}, "
-                    f"{self.llp.m_max_tabulated:g}] GeV"
-                )
-
+            self.mass = validate_masses_in_domain(
+                [self.mass], self.llp.m_min_tabulated,
+                self.llp.m_max_tabulated)[0]
             self.llp.set_mass(self.mass)
             self.llp.compute_mass_dependent_properties()
             self.llp.set_c_tau(self.c_tau)
+        self.mass = float(self.llp.mass)
         if uses_full_source(self.config):
             from eventcalc.production.dark_photon.compact import CompactSource
             source_class = CompactSource if self.config.production_backend == "compact" else CollisionSource
@@ -816,7 +869,7 @@ class RuntimeEventGenerator:
                 ),
                 cache_token=self.llp.kinematics_cache_token(),
             )
-            self._production_cdf = _ProductionInverseCDF(self._grid)
+            self._production_cdf = _production_cdf(self._grid)
         parent_seed, vertex_seed = np.random.SeedSequence(
             self.resolved_seed
         ).spawn(2)

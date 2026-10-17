@@ -24,6 +24,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from scipy.interpolate import RegularGridInterpolator
+from .production_tables import read_distribution
 
 
 ALPHA_EM = 1.0 / 137.035999177
@@ -294,9 +295,7 @@ def build_mixed_tables(
     photon_directory = root / "ALP-photon"
     source_ratio = flavor_to_photon_ratio(xi, interference)
 
-    distribution = pd.read_csv(
-        su2_directory / "DoubleDistr-ALP-SU2L.txt", header=None, sep="\t"
-    )
+    distribution = read_distribution(su2_directory / "DoubleDistr-ALP-SU2L.txt")
     emax = pd.read_csv(
         su2_directory / "Emax-ALP-SU2L.txt", header=None, sep="\t"
     )
