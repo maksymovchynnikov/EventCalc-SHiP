@@ -74,7 +74,7 @@ integrates the virtual pair mass and mediator polarization. The
 `inelasticDM.produce` helper describes decay of an on-shell mediator whose
 momenta are supplied by the caller.
 
-For a complete uncertainty scan with the full EOS dataset:
+For a complete uncertainty scan with the full production dataset:
 
 ```sh
 python -m eventcalc.model_sensitivity --model idm --mass 20 --delta .05 --output /tmp/idm20

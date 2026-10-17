@@ -65,36 +65,40 @@ at $\Delta=0.05$, for `Inelastic-DM`. This comparison isolates the production
 position approximation. Table discretization and production uncertainties
 require separate checks.
 
-## Full dataset on EOS
+## Full production dataset
 
 The full samples include correlated collision positions, momenta and the
 weights needed to vary proton form factors, parton distribution functions and
-QCD scales. The archive is about 1.24 GB, or 1.41 GB after extraction:
-
-```
-/eos/home-o/ovchynni/EventCalc-SHiP/production/20261016-v1/eventcalc-production-20261016-v1.tar.gz
-```
-
-CERN access to that path is required. With an authenticated account, run:
+QCD scales. They are supplied separately and are not needed for ordinary event
+generation. Ask the maintainers for a compatible archive if you need correlated
+production or production-uncertainty scans. The archive is about 1.24 GB, or
+1.41 GB after extraction. Install it outside the source directory:
 
 ```sh
-python -m eventcalc.production.dark_photon.datasets fetch --ssh-user YOUR_CERN_USERNAME
+python -m eventcalc.production.dark_photon.datasets install --archive /path/to/production-data.tar.gz --destination /tmp/eventcalc-production-data
+python -m eventcalc.production.dark_photon.datasets verify --destination /tmp/eventcalc-production-data
+export EVENTCALC_PRODUCTION_DATA=/tmp/eventcalc-production-data
 ```
 
-Use `--ssh-control-path PATH` for an existing shared SSH connection. For an
-archive copied separately:
+Installation checks the archive and every extracted file against the checksums
+in `eventcalc/production/dark_photon/dataset.json`. A mismatched archive is
+rejected. If the provider gives a remote archive path, the same checked
+installation is available through:
 
 ```sh
-python -m eventcalc.production.dark_photon.datasets install --archive /path/to/eventcalc-production-20261016-v1.tar.gz
-python -m eventcalc.production.dark_photon.datasets verify
+python -m eventcalc.production.dark_photon.datasets fetch --source USER@HOST:/path/to/production-data.tar.gz --destination /tmp/eventcalc-production-data
 ```
 
-Checksums in `eventcalc/production/dark_photon/dataset.json` verify the archive
-and extracted files. The default destination is
-`$XDG_CACHE_HOME/eventcalc-ship/production/20261016-v1`, or
-`~/.cache/eventcalc-ship/production/20261016-v1` when `XDG_CACHE_HOME` is unset.
-All checkouts can share it. `EVENTCALC_PRODUCTION_DATA` selects another verified
-extracted dataset. Ordinary generation does not download data automatically.
+Use `--ssh-control-path PATH` to reuse an authenticated SSH connection. No server
+or private account is assumed. `EVENTCALC_PRODUCTION_DATA` selects the extracted
+dataset; all checkouts can share that location while it is in use. Ordinary
+generation does not download additional data automatically.
+
+After the calculation, remove the temporary extracted dataset and any downloaded
+archive, and unset `EVENTCALC_PRODUCTION_DATA`. Do not put full production samples,
+per-event uncertainties or generated event outputs into Git, release archives or
+copies of the source tree. Keep useful large results in separate storage and
+delete disposable test outputs; retain the test code and small fixtures.
 
 Select `--production-backend correlated` in either launcher, or
 `production_backend: correlated` in a card, to preserve momentum-position

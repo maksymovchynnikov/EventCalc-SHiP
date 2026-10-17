@@ -47,7 +47,7 @@ explains mediator-mass inputs and excited-state lifetimes.
 
 `Inelastic-DM` requires exHad with its inelastic decay module. Follow the
 [exHad installation guide](EXHAD.md). Full production samples for correlated
-positions and uncertainty scans have a separate [EOS installation](PRODUCTION_DATA.md#full-dataset-on-eos).
+positions and uncertainty scans require [additional production data](PRODUCTION_DATA.md#full-production-dataset).
 
 The code runs on Linux and macOS. Create an environment and install the
 declared dependencies:
@@ -329,7 +329,7 @@ chunks of `EVENT_WRITE_CHUNK_SIZE` rows (default 10000).
 
 For `Dark-photons` and `Inelastic-DM`, `eventcalc.runtime_generator` samples
 the compact tables by default. `production_backend: correlated` opts into the
-full EOS source and preserves production origins in each batch. The interface
+full production source and preserves production origins in each batch. The interface
 initializes the chosen model once, constructs a two-dimensional inverse CDF
 for the tabulated $(\theta,E)$ density, and then offers `next()`,
 `next_event()`, `generate()`, `yields()` and `stat()`. It works for every

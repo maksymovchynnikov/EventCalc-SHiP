@@ -47,8 +47,8 @@ in mass, angle and energy, including primary collisions and the target cascade.
 Their propagation uses a point source at the target front face. The
 [production guide](docs/PRODUCTION_DATA.md) gives the calibration, target geometry,
 coverage and numerical check of that approximation. Full samples with correlated
-collision positions and production variations are available separately on CERN
-EOS. Installation is explicit; ordinary event generation uses the tables in Git.
+collision positions and production variations are supplied separately.
+Installation is explicit; ordinary event generation uses the bundled tables.
 
 After [configuring exHad](docs/EXHAD.md), generate excited dark matter decays with:
 
@@ -62,7 +62,7 @@ refer to the excited state. See the [inelastic model guide](docs/INELASTIC_DM.md
 
 ## Acceptance and sensitivity
 
-With the optional EOS dataset installed:
+With the optional full production dataset installed:
 
 ```sh
 python -m eventcalc.model_sensitivity --model dp --mass 1.8 --output results/dp-1.8
@@ -81,7 +81,7 @@ calculations with other production and decay generators, directly in memory.
 
 - [Running simulations and reading outputs](docs/user-guide.md)
 - [Models and couplings](docs/models.md); [physics inputs and sampling](docs/DETAILS.md)
-- [Production distributions and EOS data](docs/PRODUCTION_DATA.md)
+- [Production distributions and additional data](docs/PRODUCTION_DATA.md)
 - [Inelastic dark matter](docs/INELASTIC_DM.md)
 - [Acceptance and sensitivity](docs/SENSITIVITY.md)
 - [Hadronic event generation](docs/EXHAD.md); [decay models](docs/EXHAD-MODELS.md)

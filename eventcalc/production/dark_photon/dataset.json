@@ -306,7 +306,5 @@
     "uncertainties/reweighting_provenance.json": "df8a5ce2f2c0f3e94bc390cce6ce09a1befbf6a97b13a28826d8a3706c11f88b",
     "uncertainties/source_provenance.json": "5660bfdac5b78136fe8cec6ad562dc50c002094e06b1110c102d9f4cbe3a2a5d"
   },
-  "eos_path": "/eos/home-o/ovchynni/EventCalc-SHiP/production/20261016-v1/eventcalc-production-20261016-v1.tar.gz",
-  "ssh_host": "lxplus.cern.ch",
   "shower_sha256": "f8eaa5e0de16f35537ce0f75b4bfa6150175b545063046545bbbce4b680e77da"
 }

@@ -368,7 +368,7 @@ def parse_args():
                     choices=list(SCALAR_PRESCRIPTIONS),
                     help="Scalar decay-table prescription (default for the "
                          "scalar models: %s)." % DEFAULT_SCALAR_PRESCRIPTION)
-    ap.add_argument("--production-backend",choices=["compact","correlated"],default="compact",help="Compact tables (default) or correlated EOS data")
+    ap.add_argument("--production-backend",choices=["compact","correlated"],default="compact",help="Compact tables (default) or separately supplied correlated data")
     ap.add_argument("--idm-delta", type=float, default=.1,
                     help="Inelastic-DM splitting; masses are mediator masses, ctaus are chi-prime lifetimes.")
     ap.add_argument("--production-power", type=int, default=15,
