@@ -1,4 +1,4 @@
-"""Compact sampling preserves normalization and works without the EOS dataset."""
+"""Compact sampling preserves normalization and works without the full dataset."""
 from pathlib import Path
 from unittest.mock import patch
 import tempfile, unittest, numpy as np

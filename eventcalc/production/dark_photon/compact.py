@@ -1,4 +1,4 @@
-"""Direct sampling of compact mass-angle-energy tables, independent of full EOS data."""
+"""Direct sampling of compact mass-angle-energy tables, independent of full production data."""
 from functools import lru_cache
 from pathlib import Path
 from types import SimpleNamespace

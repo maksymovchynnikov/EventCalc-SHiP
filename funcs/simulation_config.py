@@ -980,7 +980,7 @@ def build_argument_parser() -> argparse.ArgumentParser:
                         choices=("primary", "cascade", "cascades", "combined"))
     parser.add_argument("--dp-production-mode", "--dp-production", dest="dp_production_mode",
                         choices=tuple(_DP_PRODUCTION_MODES))
-    parser.add_argument("--production-backend", choices=["compact","correlated"], help="Production representation: compact tables (default) or optional correlated EOS data")
+    parser.add_argument("--production-backend", choices=["compact","correlated"], help="Production representation: compact tables (default) or separately supplied correlated data")
     parser.add_argument("--idm-delta", type=float, help="Inelastic-DM splitting (m_chi_prime-m_chi)/m_chi; default 0.1")
     parser.add_argument("--production-power", type=int, help="Full-source integration: 2**power points per channel, cached across lifetimes (default 15)")
     parser.add_argument("--xi", type=float, help="ALP-mixed SU(2)_L operator fraction in [0, 1]")

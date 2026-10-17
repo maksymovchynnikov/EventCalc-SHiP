@@ -123,7 +123,7 @@ Three source types are available:
   before `production_scales`; `yield_per_incident` overrides it. This adapter
   uses compact tables and a point source for calibrated dark photons and
   inelastic DM by default. Select `production_backend: correlated` in the model
-  card to preserve collision positions and signed weights from the EOS dataset. For inelastic DM, `mass_GeV` is the
+  card to preserve collision positions and signed weights from the full production dataset. For inelastic DM, `mass_GeV` is the
   mediator mass; the adapter uses the actual chi-prime mass in transport. There, `events` selects integration points per production
   contribution, rounded up to a power of two. Other installed models use the
   existing unweighted, point-source runtime. Use providers for their displaced
@@ -234,7 +234,7 @@ components stay separate. Null interval endpoints indicate open scan boundaries;
 null boundary ranges indicate missing reach or ambiguous component matching.
 The code never closes a contour by extrapolating outside the scan.
 
-The one-mass uncertainty command uses the full production dataset on EOS.
+The one-mass uncertainty command uses the separately supplied full production dataset.
 Install it once with the command in [PRODUCTION_DATA.md](PRODUCTION_DATA.md).
 PDF ratios and exact hard-event identities reside in its `uncertainties/`
 subdirectory; no LHAPDF installation or manuscript directory is needed at runtime. Memory-mapped weight chunks are below 32 MB

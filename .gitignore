@@ -34,7 +34,7 @@ tests/dNevdEa-*.txt
 # Personal machine-specific launcher; documented Python commands are portable.
 /run_local.sh
 
-# Full production samples are versioned on CERN EOS, never in a checkout.
+# Full production samples are stored separately, never in a checkout.
 /production_model/data/results/
 /production_model/data/uncertainties/
 /production_model/data/reference_curves/
@@ -47,3 +47,11 @@ tests/dNevdEa-*.txt
 /Distributions/*/production/mass-points/
 /Distributions/*/export-cache-*/
 /eventcalc/production/dark_photon/data/
+
+# Large temporary downloads.
+/*.bundle
+/eventcalc-production-*.tar*
+/production-data/
+/local-data/
+/Tests/photon-files/
+/Tests/outputs/

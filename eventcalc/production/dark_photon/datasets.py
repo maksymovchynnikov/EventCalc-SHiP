@@ -1,4 +1,4 @@
-"""Versioned full production data stored on EOS, outside the source checkout."""
+"""Install and verify separately supplied full production data."""
 from pathlib import Path
 import argparse, hashlib, json, os, shutil, subprocess, tarfile, tempfile
 
@@ -16,7 +16,9 @@ def resolve_full_data(path=None):
     if not (root/'results/idm_production/sources/provenance.json').is_file():
         raise FileNotFoundError(f'Full production data are not installed at {root}. '
             'Ordinary simulations use the bundled compact tables. For correlated production '
-            'or uncertainty scans, run: python -m eventcalc.production.dark_photon.datasets fetch --ssh-user YOUR_CERN_USERNAME; '
+            'or uncertainty scans, run python -m eventcalc.production.dark_photon.datasets install '
+            '--archive PATH, or python -m eventcalc.production.dark_photon.datasets fetch '
+            '--source USER@HOST:/path/to/archive; '
             'or set EVENTCALC_PRODUCTION_DATA to an extracted dataset.')
     return root
 
@@ -52,7 +54,8 @@ def install_archive(archive,destination=None):
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('action',choices=['fetch','install','verify','path'])
     p.add_argument('--archive',type=Path);p.add_argument('--destination',type=Path)
-    p.add_argument('--ssh-user');p.add_argument('--ssh-control-path')
+    p.add_argument('--source',help='Archive path or USER@HOST:/path supplied by the dataset provider')
+    p.add_argument('--ssh-control-path')
     a=p.parse_args();spec=dataset();destination=a.destination or cache_root()
     if a.action=='path':print(destination);return
     if a.action=='verify':print(verify(destination));return
@@ -60,10 +63,10 @@ def main():
         if a.archive is None:p.error('--archive is required for install')
         print(install_archive(a.archive,destination));return
     if destination.exists():print(verify(destination));return
-    host=(a.ssh_user+'@' if a.ssh_user else '')+spec['ssh_host']
+    if not a.source:p.error('--source is required for fetch')
     with tempfile.TemporaryDirectory(prefix='eventcalc-download-') as temp:
         archive=Path(temp)/spec['archive'];cmd=['scp']
         if a.ssh_control_path:cmd+=['-o','ControlPath='+a.ssh_control_path]
-        cmd += [host+':'+spec['eos_path'],str(archive)]
+        cmd += ['--',a.source,str(archive)]
         subprocess.run(cmd,check=True);print(install_archive(archive,destination))
 if __name__=='__main__':main()
