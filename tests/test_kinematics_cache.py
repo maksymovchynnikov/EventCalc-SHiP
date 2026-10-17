@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Contracts for explicit, revisioned kinematics-grid reuse."""
 
+import copy
 import os
 import sys
 import unittest
@@ -121,6 +122,15 @@ class KinematicsCacheTest(unittest.TestCase):
         llp._replace_kinematics_distribution(replacement)
         self.assertNotEqual(llp.kinematics_cache_token(), initial)
         self.assertIs(llp.Distr, replacement)
+
+    def test_shallow_copied_mass_points_get_distinct_source_tokens(self):
+        base = initLLP.LLP.__new__(initLLP.LLP)
+        base._kinematics_cache_namespace = object()
+        base._kinematics_source_revision = 0
+        first, second = copy.copy(base), copy.copy(base)
+        first._replace_kinematics_distribution(_source_frames(1.)[0])
+        second._replace_kinematics_distribution(_source_frames(2.)[0])
+        self.assertNotEqual(first.kinematics_cache_token(), second.kinematics_cache_token())
 
 
 if __name__ == "__main__":

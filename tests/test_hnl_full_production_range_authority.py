@@ -20,6 +20,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from funcs import exhadDecays  # noqa: E402
+from funcs.production_tables import distribution_path
 
 
 def _load_authority():
@@ -28,6 +29,9 @@ def _load_authority():
 
 
 def _mass_endpoints(path):
+    if path.suffix == ".npz":
+        with np.load(path, allow_pickle=False) as table:
+            return tuple(table["mass"][[0, -1]])
     first = None
     last = None
     with path.open(encoding="utf-8") as stream:
@@ -112,6 +116,7 @@ class HNLFullProductionRangeAuthorityTest(unittest.TestCase):
         self.assertEqual(len(set(paths)), 7)
         for path in paths:
             with self.subTest(path=path.name):
+                path = distribution_path(path)
                 self.assertTrue(path.is_file())
                 observed = _mass_endpoints(path)
                 self.assertTrue(math.isclose(

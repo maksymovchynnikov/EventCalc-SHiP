@@ -5,9 +5,37 @@ from scipy.interpolate import RegularGridInterpolator
 import sympy as sp
 from . import PDG
 from .hnl_source_validation import load_validated_hnl_source
+from .production_tables import read_distribution
 
 
 _PARTON_IDS = frozenset({1, 2, 3, 4, 5, 6, 21})
+_LEPTON_E1_QUADRATURE = np.polynomial.legendre.leggauss(256)
+_LEPTON_E3_QUADRATURE = np.polynomial.legendre.leggauss(3)
+
+
+def leptonic_shape_integrals(mass, pdgs, functions):
+    """Dalitz integrals of pure-flavour shapes, computed once per mass.
+
+    A sine substitution removes square-root endpoints. Three Gaussian nodes
+    integrate the quadratic E3 dependence exactly; the E1 integral uses 256.
+    """
+    m1, m2, m3 = [PDG.get_mass(p) for p in pdgs]
+    if mass <= m1 + m2 + m3:
+        return np.zeros(3)
+    x, wx = _LEPTON_E1_QUADRATURE
+    z, wz = _LEPTON_E3_QUADRATURE
+    span = (mass * mass + m1 * m1 - (m2 + m3)**2) / (2 * mass) - m1
+    angle = np.pi * (x + 1) / 4
+    e1 = m1 + span * np.sin(angle)**2
+    s = mass * mass + m1 * m1 - 2 * mass * e1
+    center = (mass - e1) * (s + m3*m3 - m2*m2) / (2 * s)
+    half = np.sqrt(np.maximum(0., (e1*e1-m1*m1) *
+                   (s-(m2+m3)**2) * (s-(m2-m3)**2))) / (2 * s)
+    e3 = center[:, None] + half[:, None] * z
+    measure = (span * np.pi / 4 * np.sin(2*angle) * wx * half)[:, None] * wz
+    values = [np.sum(f(mass, e1[:, None], e3, m1, m2, m3) * measure)
+              if f is not None else 0. for f in functions]
+    return np.asarray(values, dtype=float)
 
 
 def get_exclusive_thresholds(PDGs):
@@ -80,9 +108,9 @@ def load_data(paths):
     ytau = np.array(HNL_yield_tau.iloc[:, 1])
     yieldData = np.array([yield_mass, ye, ymu, ytau], dtype=object)
 
-    DistrHNL_e = pd.read_csv(distrHNL_e_path, header=None, sep="\t")
-    DistrHNL_mu = pd.read_csv(distrHNL_mu_path, header=None, sep="\t")
-    DistrHNL_tau = pd.read_csv(distrHNL_tau_path, header=None, sep="\t")
+    DistrHNL_e = read_distribution(distrHNL_e_path)
+    DistrHNL_mu = read_distribution(distrHNL_mu_path)
+    DistrHNL_tau = read_distribution(distrHNL_tau_path)
 
     DistrDataFrames = (DistrHNL_e, DistrHNL_mu, DistrHNL_tau)
     massDistrData = np.array([

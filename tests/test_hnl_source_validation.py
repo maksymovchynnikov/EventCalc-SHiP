@@ -26,7 +26,7 @@ from funcs.hnl_source_validation import (  # noqa: E402
 # byte for byte, so the rates EventCalc samples and the final states the release
 # produces come from one table set.  These are the digests of those two files.
 EXPECTED_JSON_SHA256 = \
-    "7a206bdf31eb107e771e76c50f58df0cc756e7bb4613323ebe2526036a215a9a"
+    "bf7a5f7a52f00979e1c84b1c2c59ee2522c4b7313011ad496b77780b83ec5fea"
 EXPECTED_WIDTH_SHA256 = \
     "77cf93693b478cdc30a730ffcd64a07e5d55c5d240d43636034c363e2266b096"
 

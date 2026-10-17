@@ -1,14 +1,14 @@
 {
     "schema_version": 1,
-    "installed_at": "2026-09-16",
+    "installed_at": "2026-10-17",
     "source": {
         "decay_json": "HNL-decay.json",
-        "decay_json_sha256": "7a206bdf31eb107e771e76c50f58df0cc756e7bb4613323ebe2526036a215a9a",
+        "decay_json_sha256": "bf7a5f7a52f00979e1c84b1c2c59ee2522c4b7313011ad496b77780b83ec5fea",
         "width_table": "HNLdecayWidth.dat",
         "width_table_sha256": "77cf93693b478cdc30a730ffcd64a07e5d55c5d240d43636034c363e2266b096",
         "notebook": "Phenomenology. HNLs_new_new_new.nb",
-        "notebook_sha256": "5c94fb05bc2f714f25b9f02242e838d5f543c715946828913f319fbaffa36111",
-        "origin": "exHad release data/hnl/eventcalc_branching_ratios.json and data/hnl/eventcalc_total_widths.dat; adopted so the release input-match check passes. The corrected matrix elements take the lepton masses from the generator (symbols m1/m2/m3) and the rates are threshold-aware. There is no radiative N -> nu gamma row and none may be added."
+        "notebook_sha256": "c2e590a1335bfdc2068ef38bbbff47e18f214683ff8479efcafe299da6d7146b",
+        "origin": "Exported from the HNL phenomenology notebook. Leptonic and partonic matrix elements use the generator's daughter masses (m1/m2/m3). The 88 branching-ratio grids and total-width table are unchanged. Charged-current conjugate rows are separate; together they carry the Majorana width. No radiative N -> nu gamma row is included."
     },
     "inventory": {
         "channels": 88,
@@ -37,6 +37,6 @@
     "scope": {
         "validated_rate_table": "0.0002--40 GeV",
         "data_tied_event_composition": "NC ud and s; CC ud and us in the 1--3 GeV benchmark",
-        "heavy_current_event_composition": "CC cd/cs/ub/cb and NC c/b remain explicit fail-closed boundaries until dedicated event-composition cards are supplied"
+        "heavy_current_event_composition": "CC cd/cs/ub/cb and NC c/b are routed by the current and the event's hadronic invariant mass, with their heavy-flavour thresholds enforced"
     }
 }

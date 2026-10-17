@@ -18,6 +18,25 @@ imports and data paths resolve consistently.
 
 ## Commands and Python interfaces
 
+Production grids named `DoubleDistr-*.npz` store float64 `mass`, `theta`,
+`energy` axes and a three-dimensional `density` array. This is lossless
+compression: the loader reconstructs the original four columns and row order;
+interpolation and event generation are unchanged. The two ALP-photon grids
+remain text files.
+
+Fresh tab-separated `DoubleDistr-*.txt` exports are also accepted and take
+precedence over their packed counterparts. To pack a new export, remove any
+obsolete `.npz` counterpart, then run:
+
+```sh
+python -m funcs.production_tables Distributions/MODEL/DoubleDistr-MODEL.txt --replace-text
+```
+
+The converter refuses to overwrite an existing binary table and verifies every
+float bit before removing the text source. Omit `--replace-text` to retain it.
+Do not apply this converter to ALP-photon tables or the separate calibrated
+dark-photon and inelastic-DM production datasets.
+
 | Task | Command or import |
 | --- | --- |
 | Interactive or card-based simulation | `python simulate.py` |
