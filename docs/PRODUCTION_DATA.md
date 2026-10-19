@@ -1,5 +1,11 @@
 # Dark photon and excited dark matter production
 
+The older dark-photon Lower/Central/Upper fluxes follow
+[Kyselov and Ovchynnikov](https://arxiv.org/abs/2409.11096) and remain available
+through the `legacy-*` options described below. The newer default dark-photon
+production calculation is work in preparation; please contact the authors for
+details.
+
 The default `Dark-photons` and `Inelastic-DM` distributions combine radiative
 meson decays, fragmentation, proton bremsstrahlung and Drell-Yan production.
 Meson and dimuon measurements from NA27, NA60 and NA61/SHINE jointly constrain

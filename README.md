@@ -42,6 +42,11 @@ The [model guide](docs/models.md) defines the supported interactions and couplin
 conventions. It covers `Dark-photons`, `Inelastic-DM`, `HNL`, `Scalar-mixing`,
 `Scalar-quartic`, `ALP-photon`, `ALP-fermion`, `ALP-SU2L` and `ALP-mixed`.
 
+The older dark-photon Lower/Central/Upper fluxes follow
+[Kyselov and Ovchynnikov](https://arxiv.org/abs/2409.11096). The newer default
+dark-photon production calculation is work in preparation; please contact the
+authors for details.
+
 Default `Dark-photons` and `Inelastic-DM` simulations sample compact distributions
 in mass, angle and energy, including primary collisions and the target cascade.
 Their propagation uses a point source at the target front face. The
