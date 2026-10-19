@@ -42,6 +42,14 @@ The [model guide](docs/models.md) defines the supported interactions and couplin
 conventions. It covers `Dark-photons`, `Inelastic-DM`, `HNL`, `Scalar-mixing`,
 `Scalar-quartic`, `ALP-photon`, `ALP-fermion`, `ALP-SU2L` and `ALP-mixed`.
 
+For `ALP-photon`, primary and cascade Primakoff production, angle-energy fluxes
+and diphoton acceptance are described in
+[arXiv:2606.07743](https://arxiv.org/abs/2606.07743).
+The electroweak benchmark `ALP-SU2L` (called `ALP-electroweak` in SensCalc),
+its meson-decay and Primakoff sources, their flux normalization, and the diphoton
+signals for pure and mixed couplings are discussed in
+[arXiv:2609.19269](https://arxiv.org/abs/2609.19269).
+
 The older dark-photon Lower/Central/Upper fluxes follow
 [Kyselov and Ovchynnikov](https://arxiv.org/abs/2409.11096). The newer default
 dark-photon production calculation is work in preparation; please contact the
