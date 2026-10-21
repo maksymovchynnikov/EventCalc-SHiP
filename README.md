@@ -50,6 +50,13 @@ its meson-decay and Primakoff sources, their flux normalization, and the diphoto
 signals for pure and mixed couplings are discussed in
 [arXiv:2609.19269](https://arxiv.org/abs/2609.19269).
 
+Below 1.7 GeV, the hadronic contributions to the `Dark-photons` width and
+branching-ratio tables follow [arXiv:2201.01788](https://arxiv.org/abs/2201.01788),
+implemented in [DeLiVeR](https://github.com/preimitz/DeLiVeR).
+SensCalc's default dark-photon lifetime uses
+[DarkCast](https://gitlab.com/philten/darkcast), based on
+[arXiv:1801.04847](https://arxiv.org/abs/1801.04847).
+
 The older dark-photon Lower/Central/Upper fluxes follow
 [Kyselov and Ovchynnikov](https://arxiv.org/abs/2409.11096). The newer default
 dark-photon production calculation is work in preparation; please contact the
