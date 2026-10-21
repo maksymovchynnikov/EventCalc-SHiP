@@ -42,6 +42,13 @@ The [model guide](docs/models.md) defines the supported interactions and couplin
 conventions. It covers `Dark-photons`, `Inelastic-DM`, `HNL`, `Scalar-mixing`,
 `Scalar-quartic`, `ALP-photon`, `ALP-fermion`, `ALP-SU2L` and `ALP-mixed`.
 
+`Scalar-quartic` normalizes Higgs-portal scalar-pair production to
+$\mathrm{Br}(h\to SS)=0.01$, where $h$ is the Higgs boson and $S$ the light
+scalar. This is the pair-production contribution to the
+[BC5 benchmark](https://arxiv.org/abs/1901.09966). The mixing $\sin\theta$
+independently sets the decay lifetime. A prediction including mixing-induced
+production also requires `Scalar-mixing` at the same mass and decay mixing.
+
 For `ALP-photon`, primary and cascade Primakoff production, angle-energy fluxes
 and diphoton acceptance are described in
 [arXiv:2606.07743](https://arxiv.org/abs/2606.07743).
