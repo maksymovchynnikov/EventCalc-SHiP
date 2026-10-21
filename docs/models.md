@@ -89,9 +89,9 @@ $$
 
 where $m_f$ is the fermion mass, $v_h=246$ GeV and $\theta$ is the scalar mixing
 angle. The same mixing multiplies its Higgs-like interactions with gauge bosons.
-`Scalar-quartic` uses pair production through the Higgs portal; its production
-normalization is fixed by the installed yield table. The coupling input controls
-the decay lifetime in both cases.
+`Scalar-quartic` uses pair production through the Higgs portal with the
+[benchmark normalization](../README.md#models-and-production).
+The coupling input controls the decay lifetime in both cases.
 
 
 For `Scalar-mixing` the coupling is the mixing angle, $g_S=\sin\theta$.

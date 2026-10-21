@@ -258,7 +258,7 @@ any events are generated. Inputs must be finite and positive.
 | `HNL` | $U=\sqrt{U_e^2+U_\mu^2+U_\tau^2}$, with the flavour ratios fixed by `--mixing` |
 
 For `Scalar-quartic`, this input sets the decay lifetime. The production
-normalization remains fixed by its yield table.
+normalization follows the [pair-production benchmark](../README.md#models-and-production).
 For HNLs, `--couplings-squared` gives total $U^2$; the normalized mixing
 fractions multiply that total to give each flavour's mixing squared.
 
@@ -466,6 +466,9 @@ rows or expose a half-written file.
 For `ALP-mixed` the `coupling_squared` column is
 $|g_{a\gamma\gamma}^{\rm tot}|^2$ in $\mathrm{GeV}^{-2}$; for `ALP-fermion` it
 is $g_Y^2$.
+For `Scalar-quartic`, both this column and the event-header field
+`Squared coupling` record $\mathrm{Br}(h\to SS)$, as defined by the
+[pair-production benchmark](../README.md#models-and-production).
 
 An event record begins with a header line giving the sample size, the squared
 coupling, the total number of produced LLPs, the polar and azimuthal

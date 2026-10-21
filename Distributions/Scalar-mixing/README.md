@@ -23,7 +23,7 @@ N_{\rm prod}(m_S,g_S)=g_S^2 P(m_S).
 $$
 
 The branching ratios are independent of the common mixing factor. For `Scalar-quartic`, the same mixing controls decay widths; production
-has an independent normalization fixed by its yield table.
+uses the independent [pair-production benchmark](../../README.md#models-and-production).
 
 ## Lifetime tables
 
