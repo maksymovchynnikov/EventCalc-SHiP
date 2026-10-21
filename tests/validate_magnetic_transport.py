@@ -22,8 +22,8 @@ def run():
    x,y,ok=dipole_displacement(p,charge,g.magnet_z_min,g.magnet_z_max,g.field_integral,g.aperture_z)
    assert ok;errors.append(float(np.max(abs(expected-[x,y]))))
  assert max(errors)<1e-8,errors
- assert dipole_displacement(np.array([0.,0.,.01]),1.,86.,91.,.5,97.32)[2]==False
- assert dipole_displacement(np.array([.1,.2,1.]),0.,86.,91.,.5,97.32)==(0.,0.,True)
+ assert dipole_displacement(np.array([0.,0.,.01]),1.,86.,91.,g.field_integral,97.32)[2]==False
+ assert dipole_displacement(np.array([.1,.2,1.]),0.,86.,91.,g.field_integral,97.32)==(0.,0.,True)
  assert np.array_equal(charges_from_pdg([11,-11,211,-211,22,2212,2112]),[-1,1,1,-1,0,1,0])
  # Isotropic two-body rest decays: independent dense decay-position quadrature.
  n=400;mass=1.;pz=rng.uniform(20,100,n);mother=np.column_stack([np.zeros((n,2)),pz,np.hypot(pz,mass)])
@@ -37,7 +37,7 @@ def run():
  for i in range(n):
   accepted=np.ones(len(zs),bool)
   for j in range(2):
-   d=lab[i,j];dx,dy,forward=dipole_displacement(d[:3],charges[i,j],86,91,.5,97.32)
+   d=lab[i,j];dx,dy,forward=dipole_displacement(d[:3],charges[i,j],86,91,g.field_integral,97.32)
    accepted &= forward & (d[3]>1) & (np.abs((97.32-zs)*d[0]/d[2]+dx)<g.aperture_x/2) & (np.abs((97.32-zs)*d[1]/d[2]+dy)<g.aperture_y/2)
   for k,ct in enumerate((1.,10.,100.)):
    ell=pz[i]*ct;quad[k]+=weights[i]*np.trapezoid(accepted*np.exp(-zs/ell)/ell,zs)

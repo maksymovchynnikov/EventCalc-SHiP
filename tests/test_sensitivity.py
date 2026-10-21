@@ -69,6 +69,15 @@ def numeric(batch, ctaus, geometry, selections, steps=65536):
 
 
 class SensitivityTests(unittest.TestCase):
+    def test_ship_central_field_integral(self):
+        self.assertEqual(Geometry().field_integral, 0.77)
+        self.assertEqual(Geometry.ship().field_integral, 0.77)
+        self.assertAlmostEqual(
+            Geometry.ship().field_integral /
+            (Geometry.ship().magnet_z_max - Geometry.ship().magnet_z_min),
+            0.154,
+        )
+
     def test_cached_correlated_variations(self):
         b = sample(120)
         c = np.geomspace(.002, 1e16, 90)

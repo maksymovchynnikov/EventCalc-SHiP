@@ -26,6 +26,7 @@ def load(path):
 class Inputs:
     apply_dy_corrections=True
     apply_dy_transition=True
+    apply_na50=True
     def __init__(self, *, with_origins=False, data_root=None):
         from .datasets import resolve_full_data
         self.root=resolve_full_data(data_root)
@@ -54,6 +55,9 @@ class Inputs:
             if with_origins:self.origins[pid,cat]=load(self.root/f'results/propagation/origins/parent_{pid}_{cat}.npz')['origin']
           self.samples['brem',cat]=load(source/f'brem_{cat}.npz')
           if with_origins:self.origins['brem',cat]=load(self.root/f'results/propagation/origins/brem_{cat}.npz')['origin']
+
+        from .calibration import NA50Calibration
+        self.na50=NA50Calibration(self)
 
     def set_formfactors(self,choice):
         filename,indices={'central':('FFproton_UAmodel.txt',(1,2)),
@@ -97,6 +101,8 @@ class Inputs:
                 sign[mask]*=factors[ii]
         p4,valid,beam,target=transform(rows,q)
         if kind=='dy' and self.apply_dy_corrections and self.apply_dy_transition:interp*=transition(q)
+        if kind=='dy' and self.apply_na50:
+            sign*=1+(self.na50.central-1)*self.na50.sampled_protons(self,cat)
         return p4,interp*sign*valid,beam,target
 
     def formfactors(self,q):

@@ -50,10 +50,24 @@ def calculate(mass):
         result.append((density.astype('<f4'),total,cone,sampled))
     return mass,result
 
+def bind_cache(cache,metadata,power,model,delta=None):
+    """Never silently reuse mass points from another production calibration."""
+    spec={'model':model,'delta':delta,'power':power,'seed':62015001,
+          'na50_calibration':metadata['na50_calibration'],
+          'source_shower_sha256':metadata['shower_sha256'],
+          'grid_sha256':hashlib.sha256(THETA.tobytes()+ENERGY.tobytes()).hexdigest()}
+    path=cache/'export.json'
+    if path.exists():
+        if json.loads(path.read_text())!=spec:raise ValueError('Export cache belongs to different inputs; choose a new output directory')
+    elif any(cache.glob('*.npz')):
+        raise ValueError('Unversioned export cache; choose a new output directory')
+    else:path.write_text(json.dumps(spec,indent=2)+'\n')
+
 def main():
     p=argparse.ArgumentParser();p.add_argument('--data-root',type=Path);p.add_argument('--output',type=Path,required=True);p.add_argument('--workers',type=int,default=3);p.add_argument('--power',type=int,default=17);a=p.parse_args()
     a.data_root=resolve_full_data(a.data_root)
     out=a.output;out.mkdir(parents=True,exist_ok=True);cache=out/'mass-points';cache.mkdir(exist_ok=True)
+    bind_cache(cache,ProductionModel(a.data_root).metadata,a.power,'dp')
     todo=[m for m in MASS if not (cache/f'{m:.12g}.npz').exists()]
     with ProcessPoolExecutor(a.workers,initializer=initialize,initargs=(a.data_root,a.power)) as pool:
         for mass,result in pool.map(calculate,todo):
@@ -62,7 +76,7 @@ def main():
     for i,category in enumerate(('primary','cascade')):
         np.savez_compressed(out/(category+'.npz'),mass=MASS,theta=THETA,energy=ENERGY,density=np.array([d['density'][i] for d in all_data]),yield_per_pot_epsilon2=[d['yields'][i] for d in all_data])
     relative=np.array([np.divide(d['table_cone']-d['cone'],d['cone'],out=np.zeros(2),where=d['cone']!=0) for d in all_data])
-    manifest=json.loads((a.data_root/'manifest.json').read_text());manifest.update({'masses':len(MASS),'power':a.power,'theta_nodes':len(THETA),'energy_nodes':len(ENERGY),'position_marginalized':True,'normalization':'per POT and epsilon^2; density normalized above the physical mass threshold','cone_relative_error_max':float(abs(relative).max()),'sha256':{name:hashlib.sha256((out/name).read_bytes()).hexdigest() for name in ('primary.npz','cascade.npz')}})
+    manifest=ProductionModel(a.data_root).metadata.copy();manifest.update({'masses':len(MASS),'power':a.power,'theta_nodes':len(THETA),'energy_nodes':len(ENERGY),'position_marginalized':True,'normalization':'per POT and epsilon^2; density normalized above the physical mass threshold','cone_relative_error_max':float(abs(relative).max()),'sha256':{name:hashlib.sha256((out/name).read_bytes()).hexdigest() for name in ('primary.npz','cascade.npz')}})
     manifest.pop('uncertainty_package',None)
     manifest.update(production_backend='compact',origin_convention='point source at target front face',azimuth_uniform=True)
     (out/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n');np.savez_compressed(out/'validation.npz',mass=MASS,cone_relative_error=relative)

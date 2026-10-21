@@ -24,7 +24,7 @@ class Geometry:
     target_z: float = 0.
     magnet_z_min: float = 86.
     magnet_z_max: float = 91.
-    field_integral: float = 0.5  # integral B_y dz in tesla metres; SensCalc ECN3
+    field_integral: float = 0.77  # central integral B_y dz in tesla metres; SHiP-ECN3
 
     @classmethod
     def ship(cls):
@@ -403,16 +403,16 @@ class LifetimeResponse:
             raise ValueError('Proper decay lengths must be finite, positive metres')
         if not len(self.distance):
             return np.zeros((self.weights.shape[0], len(ctaus), self.weights.shape[1]))
-        # Empty bins may extend far below the physical decay-distance support.
-        # Switching on the grid minimum causes cancellation of saturated -1
-        # terms at short lifetimes and can create a false high-coupling reach.
-        active = np.any(self.weights != 0., axis=(0, 1))
-        first = self.distance[np.flatnonzero(active)[0]] if active.any() else self.distance[0]
-        short = first/ctaus > .1
-        z = self.distance[:, None]/ctaus[None, :]
-        basis = np.where(short[None, :], np.exp(-z), np.expm1(-z))
-        result = self.weights @ basis
-        result += self.zero_lower[:, :, None]*short[None, None, :]
+        # Sum the weight carried between adjacent endpoints. Stable exponential
+        # differences avoid cancellation on both lifetime boundaries, including
+        # signed NLO contributions and empty leading/trailing grid bins.
+        cumulative=self.zero_lower[...,None]+np.cumsum(self.weights,axis=-1)
+        active=self.weights!=0
+        last=np.where(active,np.arange(len(self.distance)),-1).max(axis=-1)
+        cumulative=np.where(np.arange(len(self.distance))<last[...,None],cumulative,0.)
+        basis=np.exp(-self.distance[:-1,None]/ctaus[None,:])*(-np.expm1(-np.diff(self.distance)[:,None]/ctaus[None,:]))
+        result=cumulative[...,:-1] @ basis
+        result+=self.zero_lower[...,None]*(-np.expm1(-self.distance[0]/ctaus))[None,None,:]
         return result.transpose(0, 2, 1)
 
 

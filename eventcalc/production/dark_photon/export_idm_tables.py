@@ -4,7 +4,7 @@ from concurrent.futures import ProcessPoolExecutor
 import argparse, json, hashlib
 import numpy as np
 from .model import ProductionModel
-from .export_tables import THETA, ENERGY, deposit, basis_integrals
+from .export_tables import THETA, ENERGY, deposit, basis_integrals, bind_cache
 from .geometry import THETA_SHIP
 
 MASS=np.unique(np.r_[np.geomspace(.04,20,105),np.arange(.65,1.31,.025),np.arange(20,40.01,1.),.1,.3,.775,.78266,1.01946,1.1,1.5,2.,3.,5.,7.,10.,15.,20.])
@@ -36,6 +36,7 @@ def main():
     p.add_argument('--delta',type=float,required=True);p.add_argument('--workers',type=int,default=2);p.add_argument('--power',type=int,default=17)
     a=p.parse_args();a.output.mkdir(parents=True,exist_ok=True)
     cache=a.output.parent/('export-cache-idm-'+str(a.delta));cache.mkdir(exist_ok=True)
+    bind_cache(cache,ProductionModel(a.data_root).metadata,a.power,'idm',a.delta)
     todo=[m for m in MASS if not (cache/f'{m:.12g}.npz').exists()]
     with ProcessPoolExecutor(a.workers,initializer=initialize,initargs=(a.data_root,a.delta,a.power)) as pool:
         for m,r in pool.map(calculate,todo):
@@ -43,7 +44,7 @@ def main():
     data=[]
     for m in MASS:
         with np.load(cache/f'{m:.12g}.npz',allow_pickle=False) as d:data.append({k:d[k] for k in d.files})
-    manifest=json.loads((a.data_root/'manifest.json').read_text())
+    manifest=ProductionModel(a.data_root).metadata.copy()
     manifest.pop('sha256',None);manifest.pop('uncertainty_package',None)
     manifest.update(model='idm',delta=a.delta,ratio=3.,alpha_D=.1,masses=len(MASS),power=a.power,
         position_marginalized=True,origin_convention='point source at target front face',

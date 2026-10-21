@@ -24,6 +24,20 @@
   ],
   "normalization": "per POT and epsilon^2; density normalized above chi-prime mass",
   "omitted_uncertainties": "Alternative virtuality descriptions, heavier vector fragmentation excitations, nuclear modifications, finite shower/source statistics and detector reconstruction",
+  "na50_calibration": {
+    "fit_sha256": "f17539f59b1ccbc6e5386292efb2e1fb589d1a46324f77aa63898d8806e9a111",
+    "proton_mask_sha256": "4b78fce328beffc5729d3a79288c17dafa2335224dbf417f811baf6651fdc83b",
+    "central_proton_DY_normalization": 1.2347030711343996,
+    "profiles": [
+      "central",
+      "lower",
+      "upper"
+    ],
+    "scope": "Common proton-initiated DY normalization at tungsten, and A exponent; no light-meson or bremsstrahlung parameters refitted.",
+    "extrapolation": "Normalization is continued to other dimuon masses and secondary proton energies; PDF/scale shape variations are retained. Pion and other non-proton initiated production is not normalized by proton data.",
+    "covariance": "400: published target-specific errors, shared 3% luminosity and shared asymmetric extraction. 450: target statistics plus the bracketed common/independent systematic decomposition. Between energies, normalization nuisance parameters are independent.",
+    "confidence": "Delta chi2=1 profile intervals for the normalization, enveloped over the unresolved 450 GeV correlation and separate theory hypotheses."
+  },
   "model": "idm",
   "delta": 0.1,
   "ratio": 3.0,
@@ -34,8 +48,8 @@
   "origin_convention": "point source at target front face",
   "mass_coordinate": "mediator pole mass; energy and angle describe chi-prime",
   "sha256": {
-    "idm-delta0.1-primary.npz": "c8160da9f0a0ece750b4f898f01d6b0a49b42e19a42b970c3e2b0ed3c82837d4",
-    "idm-delta0.1-cascade.npz": "84e5bb4cdfa1e80d4255816a5dac653c16d46e5621e02517a5c8b129c0a0e6de"
+    "idm-delta0.1-primary.npz": "557a277879967d961e5b8a8a9a0dfbfbe525e7644cb3c89a635c07962f92348e",
+    "idm-delta0.1-cascade.npz": "2dcdb3a4005c8842131ec96847470f7f419d88bdbbe2403bc1b5ee4d9e391c7b"
   },
-  "cone_relative_error_max": 0.003095228278852514
+  "cone_relative_error_max": 0.003095236972365817
 }

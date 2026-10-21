@@ -1,0 +1,17 @@
+{
+  "source_provenance": {
+    "incident_protons": 20000,
+    "shower_sha256": "f8eaa5e0de16f35537ce0f75b4bfa6150175b545063046545bbbce4b680e77da",
+    "samples_per_pool": 131072,
+    "kernel_row_precision": "float32, matching the daughter evaluator; normalization and parent four-vectors remain float64",
+    "sampling_seed_scheme": "Independent SHA256 seeds from base 71641011 and each source filename"
+  },
+  "construction": "PDG 2212 projectile mask, matched by used_ids.bin to the frozen elementary-collision cells.",
+  "count": 655535,
+  "proton_count": 167314,
+  "original_mask_sha256": "4b78fce328beffc5729d3a79288c17dafa2335224dbf417f811baf6651fdc83b",
+  "sha256": {
+    "fit.json": "f17539f59b1ccbc6e5386292efb2e1fb589d1a46324f77aa63898d8806e9a111",
+    "proton_events.npz": "02526bca821570c40a0946b526ef5d9bcaacd93da35c0d5a9c112723182a4dbd"
+  }
+}

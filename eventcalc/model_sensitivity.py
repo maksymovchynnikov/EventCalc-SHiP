@@ -79,7 +79,7 @@ def scan_mass(model,mass,epsilon2,*,delta=.1,power=15,decay_count=32768,replicas
             exact,parts=integrate_variations(batches,sampler,ctau_unit/eps,selection,seed=key,nodes=response_nodes)
             interpolated=sum((part[0] for part in parts.values()),np.zeros_like(exact))
             # Check the response where it could influence either threshold crossing.
-            scale=exposure*eps[:,None];relevant=(exact*scale>.01)&(exact>exact.max(initial=0)*1e-12)
+            scale=exposure*eps[:,None];relevant=(exact*scale>.01)
             if relevant.any():interpolation_error=max(interpolation_error,float(np.max(np.abs(interpolated[relevant]-exact[relevant])/exact[relevant])))
             if interpolation_error>.003:
                 raise ValueError(f'Lifetime-response interpolation error {interpolation_error:.3g}; increase --response-nodes')
@@ -92,22 +92,24 @@ def scan_mass(model,mass,epsilon2,*,delta=.1,power=15,decay_count=32768,replicas
     metadata={'schema':2,'model':model,'mediator_mass_GeV':mass,'delta':delta,'ratio':3,'alpha_D':.1,'protons_on_target':exposure,'threshold_events':threshold_events,'response_nodes':response_nodes,'geometry':Geometry().__dict__,'electron_channel_closed':closed,'production':production.metadata,'reconstruction_efficiency':1.,'selections':[s.__dict__ for s in selection],'intervals':{s.name:threshold_intervals(eps,events[:,i],threshold_events) for i,s in enumerate(selection)},'production_uncertainties':bool(production_uncertainties),'integration_error_scope':'Independent integration replicas, conditional on saved production pools; separate from production uncertainty.'}
     if variations:
         nv=len(variations.pdf.labels);ne=len(endpoints);shape=(len(eps),len(selection))
-        counts={'fixed':1,'brem':3,'dy':ne*nv}
+        counts={'fixed':1,'brem':3,'dy':3*ne*nv}
         parts={group:np.array([p.get(group,np.zeros((count,*shape))) for p in components]) for group,count in counts.items()}
         fixed=parts['fixed'].mean(axis=0)[0];brem=parts['brem'].mean(axis=0)
-        dy=parts['dy'].mean(axis=0).reshape(ne,nv,*shape)
+        dy=parts['dy'].mean(axis=0).reshape(3*ne,nv,*shape)
         lower,upper=combine_envelopes(events,fixed,brem,dy,variations.pdf.labels)
         arrays.update(lower_events=lower,upper_events=upper,fixed_events=fixed,
                       brem_variation_events=brem,dy_variation_events=dy,
                       brem_variation_integration_error_events=parts['brem'].std(axis=0,ddof=1)/np.sqrt(replicas),
-                      dy_variation_integration_error_events=(parts['dy'].std(axis=0,ddof=1)/np.sqrt(replicas)).reshape(ne,nv,*shape))
+                      dy_variation_integration_error_events=(parts['dy'].std(axis=0,ddof=1)/np.sqrt(replicas)).reshape(3*ne,nv,*shape))
         metadata.update(pdf_labels=variations.pdf.labels,form_factors=list(FORM_FACTORS),
-            transition_endpoints_GeV=list(endpoints),uncertainty_data=variations.pdf.manifest,
+            transition_endpoints_GeV=list(endpoints),na50_profiles=['central','lower','upper'],
+            dy_variation_axes='NA50 profile (central/lower/upper), then transition endpoint; PDF/scale; epsilon2; selection',
+            uncertainty_data=variations.pdf.manifest,
             response_max_relative_error=interpolation_error,
-            uncertainty_scope='Accepted-yield envelope of CT18/MSHT20 Hessian and NNPDF replica intervals, seven scales per family, three form-factor pairs at fixed fitted Lambda_p, and DY transition endpoints 1.75–2.5 GeV. Common variations across primary/cascade production and the iDM virtual-mass integral; not a joint statistical confidence interval.',
+            uncertainty_scope='Accepted-yield envelope of CT18/MSHT20 Hessian and NNPDF replica intervals, seven scales per family, three form-factor pairs at fixed fitted Lambda_p, and DY transition endpoints 1.75–2.5 GeV. NA50 normalization profiles fitted separately for each PDF/scale hypothesis, including the bracketed experimental correlations. Common variations across primary/cascade production and the iDM virtual-mass integral.',
             omitted_uncertainties=OMITTED,
             boundary_bands={s.name:boundary_bands(eps,events[:,i],lower[:,i],upper[:,i],threshold_events) for i,s in enumerate(selection)},
-            variation_intervals=coherent_intervals(eps,fixed,brem,dy,variations.pdf.labels,endpoints,selection,threshold_events),
+            variation_intervals=coherent_intervals(eps,fixed,brem,dy,variations.pdf.labels,endpoints,selection,threshold_events,profiles=('central','lower','upper')),
             boundary_convention='All intervals are in epsilon squared. Both lower and upper crossings are extracted separately. Null interval endpoints mark open scan boundaries; split or disappearing components are not joined.')
     else:metadata['uncertainty_scope']='Central-only scan explicitly requested; integration errors only, production bands not calculated.'
     if not all(np.all(np.isfinite(v)) for k,v in arrays.items() if k!='ctau_m'):

@@ -46,6 +46,7 @@ class ProductionModel:
             raise ValueError('Production pools and collision origins belong to different showers')
         self.inputs=Inputs(with_origins=True,data_root=root)
         self.inputs.set_formfactors(form_factors)
+        self.metadata['na50_calibration']=self.inputs.na50.metadata
 
     def batches(self, mediator_mass, *, model='dp', delta=.1, power=15, seed=1,
                 categories=('primary','cascade'), channels=None, chunk_size=4096):

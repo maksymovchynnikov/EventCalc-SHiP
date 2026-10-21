@@ -25,15 +25,30 @@
   "normalization": "per POT and epsilon^2; density normalized above the physical mass threshold",
   "omitted_uncertainties": "Alternative virtuality descriptions, heavier vector fragmentation excitations, nuclear modifications, finite shower/source statistics and detector reconstruction",
   "sha256": {
-    "primary.npz": "32bdbd63de2010289e3756f3f34e1ebff4f837e20ce152bb60f92bf1bded4397",
-    "cascade.npz": "8c0db804f07f40ba1835858aa2a71b7bcdef0fbc2935c29f87aef82e0f11d412"
+    "primary.npz": "2a883fa37d7ce0d544a35e9249a3d2100f8421e36a85165397473bd7105b6a88",
+    "cascade.npz": "9b92e015e89f8a8c982ea21c9d8ee24fe088f3bcc9e09c9de30f7ca9fc8b1d9c"
+  },
+  "na50_calibration": {
+    "fit_sha256": "f17539f59b1ccbc6e5386292efb2e1fb589d1a46324f77aa63898d8806e9a111",
+    "proton_mask_sha256": "4b78fce328beffc5729d3a79288c17dafa2335224dbf417f811baf6651fdc83b",
+    "central_proton_DY_normalization": 1.2347030711343996,
+    "profiles": [
+      "central",
+      "lower",
+      "upper"
+    ],
+    "scope": "Common proton-initiated DY normalization at tungsten, and A exponent; no light-meson or bremsstrahlung parameters refitted.",
+    "extrapolation": "Normalization is continued to other dimuon masses and secondary proton energies; PDF/scale shape variations are retained. Pion and other non-proton initiated production is not normalized by proton data.",
+    "covariance": "400: published target-specific errors, shared 3% luminosity and shared asymmetric extraction. 450: target statistics plus the bracketed common/independent systematic decomposition. Between energies, normalization nuisance parameters are independent.",
+    "confidence": "Delta chi2=1 profile intervals for the normalization, enveloped over the unresolved 450 GeV correlation and separate theory hypotheses."
   },
   "masses": 206,
   "power": 17,
   "theta_nodes": 114,
   "energy_nodes": 162,
   "position_marginalized": true,
-  "cone_relative_error_max": 0.0057540459907308595,
+  "cone_relative_error_max": 0.005754045990731043,
+  "production_backend": "compact",
   "origin_convention": "point source at target front face",
-  "production_backend": "compact"
+  "azimuth_uniform": true
 }
