@@ -96,7 +96,9 @@ decay-volume dimensions from `funcs/ship_setup.py`; the downstream aperture is
 at z=97.32 m with full widths 4.32 by 6.48 m. Geometry is explicit in the output
 and can be overridden. All z coordinates are measured from the target front face.
 Charged particles traverse a uniform dipole from z=86 to 91 m with integral
-B_y dz = 0.5 T m, following the SensCalc ECN3 setup. The implementation solves
+B_y dz = 0.77 T m, matching the central value used for SensCalc SHiP-ECN3.
+The reported standard deviation of 0.17 T m is not sampled in this central setup.
+The implementation solves
 the uniform-field trajectory, including the subsequent drift to ECAL; a track
 that turns before exiting the magnet is rejected. Neutral particles travel
 straight. Set `field_integral=0` explicitly for a zero-field comparison.
@@ -201,6 +203,9 @@ Use `--central-only` only when a scan without production variations is intended.
 The default varies three timelike proton form-factor pairs at the fixed fitted
 Foroughi-Abari virtuality scale, all CT18/MSHT20/NNPDF members and seven scale
 pairs per family, and the Drell-Yan continuum endpoint between 1.75 and 2.5 GeV.
+Each PDF/scale hypothesis has its own NA50 normalization fit. The envelope
+also spans its central, lower and upper profile values, including the
+experimental-correlation alternatives described in the [production guide](PRODUCTION_DATA.md).
 The same choice applies to every primary and cascade collision and throughout
 the inelastic virtual-mass integral. For inelastic DM, form-factor variations
 also update the mediator polarization weight. Decay kinematics and accepted
@@ -210,7 +215,7 @@ the accepted energy and angular spectra on both lifetime branches.
 The calculation first sums accepted yields for each variation. It then forms
 the PDF intervals: asymmetric Hessian errors for CT18 (converted from 90% to
 68%) and MSHT20, and 16th/84th replica percentiles for NNPDF. It envelopes these
-with the scale, family, form-factor and transition choices. The result spans these specified production choices; the individual PDF error
+with the scale, family, form-factor, transition and NA50 profile choices. The result spans these specified production choices; the individual PDF error
 conventions apply within each family.
 Alternative virtuality models, heavier fragmentation excitations, nuclear and
 shower modeling, finite production-sample statistics, and reconstruction remain outside it.
@@ -220,8 +225,10 @@ shower modeling, finite production-sample statistics, and reconstruction remain 
 - `events`, `lower_events`, `upper_events`: `[epsilon2, selection]` central and
   production-envelope yields, after summing primary and cascade production;
 - `fixed_events`, `brem_variation_events`, `dy_variation_events`: the unvaried
-  contribution, three form-factor choices, and `[transition, PDF/scale, epsilon2,
-  selection]` Drell-Yan contributions, respectively;
+  contribution, three form-factor choices, and `[NA50 profile × transition, PDF/scale,
+  epsilon2, selection]` Drell-Yan contributions, respectively. The first axis
+  lists all transition endpoints for the central fit, then for its lower and
+  upper profiles; `na50_profiles` and `transition_endpoints_GeV` give their order;
 - `integration_error_events` and component variation integration errors:
   numerical errors across independent replicas, separate from production bands.
 
@@ -229,7 +236,7 @@ shower modeling, finite production-sample statistics, and reconstruction remain 
 central, lower-yield and upper-yield threshold intervals for each selection.
 For matched components it gives `lower_epsilon2_boundary_range` and
 `upper_epsilon2_boundary_range`. `variation_intervals` records both crossings
-for every coherent form-factor/PDF/scale/transition combination. Disconnected
+for every coherent form-factor/PDF/scale/transition/NA50-profile combination. Disconnected
 components stay separate. Null interval endpoints indicate open scan boundaries;
 null boundary ranges indicate missing reach or ambiguous component matching.
 The code never closes a contour by extrapolating outside the scan.
@@ -252,6 +259,7 @@ and `--seed` control the numerical integration independently of the physics band
 
 ```sh
 python -m unittest discover -s tests -p test_production_bands.py -v
+python -m unittest discover -s tests -p test_na50.py -v
 python tests/validate_production_variations.py
 ```
 

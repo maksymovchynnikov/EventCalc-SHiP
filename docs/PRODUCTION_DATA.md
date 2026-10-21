@@ -17,6 +17,25 @@ choice with a small, nonzero fitted bremsstrahlung contribution. Alternative
 off-shell descriptions and heavier vector mesons in fragmentation can increase
 the total forward yield and are outside the tabulated uncertainty variations.
 
+NA50 Drell-Yan measurements at [400 GeV/c](https://arxiv.org/abs/nucl-ex/0612012)
+and [450 GeV/c](https://arxiv.org/abs/hep-ex/0603049) calibrate the proton-initiated
+continuum. Predictions use the published mass, rapidity and Collins–Soper
+angular cuts. The fit profiles the nuclear dependence and shared experimental
+errors. Because the 450 GeV publication does not give a complete covariance,
+the fit spans independent, partly shared and fully shared systematic errors.
+For central CT18, the tungsten normalization is multiplied by 1.2347. The
+correction applies to primary and secondary proton collisions, including the
+inelastic virtual-mass integral; pion and other projectiles are unchanged.
+Continuing it to other pair masses and secondary-proton energies is an
+assumption. NA50 does not constrain the far-forward high-mass shape.
+
+The compact distributions include this correction. The small `production/na50/`
+calibration package stores the fitted coefficients, source identities and
+checksums. The full source-event archive remains unchanged and is supplied
+separately. [Sensitivity scans](SENSITIVITY.md#dark-photon-and-inelastic-dark-matter-sensitivity)
+apply the PDF-specific fit and its profile variations before calculating both
+sensitivity boundaries.
+
 ## Target and normalization
 
 The target contains 33 tungsten disks, with 1.33 m of tungsten over 1.46 m

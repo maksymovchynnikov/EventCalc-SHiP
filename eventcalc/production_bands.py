@@ -68,14 +68,17 @@ sets without inventing a correspondence. None means outside the scanned grid.
             'components':components}
 
 
-def coherent_intervals(parameters,fixed,brem,dy,labels,endpoints,selections,threshold):
+def coherent_intervals(parameters,fixed,brem,dy,labels,endpoints,selections,threshold,*,profiles=(None,)):
     """Threshold both branches for every fixed form-factor/PDF/scale choice."""
     result=[]
     for ib,ff in enumerate(FORM_FACTORS):
-        for it,end in enumerate(endpoints):
-            for ip,label in enumerate(labels):
-                yields=fixed+brem[ib]+dy[it,ip]
-                result.append({'form_factors':ff,'transition_endpoint_GeV':end,
-                    'pdf':label,'intervals':{s.name:threshold_intervals(parameters,yields[:,i],threshold)
-                                            for i,s in enumerate(selections)}})
+        for ic,profile in enumerate(profiles):
+            for it,end in enumerate(endpoints):
+                for ip,label in enumerate(labels):
+                    yields=fixed+brem[ib]+dy[ic*len(endpoints)+it,ip]
+                    row={'form_factors':ff,'transition_endpoint_GeV':end,
+                        'pdf':label,'intervals':{s.name:threshold_intervals(parameters,yields[:,i],threshold)
+                                                for i,s in enumerate(selections)}}
+                    if profile is not None:row['na50_profile']=profile
+                    result.append(row)
     return result

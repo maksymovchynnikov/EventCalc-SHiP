@@ -13,6 +13,7 @@ import numpy as np
 from .fold_idm_production import CHANNELS, evaluate
 from .idm_production_spin import daughter, decay_weight
 from .normalization import transition
+from .calibration import PROFILES
 
 FAMILIES={'CT18NLO':(59,1.6448536269514722),
           'MSHT20nlo_as118':(65,1.), 'NNPDF40_nlo_as_01180':(101,None)}
@@ -146,7 +147,12 @@ polarization weight. Daughter kinematics are shared across all choices.
     def __init__(self,production,weights_root=None):
         self.inputs=copy.copy(production.inputs)
         self.inputs.apply_dy_transition=False
+        self.inputs.apply_na50=False
         self.pdf=PDFWeights(self.inputs,weights_root)
+        self.calibration=self.inputs.na50
+        if self.pdf.rows!=len(self.calibration.proton) or any(not np.array_equal(ids,self.calibration.ids[key]) for key,ids in self.pdf.ids.items()):
+            raise ValueError('NA50 proton mask and PDF hard-event identities differ')
+        self.coefficients=self.calibration.coefficients(self.pdf.labels)
 
     @staticmethod
     def endpoints(model,mass,delta):
@@ -185,7 +191,9 @@ polarization weight. Daughter kinematics are shared across all choices.
                         ii=take[left:left+chunk_size]
                         if channel=='dy':
                             ratios=self.pdf.take(ids[ii])
-                            factors=np.stack([ratios*transition(q[ii],end)[:,None] for end in ends],axis=1)
+                            proton=self.calibration.proton[ids[ii]]
+                            fitted=ratios[:,None,:]*(1+proton[:,None,None]*(self.coefficients[None,:,:]-1))
+                            factors=np.stack([fitted*transition(q[ii],end)[:,None,None] for end in ends],axis=2)
                             factors=factors.reshape(len(ii),-1);group='dy'
                         elif channel=='brem':factors=reweights[ii];group='brem'
                         else:factors=np.ones((len(ii),1));group='fixed'

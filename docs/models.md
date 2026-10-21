@@ -45,6 +45,13 @@ widths, branching ratios and decay matrix elements are tabulated for the three
 pure mixings and merged for the requested pattern, as described in
 [physics guide](DETAILS.md).
 
+The SPS production tables combine regenerated SensCalc kaon, charm and bottom
+spectra for a tungsten target ($A=184$). Charm and bottom yields scale as
+$A^{0.29}$: relative to molybdenum ($A=96$), their factor is 1.20764284.
+The kaon yield is unchanged. Both the total production yields and the
+relative K/D/B contributions to the angular and energy distributions use
+this normalization. The shared energy envelope covers all three pure mixings.
+
 ## Fermion-coupled ALP
 
 `ALP-fermion` couples the pseudoscalar $a$ to the fermion axial currents:
