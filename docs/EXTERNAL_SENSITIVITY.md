@@ -194,8 +194,8 @@ vertices, source metadata, and a checked overlay are bundled with the package.
 NA62 is a truth-level response with ideal tracking/PID, approximate apertures,
 and no full trigger, veto, clustering, resolution, or mass-window response.
 Missing photons do not automatically veto events. The analytic lepton response
-supports the frozen fully visible DP-pair topology and explicitly rejects selected
-pairs with invisible energy; it is not a general iDM lepton response. Unsupported
+supports DP pairs and pairs accompanied by invisible daughters, using explicit
+pointing-boundary roots from the visible-pair momentum. Unsupported
 hadronic topologies retain their original rejection. The hadronic selection is an
 ideal-response projection, not a validated detector simulation or observed limit.
 

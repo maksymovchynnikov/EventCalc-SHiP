@@ -280,6 +280,25 @@ def roots(c):
     return out
 
 
+def pointing_boundaries(alpha,beta,pair,beam_xy):
+    """Quadratic signal-region boundaries along a straight parent ray.
+
+    The visible pair need not be collinear with the parent (e.g. iDM).
+    Closest-approach z is affine in vertex z; squared CDA is quadratic.
+    """
+    transverse=pair[:,:2];pt2=np.sum(transverse**2,axis=1)
+    delta=alpha-np.asarray(beam_xy)
+    t0=np.divide(-np.sum(delta*transverse,axis=1),pt2,out=np.zeros(len(pair)),where=pt2>0)
+    t1=np.divide(-np.sum(beta*transverse,axis=1),pt2,out=np.zeros(len(pair)),where=pt2>0)
+    z0=t0*pair[:,2];z1=1+t1*pair[:,2]
+    c0=delta+t0[:,None]*transverse;c1=beta+t1[:,None]*transverse
+    cda=circle_polynomial(c0,c1,0.)
+    ee=cda/.03**2+np.stack(((z0-23)**2/12**2-1,2*(z0-23)*z1/12**2,z1*z1/12**2),axis=1)
+    mu=cda.copy();mu[:,0]-=.020**2
+    linear=[np.stack((z0-bound,z1,np.zeros(len(pair))),axis=1) for bound in (6.,40.)]
+    return {'ee':roots(ee),'mumu':np.concatenate([roots(c) for c in [mu,*linear]],axis=1)}
+
+
 def prepare_leptons(batch,pdg):
     (p,d,v,w,o),mass=batch.arrays()
     ids=np.asarray(pdg);q=np.asarray(batch.charges,float)
@@ -299,8 +318,8 @@ def prepare_leptons(batch,pdg):
     pair=np.sum(np.where(v[...,None],d,0.),axis=1)
     channel_pass={c:dilepton_selection(d,ids,v,channel=c) for c in ['ee','mumu']}
     selected_any=channel_pass['ee']|channel_pass['mumu']
-    if np.any(selected_any & (np.sum(np.where(~v,d[...,3],0.),axis=1)>1e-7)):
-        raise ValueError('Prototype interval preparation supports fully visible DP pairs only; iDM needs pointing-boundary roots')
+    has_invisible=np.sum(np.where(~v,d[...,3],0.),axis=1)>1e-7
+    pointing_roots=pointing_boundaries(alpha,beta,pair[:,:3],ORIGIN[:2])
     # Complete events have already been validated. Only the selected visible
     # pair needs detector transport; do not allocate K-daughter interval tensors
     # for hadronic events which fail both leptonic channels.
@@ -325,7 +344,8 @@ def prepare_leptons(batch,pdg):
     lefts=[];rights=[];weights=[];selections=[];indices=[]
     for ci,channel in enumerate(['ee','mumu']):
         low=105.
-        breaks=np.column_stack([np.full(len(p),low),np.full(len(p),180.),np.full(len(p),vertices[2,0]),all_roots])
+        extra=np.where(has_invisible[:,None] & np.isfinite(pointing_roots[channel]),pointing_roots[channel],180.)
+        breaks=np.column_stack([np.full(len(p),low),np.full(len(p),180.),np.full(len(p),vertices[2,0]),all_roots,extra])
         breaks=np.sort(np.clip(breaks,low,180.),axis=1)
         lo,hi=breaks[:,:-1],breaks[:,1:];mid=(lo+hi)/2
         xyz=np.empty(mid.shape+(3,));xyz[...,:2]=alpha[:,None,:]+mid[...,None]*beta[:,None,:];xyz[...,2]=mid

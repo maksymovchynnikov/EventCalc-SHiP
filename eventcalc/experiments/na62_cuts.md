@@ -80,10 +80,10 @@ pair/beam lines have no unique z_CA and fail the pointing requirement.
 | `selected_ee`, `selected_mumu` | Corresponding volume plus lepton topology, momentum, pointing and, for ee, restricted FV |
 | `detector_ee`, `detector_mumu` | Corresponding selected output plus transported-track aperture |
 
-The analytic lepton preparation supports fully visible DP pairs. If a selected
-pair has more than 1e-7 GeV of invisible daughter energy, it raises an error
-because the required general pointing-boundary roots are not implemented.
-Invisible daughters remain in the complete-event conservation check.
+The analytic lepton preparation also supports invisible daughters, including iDM.
+Additional signal-region boundary roots are computed from the actual visible-pair
+momentum along the parent trajectory; the parent momentum is not substituted for
+that pair. Invisible daughters remain in the complete-event conservation check.
 
 ## Hadronic cuts, in cumulative order
 
