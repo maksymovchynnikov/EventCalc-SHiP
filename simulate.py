@@ -119,11 +119,11 @@ def _print_ship_setup(runtime: SimpleNamespace) -> None:
     )
 
 
-def _make_llp(runtime: SimpleNamespace, config):
+def _make_llp(runtime: SimpleNamespace, config, *, decay_only=False):
     """Build the selected LLP and bind it to the configured exHad release."""
     if config.particle_selection["LLP_name"] == "Inelastic-DM":
         from funcs.inelastic_llp import InelasticLLP
-        return InelasticLLP(config)
+        return InelasticLLP(config, decay_only=decay_only)
     mixing = getattr(config, "mixing_pattern", None)
     mixing = (
         runtime.np.asarray(mixing, dtype=float) if mixing is not None else None
@@ -139,6 +139,7 @@ def _make_llp(runtime: SimpleNamespace, config):
         xi=getattr(config, "xi", None),
         interference=getattr(config, "interference", None),
         defer_production_tables=True,
+        decay_only=decay_only,
     )
 
     exhad = runtime.exhadDecays

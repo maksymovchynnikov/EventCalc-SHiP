@@ -216,12 +216,13 @@ class LLP:
       from DistrHNL_e (distribution), HNL_yield_e (yield), DW_e (decay width)
     """
 
-    def __init__(self, mass, particle_selection, mixing_pattern=None, uncertainty=None, alp_production_mode=None, dp_production_mode=None, scalar_lifetime=None, xi=None, interference=None, defer_production_tables=False):
+    def __init__(self, mass, particle_selection, mixing_pattern=None, uncertainty=None, alp_production_mode=None, dp_production_mode=None, scalar_lifetime=None, xi=None, interference=None, defer_production_tables=False, decay_only=False):
         # Dense kinematics grids may be reused only under this explicit,
         # caller-owned source revision.  The namespace prevents accidental
         # collisions between separately loaded LLP objects; the revision is
         # advanced whenever the source distribution is replaced.
         self._kinematics_cache_namespace = object()
+        self.decay_only = decay_only
         self.defer_production_tables = defer_production_tables
         self._kinematics_source_revision = 0
         self.main_folder = "./Distributions"
@@ -386,6 +387,10 @@ class LLP:
             self.get_distribution(self.mass))
 
     def import_particle(self):
+        if self.decay_only:
+            from funcs.decay_tables import load
+            load(self)
+            return
         if "Scalar" in self.LLP_name:
             self.import_scalars()
         elif self.LLP_name == "HNL":

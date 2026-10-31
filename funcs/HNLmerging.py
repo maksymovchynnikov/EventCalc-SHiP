@@ -61,7 +61,15 @@ def get_exclusive_thresholds(PDGs):
         thresholds.append(float(np.sum(masses)))
     return thresholds
 
-def load_data(paths):
+def load_data(paths, *, decay_only=False):
+    if decay_only:
+        decay_json_path, decay_width_path = paths
+    else:
+        return _load_full_data(paths)
+    return _load_decay_data(decay_json_path, decay_width_path)
+
+
+def _load_full_data(paths):
     (decay_json_path,
      decay_width_path,
      yield_e_path,
@@ -71,33 +79,7 @@ def load_data(paths):
      distrHNL_mu_path,
      distrHNL_tau_path) = paths
 
-    # Validate the signed JSON/width pair before pandas or any interpolator
-    # can consume it.  The returned decoded rows are then reused directly,
-    # avoiding a second, potentially divergent parse.
-    validated_source = load_validated_hnl_source(
-        decay_json_path, decay_width_path)
-    HNL_decay = pd.DataFrame(validated_source.decay_rows)
-    decayChannels = HNL_decay.iloc[:, 0].to_numpy()
-    PDGs = HNL_decay.iloc[:, 1].apply(np.array).to_numpy()
-
-    Br_e = HNL_decay.iloc[:, 2].to_numpy()
-    Br_mu = HNL_decay.iloc[:, 3].to_numpy()
-    Br_tau = HNL_decay.iloc[:, 4].to_numpy()
-    BrRatios = np.array([Br_e, Br_mu, Br_tau], dtype=object)
-
-    Matrix_elements = np.column_stack((
-        HNL_decay.iloc[:, 5],
-        HNL_decay.iloc[:, 6],
-        HNL_decay.iloc[:, 7]
-    ))
-
-    HNL_decay_width = pd.DataFrame(validated_source.width_rows)
-    decay_mass = np.array(HNL_decay_width.iloc[:, 0])
-    DW_e = np.array(HNL_decay_width.iloc[:, 1])
-    DW_mu = np.array(HNL_decay_width.iloc[:, 2])
-    DW_tau = np.array(HNL_decay_width.iloc[:, 3])
-    decayWidthData = np.array([decay_mass, DW_e, DW_mu, DW_tau], dtype=object)
-
+    decayChannels, PDGs, BrRatios, Matrix_elements, decayWidthData = _load_decay_data(decay_json_path, decay_width_path)
     HNL_yield_e = pd.read_csv(yield_e_path, header=None, sep="\t")
     HNL_yield_mu = pd.read_csv(yield_mu_path, header=None, sep="\t")
     HNL_yield_tau = pd.read_csv(yield_tau_path, header=None, sep="\t")
@@ -278,3 +260,34 @@ def get_MatrixElements_funcs(Matrix_elements_raw):
         func_tau.append(ftau_)
 
     return func_e, func_mu, func_tau
+
+
+def _load_decay_data(decay_json_path, decay_width_path):
+    # Validate the signed JSON/width pair before pandas or any interpolator
+    # can consume it.  The returned decoded rows are then reused directly,
+    # avoiding a second, potentially divergent parse.
+    validated_source = load_validated_hnl_source(
+        decay_json_path, decay_width_path)
+    HNL_decay = pd.DataFrame(validated_source.decay_rows)
+    decayChannels = HNL_decay.iloc[:, 0].to_numpy()
+    PDGs = HNL_decay.iloc[:, 1].apply(np.array).to_numpy()
+
+    Br_e = HNL_decay.iloc[:, 2].to_numpy()
+    Br_mu = HNL_decay.iloc[:, 3].to_numpy()
+    Br_tau = HNL_decay.iloc[:, 4].to_numpy()
+    BrRatios = np.array([Br_e, Br_mu, Br_tau], dtype=object)
+
+    Matrix_elements = np.column_stack((
+        HNL_decay.iloc[:, 5],
+        HNL_decay.iloc[:, 6],
+        HNL_decay.iloc[:, 7]
+    ))
+
+    HNL_decay_width = pd.DataFrame(validated_source.width_rows)
+    decay_mass = np.array(HNL_decay_width.iloc[:, 0])
+    DW_e = np.array(HNL_decay_width.iloc[:, 1])
+    DW_mu = np.array(HNL_decay_width.iloc[:, 2])
+    DW_tau = np.array(HNL_decay_width.iloc[:, 3])
+    decayWidthData = np.array([decay_mass, DW_e, DW_mu, DW_tau], dtype=object)
+
+    return decayChannels, PDGs, BrRatios, Matrix_elements, decayWidthData

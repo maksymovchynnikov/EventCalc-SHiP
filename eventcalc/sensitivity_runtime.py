@@ -46,7 +46,8 @@ new particles must be named in invisible_pdgs in addition to neutrinos.
             visible=present & ~np.isin(np.abs(products[:,:,5]),np.abs(invisible_pdgs))
             daughters=products[:,:,:4].copy();daughters[~present]=0.
             yield DecayBatch(mother,daughters,visible,batch.weights*generator.visible_branching_ratio,
-                             batch.mass,batch.origins,charges=charges_from_pdg(products[:,:,5],visible=visible))
+                             batch.mass,batch.origins,charges=charges_from_pdg(products[:,:,5],visible=visible),
+                             pdg_ids=np.where(present,products[:,:,5],0).astype(np.int64))
         return
     if getattr(generator.llp,'production_profile',None)=='calibrated':
         source=generator._collision_source
@@ -61,7 +62,8 @@ new particles must be named in invisible_pdgs in addition to neutrinos.
             present=products[:,:,5]!=-999;visible=present & ~np.isin(np.abs(products[:,:,5]),np.abs(invisible_pdgs))
             daughters=products[:,:,:4].copy();daughters[~present]=0.
             yield DecayBatch(mother,daughters,visible,np.full(n,weight),source.mass,
-                charges=charges_from_pdg(products[:,:,5],visible=visible))
+                charges=charges_from_pdg(products[:,:,5],visible=visible),
+                             pdg_ids=np.where(present,products[:,:,5],0).astype(np.int64))
         return
     grid = copy.copy(generator._grid)
     components = [grid]
@@ -94,4 +96,5 @@ new particles must be named in invisible_pdgs in addition to neutrinos.
         daughters = products[:, :, :4].copy()
         daughters[~present] = 0.
         yield DecayBatch(mother, daughters, visible, np.full(n, weight), mass,
-                         charges=charges_from_pdg(products[:,:,5],visible=visible))
+                         charges=charges_from_pdg(products[:,:,5],visible=visible),
+                             pdg_ids=np.where(present,products[:,:,5],0).astype(np.int64))
