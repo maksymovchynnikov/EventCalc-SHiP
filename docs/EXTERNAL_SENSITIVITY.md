@@ -156,6 +156,9 @@ probability on their intervals, exactly or with its optional response interpolat
 
 SHiP geometry, selections, and acceptance preparation live in
 `eventcalc.experiments.ship`.
+Researcher-facing cut tables are stored beside the modules:
+[SHiP cuts](../eventcalc/experiments/ship_cuts.md) and
+[NA62 cuts](../eventcalc/experiments/na62_cuts.md).
 NA62 geometry, cuts, transport helpers, cutflow, and response preparation live in
 `eventcalc.experiments.na62`. Its frozen lepton cuts use analytic intervals. The
 hadronic selection uses midpoint decisions on vertex cells, merges consecutive accepted cells, and then
