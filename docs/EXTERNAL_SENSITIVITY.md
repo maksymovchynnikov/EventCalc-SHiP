@@ -3,7 +3,8 @@
 Production, conditional decays, experiment response, and lifetime integration are
 separate stages. Replacing the production model requires a new input manifest,
 not edits to acceptance code. Existing SHiP scripts and scan cards retain their
-defaults. BEBC and CHARM responses can be added using the same interface.
+defaults. BEBC and CHARM use the same interface, with explicit phenomenological selection
+and detector-response assumptions.
 
 ## Run the examples
 
@@ -13,8 +14,8 @@ From the repository root, using the Python environment described in the user gui
 python -m examples.external_inputs --output outputs/external-input-example
 ```
 
-This creates deterministic inputs and runs four small scans: spectrum tables and
-sampled parents, each with SHiP and NA62. The examples use the existing dark-photon
+This creates deterministic inputs and runs eight small scans: spectrum tables and
+sampled parents, each with SHiP, NA62, BEBC and CHARM. The examples use the existing dark-photon
 electron-pair decay generator with exHad disabled; they need the ordinary numerical
 dependencies but no hadronization installation. They are software demonstrations,
 not experimental projections. Both input forms represent exactly the same parent
@@ -29,6 +30,28 @@ python -m eventcalc.scan_sensitivity outputs/external-input-example/na62_spectru
 The output directory must not exist. Generated NPZ files contain expected events
 and replica integration errors; JSON records the resolved card, input/code hashes,
 replica seeds, selections, and connected threshold intervals.
+
+## BEBC and CHARM configurations
+
+Their defaults use a two-visible-charged-particle topology with per-daughter
+E > 1 GeV and separate ee, mumu, emu and combined `selected_leptons` outputs.
+`decay_in_volume` has no daughter cuts; `selected_pair` is a diagnostic that also
+includes hadron pairs and must not be assigned leptonic observed statistics.
+BEBC uses the chamber volume itself; CHARM additionally requires both daughters
+to cross its explicitly configured rectangular detector planes.
+
+Configure these through `experiment.config`, with bounds `lower`/`upper` and an
+optional `efficiency` (default 1). BEBC also exposes independent per-track momentum,
+pair-energy and transverse-mass cuts; the last requires an explicit reference axis.
+CHARM accepts a `planes` list of objects with `z`, `lower` and `upper` transverse
+bounds. Source origins must match each experiment's documented coordinate frame.
+No target correction, measured efficiency, exposure or statistical threshold is
+inferred from selecting an experiment. These are phenomenological acceptances,
+not complete historical detector-response or observed-limit reproductions.
+
+See [BEBC cuts and papers](../eventcalc/experiments/bebc_cuts.md) and
+[CHARM cuts and papers](../eventcalc/experiments/charm_cuts.md) for numeric defaults,
+source attributions and unresolved historical settings.
 
 ## External production contract
 
@@ -83,7 +106,7 @@ the angular and polarization assumptions of the selected existing decay model.
 
 ## Scan and decay configuration
 
-Use `experiment: {"name": "ship"}` or `experiment: {"name": "na62"}`. SHiP accepts
+Use `experiment.name` equal to `ship`, `na62`, `bebc` or `charm`. SHiP accepts
 its existing `geometry` and `selections`, either inside the experiment object or
 as legacy top-level fields. NA62 uses its named frozen response; set
 `experiment.config.vertex_cells` to change its hadronic vertex grid (default 128).
@@ -158,7 +181,9 @@ SHiP geometry, selections, and acceptance preparation live in
 `eventcalc.experiments.ship`.
 Researcher-facing cut tables are stored beside the modules:
 [SHiP cuts](../eventcalc/experiments/ship_cuts.md) and
-[NA62 cuts](../eventcalc/experiments/na62_cuts.md).
+[NA62 cuts](../eventcalc/experiments/na62_cuts.md),
+[BEBC cuts](../eventcalc/experiments/bebc_cuts.md), and
+[CHARM cuts](../eventcalc/experiments/charm_cuts.md).
 NA62 geometry, cuts, transport helpers, cutflow, and response preparation live in
 `eventcalc.experiments.na62`. Its frozen lepton cuts use analytic intervals. The
 hadronic selection uses midpoint decisions on vertex cells, merges consecutive accepted cells, and then
@@ -186,4 +211,5 @@ python -m unittest discover -s tests -p 'test_external_production.py'
 python -m unittest discover -s tests -p 'test_decay_runtime.py'
 python -m unittest discover -s tests -p 'test_na62*.py'
 python -m unittest discover -s tests -p 'test_response_baselines.py'
+python -m unittest discover -s tests -p 'test_bebc_charm.py'
 ```

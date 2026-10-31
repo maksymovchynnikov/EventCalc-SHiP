@@ -31,3 +31,26 @@ def dipole_displacement(momentum, charge, z_min, z_max, field_integral, aperture
     drift = aperture_z-z_max
     return (dx-length*px/pz + drift*(px_out/pz_out-px/pz),
             dy-length*py/pz + drift*(py/pz_out-py/pz), True)
+
+
+def ray_box_intervals(origins, momenta, lower, upper):
+    """Forward distances along rays inside a finite axis-aligned cuboid."""
+    lower,upper=np.asarray(lower,float),np.asarray(upper,float)
+    if lower.shape!=(3,) or upper.shape!=(3,) or not np.all(np.isfinite([lower,upper])) or np.any(upper<=lower):
+        raise ValueError('Box bounds must be finite ordered three-vectors')
+    o, p = np.broadcast_arrays(np.asarray(origins, float), np.asarray(momenta, float))
+    if o.ndim != 2 or o.shape[1] != 3 or not np.all(np.isfinite([o, p])):
+        raise ValueError('Expected finite (N,3) origins and momenta')
+    norm = np.linalg.norm(p, axis=1)
+    u = np.divide(p, norm[:, None], out=np.zeros_like(p), where=norm[:, None] > 0)
+    lo, hi = np.zeros(len(o)), np.full(len(o), np.inf)
+    valid = norm > 0
+    for axis in range(3):
+        moving = u[:, axis] != 0
+        a = np.divide(lower[axis] - o[:, axis], u[:, axis], out=np.zeros(len(o)), where=moving)
+        b = np.divide(upper[axis] - o[:, axis], u[:, axis], out=np.zeros(len(o)), where=moving)
+        lo = np.maximum(lo, np.where(moving, np.minimum(a, b), -np.inf))
+        hi = np.minimum(hi, np.where(moving, np.maximum(a, b), np.inf))
+        valid &= moving | ((o[:, axis] >= lower[axis]) & (o[:, axis] <= upper[axis]))
+    valid &= hi > lo
+    return np.where(valid, lo, 0.), np.where(valid, hi, 0.)

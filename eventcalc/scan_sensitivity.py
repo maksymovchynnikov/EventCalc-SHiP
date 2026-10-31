@@ -34,7 +34,17 @@ def run(card, *, base=Path('.')):
         from eventcalc.experiments.na62 import NA62Response, NA62Config
         experiment=NA62Response(NA62Config(**experiment_card.get('config',{})))
         geometry=experiment.geometry;selections=experiment.selections
-    else: raise ValueError('experiment.name must be ship or na62')
+    elif experiment_name in ('bebc','charm'):
+        if 'geometry' in card or 'selections' in card:
+            raise ValueError('Configure BEBC/CHARM through experiment.config')
+        if experiment_name=='bebc':
+            from eventcalc.experiments.bebc import BEBCResponse,BEBCConfig
+            experiment=BEBCResponse(BEBCConfig(**experiment_card.get('config',{})))
+        else:
+            from eventcalc.experiments.charm import CHARMResponse,CHARMConfig
+            experiment=CHARMResponse(CHARMConfig(**experiment_card.get('config',{})))
+        geometry=experiment.geometry;selections=experiment.selections
+    else: raise ValueError('experiment.name must be ship, na62, bebc or charm')
     input_hashes={}
     source_records=[]
     replica_seeds=[]
@@ -133,6 +143,9 @@ def run(card, *, base=Path('.')):
     if experiment_name=='na62':
         metadata['resolved_experiment_config']=asdict(experiment.config)
         metadata['response_scope']='Frozen truth-level lepton response and ideal-response hadronic projection; not full detector validation or an observed exclusion.'
+    if experiment_name in ('bebc','charm'):
+        metadata['resolved_experiment_config']=asdict(experiment.config)
+        metadata['response_scope']='Phenomenological two-track lepton acceptance with explicit geometry and efficiency assumptions; not a full historical detector response or observed-limit construction.'
     package=Path(__file__).resolve().parent
     metadata['code_sha256'].update({str(p.relative_to(package.parent)):hashlib.sha256(p.read_bytes()).hexdigest()
         for p in [*package.joinpath('experiments').rglob('*.py'),*package.joinpath('experiments/data').glob('*.json'),

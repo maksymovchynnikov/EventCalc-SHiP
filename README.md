@@ -39,7 +39,7 @@ decays.
 ## External production and multiple experiments
 
 Calculate sensitivity from external spectrum/probability tables or weighted parent
-samples using the shared lifetime engine and SHiP or NA62 experiment responses.
+samples using the shared lifetime engine and SHiP, NA62, BEBC or CHARM experiment responses.
 See the [external-input guide](docs/EXTERNAL_SENSITIVITY.md) for normalization,
 input formats, runnable examples, and the NA62 response approximations.
 

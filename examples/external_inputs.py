@@ -1,4 +1,4 @@
-"""Generate and run four small external-input examples, without iteration scripts.
+"""Generate and run eight small external-input examples, without iteration scripts.
 
 python -m examples.external_inputs --output example-results
 """
@@ -17,15 +17,18 @@ def create(directory, *, events=512):
                decay_channels=['e-pair'],exhad='off',plots=False,export_events=False)
     (directory/'decay.json').write_text(json.dumps(decay,indent=2)+'\n')
     cards=[]
-    for experiment,origin in [('ship',[0,0,0]),('na62',[0,-.022,23.07])]:
+    frames={'ship':'target front at z=0','na62':'nominal NA62 target at z=0',
+            'bebc':'BEBC dump end at z=0','charm':'CHARM target reference at z=0'}
+    for experiment,origin in [('ship',[0,0,0]),('na62',[0,-.022,23.07]),
+                              ('bebc',[0,0,0]),('charm',[0,0,0])]:
         prefix=experiment+'_'
         meta=dict(schema_version=1,kind='spectrum',mass_GeV=.3,arrays=prefix+'spectrum.npz',
             frame='lab',momentum_order=['px','py','pz','E'],energy_unit='GeV',length_unit='m',angle_unit='rad',
-            coordinate_frame='beam +z; '+('target front at z=0' if experiment=='ship' else 'nominal NA62 target at z=0'),
+            coordinate_frame='beam +z; '+frames[experiment],
             normalization='produced_parents_per_incident',origin_m=origin,production_probability=1e-7)
         manifest=directory/(prefix+'spectrum.json')
         manifest.write_text(json.dumps(meta,indent=2)+'\n')
-        np.savez(directory/meta['arrays'],theta_edges=[.001,.002,.003],energy_edges=[60.,90.,120.],
+        np.savez(directory/meta['arrays'],theta_edges=([.008,.010,.012] if experiment=='charm' else [.001,.002,.003]),energy_edges=[60.,90.,120.],
                  bin_probabilities=[[.2,.3],[.3,.2]])
         spectrum=ExternalProduction(manifest,mass=.3)
         replicas=[]
