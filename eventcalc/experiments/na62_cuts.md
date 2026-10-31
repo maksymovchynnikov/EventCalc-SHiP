@@ -12,6 +12,22 @@ in the same frame. Pointing uses a beam parallel to +z through
 (x, y) = (0, -0.022) m. The radial fiducial and aperture cuts are centred on
 the nominal detector axis (x, y) = (0, 0), not on that offset beam line.
 
+## Papers used and attribution
+
+| Reference | Paper (NA62 Collaboration) | Used for |
+| --- | --- | --- |
+| L | [Search for Leptonic Decays of Dark Photons at NA62, arXiv:2312.12055v2](https://arxiv.org/abs/2312.12055v2) | Electron-pair selection in Section III; restricted FV in Fig. 2; electron pointing ellipse in Eq. (1) |
+| M | [Search for dark photon decays to mu+mu- at NA62, arXiv:2303.08666v2](https://arxiv.org/abs/2303.08666v2) | Muon-pair selection in Section 4: track momentum, vertex range and rectangular pointing region |
+| H | [Search for hadronic decays of feebly-interacting particles at NA62, arXiv:2502.04241v2](https://arxiv.org/abs/2502.04241v2) | Section 3.1: two-track selection, restricted FV, track separations and photon threshold; Fig. 3: hadronic pointing region |
+| D | [The Beam and detector of the NA62 experiment at CERN, arXiv:1703.08501v2](https://arxiv.org/abs/1703.08501v2) | Detector description; Table 5 supplies the first STRAW station position z = 183 m |
+
+References below identify the published conditions behind each selection.
+Their translation to terminal-particle kinematics is an implementation proxy.
+The papers do not establish the p > 1 GeV hadron projection threshold, inherited
+common aperture annulus, or all nominal detector coordinates used here. Those
+remain explicitly labelled assumptions/approximations rather than paper-derived
+cuts. Production modelling and normalization are external to this cut inventory.
+
 ## Geometry and transport
 
 | Setting | Implemented value / condition | Status |
@@ -20,10 +36,10 @@ the nominal detector axis (x, y) = (0, 0), not on that offset beam line.
 | Base decay cylinder | Radius r < 1 m | All lepton volume outputs and hadronic stages |
 | Muon and hadronic longitudinal volume | z = 105 to 180 m | Frozen baseline |
 | Electron longitudinal volume | z = 104.987277... to 180 m | Digitized FV endpoints |
-| Restricted electron/hadron FV | r below the piecewise linear contour in the table below | Raster approximation, not an exact experimental card |
+| Restricted electron/hadron FV | r below the piecewise linear contour in the table below | L, Fig. 2; H, Section 3.1 refers to the electron FV. Raster approximation, not an exact experimental card |
 | Dipole | z = 196.35 to 197.65 m; B_y = 0.6928 T, integral = 0.90064 T m | Uniform-field transport approximation |
 | Final charged-track aperture plane | z = 243.85 m | Inherited aperture proxy |
-| STRAW separation plane | z = 183 m | Hadronic selection |
+| STRAW separation plane | z = 183 m | D, Table 5; hadronic selection |
 | LKr plane | z = 241.495 m | Hadronic separation and photon reconstruction; approximate nominal alignment |
 | Track transport | Forward daughter p_z > 0 and valid transport; charged tracks use dipole displacement, neutral particles follow straight lines | No material effects |
 
@@ -47,16 +63,16 @@ the offset beam line, and CDA is the distance between those lines. The pair
 momentum is evaluated at the vertex, before the magnetic kick. Exactly parallel
 pair/beam lines have no unique z_CA and fail the pointing requirement.
 
-| Requirement | Electron pair (ee) | Muon pair (mumu) |
-| --- | --- | --- |
-| Visible topology | Exactly two visible, opposite-sign electrons | Exactly two visible, opposite-sign muons |
-| Per-track momentum | p > 10 GeV | p > 10 GeV |
-| Pair energy | Positive; no additional numerical pair-energy threshold | Positive; no additional numerical pair-energy threshold |
-| Base vertex volume | r < 1 m; electron z range above | r < 1 m; 105 to 180 m |
-| Restricted FV contour | Applied | Not applied |
-| Pointing signal region | ((z_CA - 23 m) / 12 m)^2 + (CDA / 0.03 m)^2 < 1 | 6 m < z_CA < 40 m and CDA < 0.020 m |
-| Detector aperture | Each track: 0.08 m < r < 1.15 m at z = 243.85 m | Same |
-| STRAW/LKr pair separation | Not imposed | Not imposed |
+| Requirement | Electron pair (ee) | Muon pair (mumu) | Source / qualification |
+| --- | --- | --- | --- |
+| Visible topology | Exactly two visible, opposite-sign electrons | Exactly two visible, opposite-sign muons | L, Section III; M, Section 4. Terminal-particle proxy for reconstructed tracks |
+| Per-track momentum | p > 10 GeV | p > 10 GeV | L, Section III; M, Section 4 |
+| Pair energy | Positive; no additional numerical pair-energy threshold | Positive; no additional numerical pair-energy threshold | Implementation condition; not an additional published numerical cut |
+| Base vertex volume | r < 1 m; electron z range above | r < 1 m; 105 to 180 m | Electron endpoints: L, Fig. 2; muon z range: M, Section 4. The common r < 1 m denominator is an implementation choice |
+| Restricted FV contour | Applied | Not applied | L, Fig. 2; digitized approximation |
+| Pointing signal region | ((z_CA - 23 m) / 12 m)^2 + (CDA / 0.03 m)^2 < 1 | 6 m < z_CA < 40 m and CDA < 0.020 m | L, Eq. (1); M, Section 4 |
+| Detector aperture | Each track: 0.08 m < r < 1.15 m at z = 243.85 m | Same | Inherited geometry proxy; not the full published detector acceptance |
+| STRAW/LKr pair separation | Not imposed | Not imposed | Absent from the implemented frozen lepton response |
 
 | Named output | Requirements included |
 | --- | --- |
@@ -76,17 +92,17 @@ with optional photons and supported invisible daughters. Other terminal visible
 species are rejected. In the fixed PDG filtering, neutrinos (absolute IDs
 12, 14, 16, 18), IDs 4900101/4900102, and padding ID 0 are ignored for topology.
 
-| Stage | Requirement | Value / interpretation |
-| --- | --- | --- |
-| `cylinder_volume` | Decay vertex in the base cylinder | r < 1 m; z = 105 to 180 m |
-| `restricted_fv` | Vertex inside digitized FV | Same radial contour as ee |
-| `two_opposite_hadron_tracks` | Exactly two charged terminal daughters with opposite charges | Supported visible species: charged pions, charged kaons and photons; no additional visible species |
-| `track_p_threshold` | Momentum of each charged track | p > 1 GeV in `NA62Response`; forward transport also required |
-| `track_aperture_proxy` | Each charged track at final aperture plane | 0.08 m < r < 1.15 m at z = 243.85 m |
-| `separation_straw` | Charged-track separation at STRAW plane | At least 0.020 m at z = 183 m |
-| `separation_lkr` | Charged-track separation at LKr plane | At least 0.200 m at z = 241.495 m |
-| `photons_reconstructed` | Identify photons to add to reconstructed momentum | E_gamma > 5 GeV, forward/valid transport, and 0.08 m < r < 1.15 m at LKr; **missing photons do not veto the event**, so this stage adds no rejection |
-| `hadronic_pointing` | Pointing of the two charged tracks plus reconstructed photons | ((z_CA - 23 m) / 23 m)^2 + (CDA / 0.04 m)^2 < 1 |
+| Stage | Requirement | Value / interpretation | Source / qualification |
+| --- | --- | --- | --- |
+| `cylinder_volume` | Decay vertex in the base cylinder | r < 1 m; z = 105 to 180 m | Inherited comparison volume, not a complete experimental FV definition |
+| `restricted_fv` | Vertex inside digitized FV | Same radial contour as ee | H, Section 3.1; L, Fig. 2 |
+| `two_opposite_hadron_tracks` | Exactly two charged terminal daughters with opposite charges | Supported visible species: charged pions, charged kaons and photons; no additional visible species | H, Section 3.1; supported terminal species and perfect track finding are implementation restrictions |
+| `track_p_threshold` | Momentum of each charged track | p > 1 GeV in `NA62Response`; forward transport also required | Projection assumption; H, Section 3.1 does not explicitly specify this numerical track threshold |
+| `track_aperture_proxy` | Each charged track at final aperture plane | 0.08 m < r < 1.15 m at z = 243.85 m | Inherited geometry proxy; not the complete detector-aperture requirements in H |
+| `separation_straw` | Charged-track separation at STRAW plane | At least 0.020 m at z = 183 m | H, Section 3.1 for 20 mm; D, Table 5 for the station z |
+| `separation_lkr` | Charged-track separation at LKr plane | At least 0.200 m at z = 241.495 m | H, Section 3.1 for 200 mm; nominal LKr z is inherited from the local geometry |
+| `photons_reconstructed` | Identify photons to add to reconstructed momentum | E_gamma > 5 GeV, forward/valid transport, and 0.08 m < r < 1.15 m at LKr; **missing photons do not veto the event**, so this stage adds no rejection | H, Section 3.1 for 5 GeV; annulus and ideal photon response are approximations |
+| `hadronic_pointing` | Pointing of the two charged tracks plus reconstructed photons | ((z_CA - 23 m) / 23 m)^2 + (CDA / 0.04 m)^2 < 1 | H, Section 3.1 and Fig. 3; reconstructed-momentum proxy |
 
 The final `hadronic_group_0` through `hadronic_group_5` outputs all use the
 complete sequence above, separated by terminal-state diagnostics:
