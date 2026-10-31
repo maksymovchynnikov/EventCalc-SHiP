@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
-from eventcalc.experiments._na62_hadrons import prepare
-from eventcalc.experiments._na62_cutflow import evaluate,ORIGIN
+from eventcalc.experiments.na62 import prepare_hadrons as prepare
+from eventcalc.experiments.na62 import evaluate_cutflow as evaluate,ORIGIN
 from na62_fixtures import pack
 from eventcalc.sensitivity import DecayBatch
 

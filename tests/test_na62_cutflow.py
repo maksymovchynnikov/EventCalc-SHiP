@@ -1,10 +1,10 @@
 import unittest
 import numpy as np
 from scipy.integrate import quad
-from eventcalc.experiments._na62_cutflow import evaluate,ORIGIN,hadron_pointing,fv_pass
+from eventcalc.experiments.na62 import evaluate_cutflow as evaluate,ORIGIN,hadron_pointing,fv_pass
 from na62_fixtures import pack
-from eventcalc.experiments._na62_primitives import ElectronFV,project_tracks,Dipole,pointing
-from eventcalc.experiments._na62_leptons import ZMAG,FIELD,PLANE
+from eventcalc.experiments.na62 import ElectronFV,project_tracks,Dipole,pointing
+from eventcalc.experiments.na62 import ZMAG,FIELD,PLANE
 from eventcalc.sensitivity import DecayBatch
 
 

@@ -155,8 +155,9 @@ geometry, cuts, and transport; the shared engine evaluates the exponential decay
 probability on their intervals, exactly or with its optional response interpolation.
 
 SHiP's existing geometry and defaults live in `eventcalc.experiments.ship`.
-NA62's frozen lepton cuts use analytic intervals. Its hadronic selection uses
-midpoint decisions on vertex cells, merges consecutive accepted cells, and then
+NA62 geometry, cuts, transport helpers, cutflow, and response preparation live in
+`eventcalc.experiments.na62`. Its frozen lepton cuts use analytic intervals. The
+hadronic selection uses midpoint decisions on vertex cells, merges consecutive accepted cells, and then
 integrates the exponential exactly over those cells. The exposed cutflow retains
 the original cumulative stages and terminal-state groups. Digitized electron-FV
 vertices, source metadata, and a checked overlay are bundled with the package.
