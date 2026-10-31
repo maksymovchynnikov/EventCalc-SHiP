@@ -23,7 +23,10 @@ class ResponseBaselineTests(unittest.TestCase):
 
     def test_frozen_na62_leptons(self):
         b,a=load(FIXTURES/'na62_leptons.npz')
-        actual=NA62Response().prepare(b).evaluate(a['ctau_m'])
+        prepared=NA62Response().prepare(b)
+        z=b.origins[prepared.event_index,2]+prepared.lower*b.mother[prepared.event_index,2]/b.mass
+        self.assertTrue(np.all(z>=105.-1e-12))
+        actual=prepared.evaluate(a['ctau_m'])
         np.testing.assert_allclose(actual[:,:6],a['expected'],rtol=2e-13,atol=1e-18)
         np.testing.assert_array_equal(actual[:,6:],0)
         self.assertGreater(actual[:,[2,5]].max(),0)

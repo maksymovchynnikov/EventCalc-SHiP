@@ -52,5 +52,12 @@
         1.4035729530826764e-11
       ]
     }
+  },
+  "longitudinal_range_update": {
+    "range_m": [
+      105,
+      180
+    ],
+    "expected_integrals": "Original prepared intervals clipped at z=105 m; original expected arrays retained under original_expected/original_expected_256. Hadronic cutflow arrays unchanged."
   }
 }

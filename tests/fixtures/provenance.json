@@ -14,5 +14,12 @@
       "mumu"
     ],
     "response": "Original analytic prepare_na62 evaluated before port; p4 and expected integrals frozen in NPZ"
+  },
+  "longitudinal_range_update": {
+    "range_m": [
+      105,
+      180
+    ],
+    "expected_integrals": "Original prepared intervals clipped at z=105 m; original expected arrays retained under original_expected/original_expected_256. Hadronic cutflow arrays unchanged."
   }
 }

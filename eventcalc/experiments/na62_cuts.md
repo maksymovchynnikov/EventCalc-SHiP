@@ -34,8 +34,7 @@ cuts. Production modelling and normalization are external to this cut inventory.
 | --- | --- | --- |
 | Parent direction | p_z > 0 | Required by both acceptance preparations |
 | Base decay cylinder | Radius r < 1 m | All lepton volume outputs and hadronic stages |
-| Muon and hadronic longitudinal volume | z = 105 to 180 m | Frozen baseline |
-| Electron longitudinal volume | z = 104.987277... to 180 m | Digitized FV endpoints |
+| Longitudinal volume (all channels) | z = 105 to 180 m | Common implemented range for electrons, muons and hadrons |
 | Restricted electron/hadron FV | r below the piecewise linear contour in the table below | L, Fig. 2; H, Section 3.1 refers to the electron FV. Raster approximation, not an exact experimental card |
 | Dipole | z = 196.35 to 197.65 m; B_y = 0.6928 T, integral = 0.90064 T m | Uniform-field transport approximation |
 | Final charged-track aperture plane | z = 243.85 m | Inherited aperture proxy |
@@ -47,11 +46,12 @@ The digitized contour is linearly interpolated between each pair of endpoints:
 
 | z range (m; rounded here) | Maximum radius at left endpoint (m) | Maximum radius at right endpoint (m) |
 | --- | --- | --- |
-| 104.987277 to 156.910214 | 0.317440 | 0.519913 |
+| 105 to 156.910214 | 0.317490 | 0.519913 |
 | 156.910214 to 180 | 0.650837 | 0.763495 |
 
 There is a radius step at z = 156.910214... m. The accepted side is strictly
-below the contour and between its outer z endpoints. Full-precision coordinates,
+below the contour and within the common 105 to 180 m longitudinal range. The
+raw digitization is clipped at 105 m, interpolating its radius there. Original coordinates,
 digitization provenance and estimated raster tolerances are in
 [the FV data](data/na62_ee_fv.json); see also
 [the checked overlay](data/na62_ee_fv_overlay.png).
@@ -68,7 +68,7 @@ pair/beam lines have no unique z_CA and fail the pointing requirement.
 | Visible topology | Exactly two visible, opposite-sign electrons | Exactly two visible, opposite-sign muons | L, Section III; M, Section 4. Terminal-particle proxy for reconstructed tracks |
 | Per-track momentum | p > 10 GeV | p > 10 GeV | L, Section III; M, Section 4 |
 | Pair energy | Positive; no additional numerical pair-energy threshold | Positive; no additional numerical pair-energy threshold | Implementation condition; not an additional published numerical cut |
-| Base vertex volume | r < 1 m; electron z range above | r < 1 m; 105 to 180 m | Electron endpoints: L, Fig. 2; muon z range: M, Section 4. The common r < 1 m denominator is an implementation choice |
+| Base vertex volume | r < 1 m; 105 to 180 m | r < 1 m; 105 to 180 m | Common implemented z range; M, Section 4. Electron radial contour: L, Fig. 2. The common r < 1 m denominator is an implementation choice |
 | Restricted FV contour | Applied | Not applied | L, Fig. 2; digitized approximation |
 | Pointing signal region | ((z_CA - 23 m) / 12 m)^2 + (CDA / 0.03 m)^2 < 1 | 6 m < z_CA < 40 m and CDA < 0.020 m | L, Eq. (1); M, Section 4 |
 | Detector aperture | Each track: 0.08 m < r < 1.15 m at z = 243.85 m | Same | Inherited geometry proxy; not the full published detector acceptance |

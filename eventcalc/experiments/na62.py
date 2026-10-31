@@ -139,7 +139,11 @@ class ElectronFV:
     def digitized(cls, *, centre_xy, shift_z=0., shift_rho=0.):
         path=Path(__file__).resolve().parent/'data/na62_ee_fv.json'
         data=json.loads(path.read_text(encoding='utf8'))
-        return cls(tuple(map(tuple,data['vertices_z_rho_m'])),tuple(centre_xy),shift_z,shift_rho)
+        vertices=np.asarray(data['vertices_z_rho_m'],float)
+        radius_at_105=np.interp(105.,vertices[[1,2],0],vertices[[1,2],1])
+        vertices[:2,0]=105.
+        vertices[1,1]=radius_at_105
+        return cls(tuple(map(tuple,vertices)),tuple(centre_xy),shift_z,shift_rho)
 
     def __call__(self,z,xy):
         z,xy=np.asarray(z,float)-self.shift_z,np.asarray(xy,float)
@@ -211,7 +215,7 @@ def vertex_selection(vertices, *, channel, nominal_target_z=0., electron_fv=None
         if electron_fv is None: raise ValueError('Verified electron restricted FV is required')
         result = np.asarray(electron_fv(z,v[:,:2]),bool)
         if result.shape != z.shape: raise ValueError('FV callback must return one flag per vertex')
-        return result
+        return result & (z > 105) & (z < 180)
     raise ValueError('Choose separate ee or mumu analysis')
 
 
@@ -320,7 +324,7 @@ def prepare_leptons(batch,pdg):
     all_roots=np.where(np.isfinite(all_roots),all_roots,180.)
     lefts=[];rights=[];weights=[];selections=[];indices=[]
     for ci,channel in enumerate(['ee','mumu']):
-        low=vertices[0,0] if channel=='ee' else 105.
+        low=105.
         breaks=np.column_stack([np.full(len(p),low),np.full(len(p),180.),np.full(len(p),vertices[2,0]),all_roots])
         breaks=np.sort(np.clip(breaks,low,180.),axis=1)
         lo,hi=breaks[:,:-1],breaks[:,1:];mid=(lo+hi)/2
