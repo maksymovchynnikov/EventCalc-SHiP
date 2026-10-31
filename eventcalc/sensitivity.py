@@ -11,7 +11,7 @@ from numba import njit
 
 
 from eventcalc.experiments.ship import Geometry, Selection, ship_selections
-from eventcalc.experiments._ship_kernels import _volume, _ip, _prepare
+from eventcalc.experiments.ship import _volume, _ip, _prepare
 from eventcalc.transport import dipole_displacement
 
 

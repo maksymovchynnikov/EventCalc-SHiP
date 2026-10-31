@@ -154,7 +154,8 @@ index. Several disjoint intervals can belong to one event. Experiments own
 geometry, cuts, and transport; the shared engine evaluates the exponential decay
 probability on their intervals, exactly or with its optional response interpolation.
 
-SHiP's existing geometry and defaults live in `eventcalc.experiments.ship`.
+SHiP geometry, selections, and acceptance preparation live in
+`eventcalc.experiments.ship`.
 NA62 geometry, cuts, transport helpers, cutflow, and response preparation live in
 `eventcalc.experiments.na62`. Its frozen lepton cuts use analytic intervals. The
 hadronic selection uses midpoint decisions on vertex cells, merges consecutive accepted cells, and then
