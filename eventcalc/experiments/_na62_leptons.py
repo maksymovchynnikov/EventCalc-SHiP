@@ -3,8 +3,6 @@
 Circle/linear-radius boundaries are quadratic along a straight parent ray.
 No vertex Monte Carlo or lifetime-dependent selection sampling is used.
 """
-from pathlib import Path
-import sys
 import numpy as np
 
 from ._na62_primitives import ElectronFV,pointing,signal_region,dilepton_selection

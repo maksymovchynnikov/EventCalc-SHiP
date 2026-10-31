@@ -1,6 +1,4 @@
 """Cache the iteration-8 p>1 GeV response as merged accepted vertex cells."""
-from pathlib import Path
-import sys
 import numpy as np
 from numba import njit
 

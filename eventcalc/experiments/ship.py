@@ -72,7 +72,8 @@ Weights are integral contributions per incident particle, NOT a normalized
 histogram and NOT decay probabilities. They may be signed. This function
 does not infer which daughters are detectable: supply a visibility mask.
 """
-    from eventcalc.sensitivity import _prepare, PreparedAcceptance
+    from eventcalc.sensitivity import PreparedAcceptance
+    from ._ship_kernels import _prepare
     geometry = geometry or Geometry.ship()
     selections = tuple(ship_selections() if selections is None else selections)
     arrays, mass = batch.arrays()

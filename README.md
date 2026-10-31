@@ -36,6 +36,13 @@ Hadronic decays use configured exHad by default. Nonhadronic channels are
 generated directly. Use `--exhad off` to select baseline Pythia8 for hadronic
 decays.
 
+## External production and multiple experiments
+
+Calculate sensitivity from external spectrum/probability tables or weighted parent
+samples using the shared lifetime engine and SHiP or NA62 experiment responses.
+See the [external-input guide](docs/EXTERNAL_SENSITIVITY.md) for normalization,
+input formats, runnable examples, and the NA62 response approximations.
+
 ## Models and production
 
 The [model guide](docs/models.md) defines the supported interactions and coupling

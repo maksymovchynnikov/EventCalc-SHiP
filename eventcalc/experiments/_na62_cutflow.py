@@ -3,8 +3,6 @@
 Not a reconstructed analysis: final-plane proxy, perfect track finding/PID,
 isolated photons and no cluster merging or mass-window classification.
 """
-from pathlib import Path
-import sys
 import numpy as np
 from numba import njit
 

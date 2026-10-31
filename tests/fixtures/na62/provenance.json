@@ -1,0 +1,56 @@
+{
+  "source": "Frozen iteration-8 complete decay pools and fixed production draws; first 96 parents in primary replica 0 for portable fixtures",
+  "validation": "All four replicas and both categories compared against saved 128-cell cutflows at six masses",
+  "scope": "Numerical equivalence only, not detector validation",
+  "cutflow_manifest_sha256": "38f972007ce92467492401e898d3c3172a7595958ef0a922ddb73bc79cf81d92",
+  "results": {
+    "0.3": {
+      "saved_cutflow_replicas": 4,
+      "production_categories": 2,
+      "max_absolute_event_difference": 0.0,
+      "subset_128_256_max_per_incident_difference": [
+        1.753996494151758e-11
+      ]
+    },
+    "0.5": {
+      "saved_cutflow_replicas": 4,
+      "production_categories": 2,
+      "max_absolute_event_difference": 0.0,
+      "subset_128_256_max_per_incident_difference": [
+        1.0591017962948851e-10
+      ]
+    },
+    "0.78": {
+      "saved_cutflow_replicas": 4,
+      "production_categories": 2,
+      "max_absolute_event_difference": 0.0,
+      "subset_128_256_max_per_incident_difference": [
+        1.796485091117097e-08
+      ]
+    },
+    "0.9": {
+      "saved_cutflow_replicas": 4,
+      "production_categories": 2,
+      "max_absolute_event_difference": 0.0,
+      "subset_128_256_max_per_incident_difference": [
+        5.55130093797559e-11
+      ]
+    },
+    "1.01946": {
+      "saved_cutflow_replicas": 4,
+      "production_categories": 2,
+      "max_absolute_event_difference": 0.0,
+      "subset_128_256_max_per_incident_difference": [
+        7.744347523673019e-09
+      ]
+    },
+    "1.1": {
+      "saved_cutflow_replicas": 4,
+      "production_categories": 2,
+      "max_absolute_event_difference": 0.0,
+      "subset_128_256_max_per_incident_difference": [
+        1.4035729530826764e-11
+      ]
+    }
+  }
+}

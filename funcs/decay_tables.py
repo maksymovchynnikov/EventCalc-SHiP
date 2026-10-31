@@ -18,11 +18,13 @@ def load(llp):
     llp.Distr=llp.Energy_distr=llp.Yield_data=None
     llp.get_total_yield=lambda mass: 0.  # never applied by the external decay adapter
     llp.get_distribution=lambda mass: None
+    llp.decay_input_paths=[]
     if name=='HNL':
         if llp.MixingPatternArray is None: raise ValueError('HNL requires mixing_pattern')
         (llp.decayChannels,llp.PDGs,llp.BrRatios_raw,llp.Matrix_elements_raw,llp.decayWidthData)=HNLmerging.load_data(
             (str(root/'HNL-decay.json'),str(root/'HNLdecayWidth.dat')),decay_only=True)
         source=json.loads((root/'HNL-source.json').read_text())['source']
+        llp.decay_input_paths=[root/'HNL-decay.json',root/'HNLdecayWidth.dat',root/'HNL-source.json']
         llp.hnl_decay_source_sha256=source['decay_json_sha256']
         llp.hnl_width_source_sha256=source['width_table_sha256']
         llp.DWe_func,llp.DWmu_func,llp.DWtau_func=HNLmerging.get_decay_width_interpolators(llp.decayWidthData)
@@ -45,6 +47,10 @@ def load(llp):
         decay_path=root/f'{stem}-decay.json'
         ctau=None if name=='ALP-mixed' else pd.read_csv(root/f'ctau-{stem}.txt',header=None,sep='\t')
     rows=json.loads(decay_path.read_text())
+    llp.decay_input_paths=[decay_path]
+    if name!='ALP-mixed':llp.decay_input_paths.append(ctau_path if 'Scalar' in name else root/f'ctau-{stem}.txt')
+    if name=='ALP-fermion':
+        llp.decay_input_paths.extend([root/'coupling.json',root/'exhad.json'])
     if name=='ALP-fermion':
         llp.coupling_metadata=coupling_conventions.load_coupling_metadata(str(root))
         labels,pdgs,brs,matrices=prepare_decay_rows(rows)

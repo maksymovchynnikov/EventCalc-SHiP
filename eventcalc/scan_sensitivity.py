@@ -22,13 +22,13 @@ def run(card, *, base=Path('.')):
         raise ValueError('parameters must be a strictly increasing positive grid matching ctau_m')
     from eventcalc.experiments.ship import ShipResponse
     experiment_card=card.get('experiment', {'name':'ship'})
-    name=experiment_card['name'].lower()
-    if name=='ship':
+    experiment_name=experiment_card['name'].lower()
+    if experiment_name=='ship':
         geometry = Geometry(**experiment_card.get('geometry',card.get('geometry',{}))) if ('geometry' in card or 'geometry' in experiment_card) else Geometry.ship()
         selected=experiment_card.get('selections',card.get('selections'))
         selections=tuple(Selection(**s) for s in selected) if selected is not None else ship_selections()
         experiment=ShipResponse(geometry,selections)
-    elif name=='na62':
+    elif experiment_name=='na62':
         if 'geometry' in card or 'selections' in card:
             raise ValueError('NA62 uses its named frozen response configuration')
         from eventcalc.experiments.na62 import NA62Response, NA62Config
@@ -69,6 +69,7 @@ def run(card, *, base=Path('.')):
             replica_seeds.append(seed)
             adapter=RuntimeDecayAdapter(config,mass=float(source.get('decay_mass_GeV',card['mass_GeV'])),seed=seed,
                 invisible_pdgs=source.get('invisible_pdgs',[12,14,16,18,4900101]))
+            input_hashes.update(adapter.input_hashes)
             return adapter.batches(sources[i].batches(events=source.get('events',131072),seed=seed,
                 chunk_size=source.get('chunk_size',4096)))
     elif source['kind'] == 'provider':
@@ -129,14 +130,15 @@ def run(card, *, base=Path('.')):
         code_sha256={p: hashlib.sha256(Path(__file__).with_name(p).read_bytes()).hexdigest()
                      for p in ('sensitivity.py', 'sensitivity_runtime.py', 'scan_sensitivity.py')})
     metadata['replica_seeds']=replica_seeds
-    if name=='na62':
+    if experiment_name=='na62':
         metadata['resolved_experiment_config']=asdict(experiment.config)
         metadata['response_scope']='Frozen truth-level lepton response and ideal-response hadronic projection; not full detector validation or an observed exclusion.'
     package=Path(__file__).resolve().parent
-    metadata['code_sha256'].update({str(p.relative_to(package)):hashlib.sha256(p.read_bytes()).hexdigest()
+    metadata['code_sha256'].update({str(p.relative_to(package.parent)):hashlib.sha256(p.read_bytes()).hexdigest()
         for p in [*package.joinpath('experiments').rglob('*.py'),*package.joinpath('experiments/data').glob('*.json'),
-                  package/'production/external.py',package/'decay_runtime.py',package.parent/'funcs/decay_tables.py']
-        if p.is_file() and p.is_relative_to(package)})
+                  package/'production/external.py',package/'decay_runtime.py',package/'transport.py',
+                  *(package.parent/'funcs'/p for p in ('decay_tables.py','initLLP.py','HNLmerging.py','inelastic_llp.py')),
+                  package.parent/'simulate.py'] if p.is_file()})
     return dict(parameters=parameters, ctau_m=ctaus, production_scales=scales,
                 events=events, integration_error_events=error), metadata
 

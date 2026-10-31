@@ -1,4 +1,5 @@
 """Existing conditional decay generators applied to independently supplied parents."""
+import hashlib
 import numpy as np
 from eventcalc.sensitivity import DecayBatch, charges_from_pdg
 
@@ -13,6 +14,8 @@ class RuntimeDecayAdapter:
         g.resolved_seed=int(seed)
         g.runtime=_load_runtime(headless=True)
         g.llp=_make_llp(g.runtime,config,decay_only=True)
+        self.input_hashes={str(p):hashlib.sha256(p.read_bytes()).hexdigest()
+                           for p in getattr(g.llp,'decay_input_paths',[]) if p.is_file()}
         if g.llp.LLP_name=='ALP-mixed':
             if not np.isfinite(mass) or mass<=0: raise ValueError('Positive finite mass required')
         else:

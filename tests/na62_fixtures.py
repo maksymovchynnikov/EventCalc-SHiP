@@ -7,5 +7,3 @@ def pack(events):
     ids=a[...,5].astype(np.int64)
     visible=~np.isin(np.abs(ids),[0,12,14,16,18,4900101,4900102])
     return a[...,:4],ids,visible,charges_from_pdg(ids,visible=visible)
-
-
