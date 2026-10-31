@@ -1,0 +1,52 @@
+{
+  "status": "raster_digitization_not_exact_experimental_card",
+  "source_pdf": "iterations\\iteration_03\\sources\\NA62_leptonic_2312.12055v2.pdf",
+  "source_sha256": "d9ead5b8b1c7dfc376f11fe6d2cc3f2ddad6294ff899d22484edf9d026139690",
+  "pdf_page": 3,
+  "figure": 2,
+  "xref": 31,
+  "image_size": [
+    3798,
+    2324
+  ],
+  "pixel_calibration": {
+    "z100_x": 461.0,
+    "z180_x": 3212.0,
+    "rho0_y": 1927.5,
+    "rho1_y": 85.0
+  },
+  "vertices_z_rho_m": [
+    [
+      104.98727735368956,
+      0.0
+    ],
+    [
+      104.98727735368956,
+      0.31744046091835004
+    ],
+    [
+      156.91021446746637,
+      0.5199131198888655
+    ],
+    [
+      156.91021446746637,
+      0.6508366912709835
+    ],
+    [
+      180.0,
+      0.7634948047323729
+    ]
+  ],
+  "accepted_side": "z between first and last boundary; rho below black contour",
+  "raster_resolution_estimate": {
+    "z_m": 0.35,
+    "rho_m": 0.007,
+    "meaning": "Conservative half-stroke/calibration envelope, not a statistical experimental uncertainty."
+  },
+  "coordinate_frame": "z nominal-target origin; rho from nominal detector z axis",
+  "not_included": [
+    "vertex resolution",
+    "residual FV magnetic field",
+    "reconstruction response"
+  ]
+}
