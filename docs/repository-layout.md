@@ -13,7 +13,6 @@ imports and data paths resolve consistently.
 | `Distributions/` | Compact production and decay inputs, grouped by physical model |
 | `cards/` | Model, geometry and sensitivity cards |
 | `examples/` | Short Python examples |
-| `tests/` | Unit tests and numerical validation scripts |
 | `docs/` | Detailed physics, usage and performance guides |
 
 ## Commands and Python interfaces

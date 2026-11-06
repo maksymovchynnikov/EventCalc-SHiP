@@ -23,13 +23,8 @@ plots/
 # exHad build-local record
 cpp/.pythia8-build
 
-# Research output kept beside the tests but not shipped with them
-tests/photon-files/
-tests/outputs/
-tests/*.pdf
-tests/*.csv
-tests/*summary.txt
-tests/dNevdEa-*.txt
+# Internal regression and diagnostic tests are not part of the public distribution.
+/tests/
 
 # Personal machine-specific launcher; documented Python commands are portable.
 /run_local.sh

@@ -15,7 +15,6 @@ Run the **toy** example from the repository root:
 
 ```sh
 python -m eventcalc.scan_sensitivity cards/sensitivity_example.json --output /tmp/toy-reach
-python -m unittest discover -s tests -p test_sensitivity.py -v
 ```
 
 Each job handles one mass and an entire parameter grid. Split a mass scan into
@@ -256,12 +255,6 @@ boundaries. A relative difference above 0.3% stops the scan; increase
 `--response-nodes` if this check fails. Above the continuum transition, identical
 endpoint variations are evaluated once. `--power`, `--decay-count`, `--replicas`
 and `--seed` control the numerical integration independently of the physics band.
-
-```sh
-python -m unittest discover -s tests -p test_production_bands.py -v
-python -m unittest discover -s tests -p test_na50.py -v
-python tests/validate_production_variations.py
-```
 
 Compact production tables contain the central prediction. A generic scan using
 those tables must receive additional physical variations to produce uncertainty

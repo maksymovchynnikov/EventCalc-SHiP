@@ -117,16 +117,3 @@ states. This command writes NumPy archives.
 The Python interface is `WeightedALPGenerator` from `eventcalc.weighted_runtime`.
 `HadronizationNormalization` accumulates a full sample; `export_weighted`
 writes normalized files. Separate masses require separate normalizations.
-
-## Check an installation
-
-```sh
-python -m unittest discover -s tests -p 'test_weighted_runtime.py' -v
-python tests/smoke_exhad.py --exhad-root "$EXHAD_ROOT" --events 100 \
-  --models ALP-fermion Scalar-mixing Dark-photons HNL --mass 3
-```
-
-The smoke command generates four samples and checks event labels and
-four-momentum conservation. Production and decay uncertainties are described
-with their respective physical calculations; a successful run alone does not
-validate those approximations.
