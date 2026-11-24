@@ -1,14 +1,14 @@
 {
     "schema_version": 1,
-    "installed_at": "2026-10-17",
+    "installed_at": "2026-11-24",
     "source": {
         "decay_json": "HNL-decay.json",
-        "decay_json_sha256": "bf7a5f7a52f00979e1c84b1c2c59ee2522c4b7313011ad496b77780b83ec5fea",
+        "decay_json_sha256": "da9fbf8d13924d6f6ee75e5d7f0baaee34c4c43c6d826f4d2061d6ee3bd441c6",
         "width_table": "HNLdecayWidth.dat",
-        "width_table_sha256": "77cf93693b478cdc30a730ffcd64a07e5d55c5d240d43636034c363e2266b096",
+        "width_table_sha256": "f7311dbf77105368ad8320251ccff51a8562aef300c3e9fce92e54db6ed535de",
         "notebook": "Phenomenology. HNLs_new_new_new.nb",
-        "notebook_sha256": "c2e590a1335bfdc2068ef38bbbff47e18f214683ff8479efcafe299da6d7146b",
-        "origin": "Exported from the HNL phenomenology notebook. Leptonic and partonic matrix elements use the generator's daughter masses (m1/m2/m3). The 88 branching-ratio grids and total-width table are unchanged. Charged-current conjugate rows are separate; together they carry the Majorana width. No radiative N -> nu gamma row is included."
+        "notebook_sha256": "1797d9ee21b3d424ffb6c62628f0b7b1d61b7a5f9ca2e30c902a535f214ff97e",
+        "origin": "Exported together from the HNL phenomenology notebook. Charged-current conjugate rows each carry one charge state; the charged rho contribution contains one CKM factor squared (arXiv:1805.08567, Eq. 3.8). Exclusive and inclusive currents use the recomputed matching masses. Matrix elements use the generator daughter masses m1/m2/m3. No radiative N -> nu gamma row is included."
     },
     "inventory": {
         "channels": 88,
@@ -32,7 +32,16 @@
         "persistent_poles": true,
         "conjugate_pairs": 36,
         "max_conjugate_branching_difference": 0.0,
-        "max_visible_width_closure_residual": 4.86e-16
+        "max_visible_width_closure_residual": 7.771561172376096e-16,
+        "charged_rho_single_charge_normalization": true,
+        "charged_rho_inputs": {
+            "reference": "arXiv:1805.08567, Eq. (3.8)",
+            "GF_GeV_minus2": 1.166379e-05,
+            "g_rho_GeV2": 0.162,
+            "m_rho_GeV": 0.77549,
+            "V_ud": 0.97373,
+            "charges_per_conjugate_row": 1
+        }
     },
     "scope": {
         "validated_rate_table": "0.0002--40 GeV",

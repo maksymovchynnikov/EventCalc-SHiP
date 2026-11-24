@@ -595,6 +595,46 @@ def _validate_visible_closure(
                     (mixing, mass, observed, expected))
 
 
+def _validate_charged_rho_normalization(
+    decay_rows: Sequence[Sequence[Any]],
+    width_rows: Sequence[Sequence[float]],
+) -> None:
+    """Check each charge against arXiv:1805.08567, Eq. (3.8).
+
+    Above the rho threshold the exclusive two-pion width uses the narrow-width
+    approximation. These are the constants used to generate the tables;
+    g_rho contains no CKM factor. Each conjugate row is one charge state.
+    """
+    rho_mass, g_rho, v_ud = 0.77549, 0.162, 0.97373
+    lepton_masses = (0.00051099891, 0.105658, 1.77684)
+    rows = {row[0]: row for row in decay_rows}
+    for mixing_index, (mixing, lepton_mass) in enumerate(
+            zip(MIXING_NAMES, lepton_masses)):
+        for suffix in ("", "bar"):
+            name = "2Pi" + mixing + suffix
+            checked = 0
+            for point_index, width_row in enumerate(width_rows):
+                mass = float(width_row[0])
+                branching = float(rows[name][2 + mixing_index][point_index][1])
+                if mass <= rho_mass + lepton_mass or branching == 0.0:
+                    continue
+                xl, xr = (lepton_mass / mass)**2, (rho_mass / mass)**2
+                phase = math.sqrt((1.0 - (rho_mass - lepton_mass)**2 / mass**2)
+                                  * (1.0 - (rho_mass + lepton_mass)**2 / mass**2))
+                expected = (FERMI_CONSTANT_GEV**2 * g_rho**2 * v_ud**2
+                            * mass**3 / (16.0 * math.pi * rho_mass**2)
+                            * ((1.0 - xl)**2 + xr * (1.0 + xl) - 2.0 * xr**2)
+                            * phase)
+                observed = branching * float(width_row[1 + mixing_index])
+                if not math.isclose(observed, expected, rel_tol=1.0e-7,
+                                    abs_tol=0.0):
+                    _fail("single-charge rho normalization fails for %s at m=%g: "
+                          "width/reference=%g" % (name, mass, observed / expected))
+                checked += 1
+            if checked == 0:
+                _fail("no on-shell rho normalization points for %s" % name)
+
+
 def load_validated_hnl_source(
     decay_json_path: str | Path,
     width_table_path: str | Path,
@@ -637,6 +677,7 @@ def load_validated_hnl_source(
     width_rows = read_width_rows(width_path)
     validate_width_rows(width_rows, mass_grid)
     _validate_visible_closure(decay_rows, width_rows)
+    _validate_charged_rho_normalization(decay_rows, width_rows)
     if selected_metadata is not None:
         _validate_metadata(metadata, selected_metadata,
                            decay_digest, width_digest, mass_grid)
