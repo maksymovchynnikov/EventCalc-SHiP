@@ -3,12 +3,12 @@
     "installed_at": "2026-10-17",
     "source": {
         "decay_json": "HNL-decay.json",
-        "decay_json_sha256": "bf7a5f7a52f00979e1c84b1c2c59ee2522c4b7313011ad496b77780b83ec5fea",
+        "decay_json_sha256": "ae5bcd8111e0096a6bc9e02261986c918ec35329e222c8f80752d97a299b26d7",
         "width_table": "HNLdecayWidth.dat",
-        "width_table_sha256": "77cf93693b478cdc30a730ffcd64a07e5d55c5d240d43636034c363e2266b096",
+        "width_table_sha256": "59d58b2389ae88ca00dc70f159f8d7af4d07d39ed24a8f8922b73ef72d04679f",
         "notebook": "Phenomenology. HNLs_new_new_new.nb",
         "notebook_sha256": "c2e590a1335bfdc2068ef38bbbff47e18f214683ff8479efcafe299da6d7146b",
-        "origin": "Exported from the HNL phenomenology notebook. Leptonic and partonic matrix elements use the generator's daughter masses (m1/m2/m3). The 88 branching-ratio grids and total-width table are unchanged. Charged-current conjugate rows are separate; together they carry the Majorana width. No radiative N -> nu gamma row is included."
+        "origin": "Exported from the HNL phenomenology notebook. Leptonic and partonic matrix elements use the generator's daughter masses (m1/m2/m3). The 88 branching-ratio grids and total-width table are unchanged. Charged-current conjugate rows are separate; together they carry the Majorana width. No radiative N -> nu gamma row is included. The 2Pi rows held both charge states each; they were halved and the u dbar charged-current matching redone (exHad tools/fix_hnl_two_pion.py)."
     },
     "inventory": {
         "channels": 88,
